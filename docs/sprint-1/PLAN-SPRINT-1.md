@@ -62,7 +62,7 @@ El Sprint 1 técnico se considera cerrado cuando:
 7. gitleaks no encuentra secretos en el historial.
 8. El árbol de trabajo queda commiteado.
 
-**Estado al 2026-11-15:** criterios 1–7 verificados en local. El criterio 8 se completa con el commit de este incremento. La ejecución del workflow en GitHub queda pendiente de que exista un remoto; no se declara CI verde.
+**Estado al 2026-11-15:** criterios 1–7 verificados en local; criterio 8 completado con el commit `afed0e0`. La ejecución del workflow en GitHub queda pendiente de que exista un remoto; no se declara CI verde.
 
 ## 5. Evidencia de ejecución
 
