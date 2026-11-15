@@ -4,7 +4,7 @@
 
 **Última actualización:** 2026-11-15 (retoma tras la sesión anterior de A)
 **Supabase nuevo localizado:** `PORTAL DE INVERSIONES` (`xzlwrlgjsdymcidlmqew`), vacío y sano; comprobaciones de solo lectura en `MODELO-DATOS.md` §15.
-**Estado:** SQL APLICADO EN SUPABASE (7 migraciones) y probado en parte, ver `MODELO-DATOS.md` §16. Sin commit.
+**Estado:** SQL APLICADO EN SUPABASE (9 migraciones); tenant, 2 fuentes y 1 documento real de Crédito Público cargados en borrador (MODELO-DATOS §18). Pendiente: decidir `coupon` en `rate_kind`, publicar tras revisión, cerrar T-SRC-01.
 
 ## Qué encontré al retomar (evidencia: `git status`, `git log`, diff, BANDEJA)
 

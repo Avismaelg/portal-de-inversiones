@@ -395,3 +395,7 @@ El script crea documento, instrumento, subasta y 6 evidencias con cita literal, 
 2. **Tipo de subasta:** «Extraordinaria Competitiva a Precio Único» se guardó como `extraordinary`; el enum no distingue extraordinaria de ordinaria competitiva a precio único (clave natural: instrumento + tipo + fecha + tasa).
 3. **Datos de ofertas recibidas/rechazadas** (RD$74 118,7 millones recibidos; 10,3090 % y 10,5273 % medios) no tienen columna: se conservan solo en `extracted_text`.
 4. **Autoridad de la fuente:** `legal_status = pending_review`, así que por el criterio de «fuente autorizada» (CONCILIACION §1.3 c) nada de esto podría llegar a `verified` por el verificador; por eso entra en `draft`.
+
+### 18.1 Carga ejecutada (2026-11-15)
+
+El propietario se registró por Supabase Auth: **primer registro real**, y el trigger `on_auth_user_created` lo creó como `viewer` en el tenant (prueba real del alta de usuarios, antes solo probada en transacciones revertidas). Se le asignó `platform_admin` con un `UPDATE` directo del administrador de la base (no con `app.set_user_role`, que exige un actor con JWT). Después se ejecutó `manual_load_credito_publico_2026-09-08.sql`: **1 documento** (`manual_upload`, `uploaded_by` = ese usuario), **1 instrumento**, **1 subasta** y **6 evidencias con `literal_verified = true`**, todo en `draft`. El documento se leyó de la fuente una sola vez; el texto extraído queda en la base y no es visible para lectores (`redistribution_allowed = false`). El email del usuario no se guarda en este repositorio.
