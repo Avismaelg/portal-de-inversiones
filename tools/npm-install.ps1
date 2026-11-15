@@ -13,6 +13,12 @@ param(
   [switch]$Dev
 )
 
+# Normalizar: acepta -Packages a,b y también -Packages "a,b" (invocación con -File).
+$Packages = @($Packages |
+  ForEach-Object { $_ -split ',' } |
+  ForEach-Object { $_.Trim() } |
+  Where-Object { $_ })
+
 $ErrorActionPreference = "Stop"
 
 $project = Split-Path -Parent $PSScriptRoot

@@ -9,10 +9,11 @@ Mercado inicial: República Dominicana. Expansión: internacional.
 2. `docs/CONTRATO-TRABAJO.md` — reparto entre las 2 ventanas y protocolo.
 3. `docs/sprint-0/AUDITORIA-ENTORNO.md` — estado real del entorno.
 4. `docs/requisitos/` — SRS y Plan Maestro (si existen; si no, no inventar).
+5. `docs/sprint-1/PLAN-SPRINT-1.md` — alcance, criterios y evidencia del Sprint 1.
 
-## Estado actual: Sprint 0
+## Estado actual: Sprint 1 — habilitadores técnicos
 
-**No se escribe código de producto.** Solo auditoría, requisitos, arquitectura, UX, backlog y plan de pruebas. Sprint 1 requiere aprobación explícita del usuario.
+Sprint 0 cerrado y G0 aprobado (2026-11-15). Sprint 1 autorizado para CI, pruebas, gitleaks y estructura de migraciones. **No hay proyecto Supabase todavía (B-003): no ejecutar SQL, no crear tablas y no afirmar RLS probado.** El código de producto del corte vertical espera Supabase. Evidencia en `docs/sprint-1/PLAN-SPRINT-1.md`.
 
 ## Reglas no negociables
 
@@ -41,17 +42,25 @@ Ninguna ventana edita archivos de la otra. Los conflictos los resuelve el usuari
 - Next.js 16.4.6 (App Router) + TypeScript + Tailwind CSS 4
 - Supabase (PostgreSQL, Auth, Storage, RLS)
 - Python 3.12 para pipelines ETL/ELT
-- Vitest para pruebas; Playwright se evaluará en Sprint 0
+- Vitest + Testing Library + Playwright + axe para pruebas
 - Sin microservicios en el MVP: monolito modular + workers asíncronos
 
 ## Comandos
 
 ```powershell
-npm run dev      # desarrollo
-npm run build    # build de producción
-npm run lint     # ESLint 9 (eslint.config.mjs)
-npm test         # Vitest (configurar en Sprint 1)
+npm run dev           # desarrollo
+npm run build         # build de producción
+npm run lint          # ESLint 9 (eslint.config.mjs)
+npm run typecheck     # next typegen + tsc --noEmit
+npm test              # Vitest (unitarias)
+npm run test:coverage # Vitest + cobertura v8
+npm run test:e2e      # Playwright + axe (requiere Chromium)
+npm run secret:scan   # gitleaks local
+npm run audit         # npm audit --audit-level=high
+npm run verify        # lint + tipos + coverage + build
 ```
+
+Playwright instala el navegador una vez: `npx playwright install chromium`. gitleaks se resuelve desde `C:\Users\User\.portal-tools\gitleaks\gitleaks.exe` o el `PATH`.
 
 ### Instalar dependencias (importante)
 
