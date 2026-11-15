@@ -97,10 +97,11 @@ El Sprint 1 técnico se considera cerrado cuando:
 | B-015 — sin anotadores | No hay golden sets |
 | B-016…B-019 | No se cierran migraciones definitivas |
 
-## 7. Siguiente incremento (cuando haya Supabase)
+## 7. Siguiente incremento
 
-1. Crear el proyecto nuevo y exclusivo.
-2. Partir `schema-propuesto.sql` en `0001_init`…`0004_views`.
-3. Ejecutar en rama y correr la suite RLS/P0.
-4. Conectar una única fuente: DGCP, tras `T-SRC-01`.
-5. Primer vertical slice con datos reales y revisión humana.
+1. Resolver B-016…B-019: publicación, seudonimización, columnas staff-only y `superseded`.
+2. Crear el proyecto Supabase nuevo y exclusivo; añadir `.env.local`.
+3. Partir `schema-propuesto.sql` en `0001_init`…`0004_views`.
+4. Ejecutar en rama y correr la suite RLS/P0.
+5. Conectar una única fuente: DGCP, tras `T-SRC-01`.
+6. Primer vertical slice con datos reales y revisión humana.
