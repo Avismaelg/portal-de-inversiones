@@ -58,3 +58,4 @@ Sin datos de negocio: solo los 11 sectores. Pruebas P0 ejecutadas en una transac
 **Alta de usuarios (migración 09):** cada registro en Auth crea su fila en `public.users` con rol `viewer` y en la **primera organización de tipo `tenant`** (MVP de una sola organización, G0 #13). Si no existe esa organización, **el registro falla a propósito**: hay que crearla antes del primer alta. El rol y los metadatos del cliente se ignoran; los roles superiores solo se asignan con `app.set_user_role`. Las versiones registradas por Supabase de las migraciones 08 y 09 pueden diferir en el número de versión de los nombres de archivo de este repositorio.
 
 **Suite de pruebas:** `supabase/tests/p0_suite.sql` (3 bloques, se revierten solos).
+| 20261115201000 | `rate_kind` gana el valor `coupon` (migración 10; un valor de enum no se puede quitar) |

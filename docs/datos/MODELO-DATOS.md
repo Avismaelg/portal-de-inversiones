@@ -399,3 +399,7 @@ El script crea documento, instrumento, subasta y 6 evidencias con cita literal, 
 ### 18.1 Carga ejecutada (2026-11-15)
 
 El propietario se registró por Supabase Auth: **primer registro real**, y el trigger `on_auth_user_created` lo creó como `viewer` en el tenant (prueba real del alta de usuarios, antes solo probada en transacciones revertidas). Se le asignó `platform_admin` con un `UPDATE` directo del administrador de la base (no con `app.set_user_role`, que exige un actor con JWT). Después se ejecutó `manual_load_credito_publico_2026-09-08.sql`: **1 documento** (`manual_upload`, `uploaded_by` = ese usuario), **1 instrumento**, **1 subasta** y **6 evidencias con `literal_verified = true`**, todo en `draft`. El documento se leyó de la fuente una sola vez; el texto extraído queda en la base y no es visible para lectores (`redistribution_allowed = false`). El email del usuario no se guarda en este repositorio.
+
+### 18.2 Cupón resuelto (2026-11-15)
+
+Decisión del propietario («sí»): se añadió `coupon` a `rate_kind` (migración 10; **irreversible** sin recrear el tipo). Se cargó el cupón de MH2-2041: `coupon_rate = 12.0`, `rate_kind = 'coupon'`, con evidencia literal `12.0000%` (7 evidencias literales en total). **Efecto en B:** RF-C-05 y los documentos de UX/QA hablan de tres tipos de tasa (indicativa, adjudicada, efectiva); ahora hay un cuarto valor en datos. El cupón es una condición del instrumento, no una tasa de mercado: la UI debe mostrarlo aparte y no mezclarlo en las series de tasas. Pendiente que B lo refleje.
