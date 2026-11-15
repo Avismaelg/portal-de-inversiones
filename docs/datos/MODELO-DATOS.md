@@ -273,3 +273,28 @@ Cambios en `schema-propuesto.sql` (editados a mano, **sin ejecutar**; detalle en
 Puntos **propuestos y no aplicados** (esperan decisión del usuario; agrupados en la tarea T-INF-11): DIS-02 (`verification_status` fuera de eventos), DIS-03 (documento por estado de proyecto), DIS-04 (fusión solo `platform_admin`), DIS-06 (visibilidad de `ingestion_jobs`), DIS-07 (última cuenta `platform_admin`), DIS-09 (vínculo permiso→proyecto inferido), DIS-10 (`rule_snapshot` en notificaciones). Además DIS-05 (retención de auditoría frente a historial visible) y DIS-08 (qué datos son "por organización").
 
 El conteo de entidades sigue siendo 23 (`grep`: 26 `CREATE TABLE` = 23 + 3 particiones).
+
+## 13. Ronda 4 (2026-11-15): guardia de publicación de eventos (P0)
+
+**Problema detectado.** B añadió CC-23 (todo evento no verificado al 100 % va a la cola de revisión y no es visible para `viewer`). El SQL solo tenía, para eventos, `CHECK (publication_status <> 'published' OR verification_status <> 'pending')`; la guardia con revisor humano existía únicamente para oportunidades.
+
+**Propuesta (editada a mano en `schema-propuesto.sql`; NO EJECUTADA, B-007):**
+
+| Elemento | Qué hace |
+|---|---|
+| Columnas nuevas en `economic_events` | `reviewed_by`, `reviewed_at`, `review_notes`, `released_at` |
+| `released_at` (no `published_at`) | La orden pedía `published_at`, pero en este modelo `published_at` es la **fecha de la fuente** (RF-A-06). La marca de publicación en la plataforma es `released_at`. También cierra el hueco de los KPI del dashboard (antes se usaba `detected_at` como proxy) |
+| `CHECK economic_events_p0_review` | Publicado y no `verified` ⇒ `reviewed_by` y `reviewed_at` no nulos |
+| `CHECK economic_events_released` | Publicado ⇒ `released_at` no nulo |
+| Trigger `economic_events_publish_guard` | `verified`: se publica sin revisor (también un worker). `partially_verified`/`disputed`/`unverifiable`: solo una persona con rol de gestión que figure como `reviewed_by`; un worker o `service_role` no puede. `pending`: nunca. Un evento ya publicado cuya verificación pasa a ≠ `verified` vuelve a `in_review` y a la cola. Los campos de revisión son inmutables una vez publicado |
+| Privilegios por columna | El personal no puede escribir `verification_status`, `released_at`, `reviewed_at` ni `trust_layer` en UPDATE; si pudiera, un analista marcaría `verified` y se saltaría la puerta |
+
+**Alertas:** el Alert Agent solo actúa sobre eventos publicados; un evento en cola no genera notificaciones (P0-11).
+
+**Conflicto detectado en los documentos de B (no lo resuelvo):** `INVENTARIO-PANTALLAS` AC-02-04 muestra en la lista un evento `disputed` con etiqueta "En disputa", mientras que CC-23 dice que un evento `disputed` no es visible para `viewer` hasta que un revisor lo publica. Conciliación posible y compatible con el SQL: un **revisor puede publicar a propósito un evento `disputed`** (P0-06) y entonces sí se muestra con la etiqueta y las dos fuentes. B debe confirmarlo.
+
+**Límites y decisiones abiertas:**
+- ¿Quién publica eventos no verificados: `analyst` o `opportunity_manager`+? Está como gestor (misma regla que oportunidades); cambiarlo es una línea.
+- Una persona puede insertar un `verification_records` de tipo `human_review` con resultado `verified` y publicar: no hay segunda persona. Si se quiere "doble llave", hay que restringir esa política. Pendiente de decisión.
+- `reviewed_by` referencia `users(id)` sin `ON DELETE`: no se puede borrar la cuenta de un revisor (choca con RNF-28). Falta decidir seudonimizar en lugar de borrar. Lo mismo ocurre ya con `investment_opportunities.reviewed_by`.
+- La guardia depende de que `verification_status` solo la escriba el verificador o un humano vía `verification_records`; las pruebas P0-01…P0-11 (al final del SQL) lo comprueban cuando se ejecuten (tarea T-INF-03).

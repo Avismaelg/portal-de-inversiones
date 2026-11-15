@@ -3,39 +3,42 @@
 > Actualizar al final de **cada** turno. Es la fuente que lee el orquestador.
 > No escribir aquí planes largos: solo estado. Los entregables van en sus archivos.
 
-**Última actualización:** 2026-11-15 (Ronda 3, tras G0)
-**Sprint:** 0 cerrado por G0 (`G0-ACTA.md`); Sprint 1 autorizado, con condiciones abiertas.
-**Estado:** DECISIONES DE G0 APLICADAS A LOS DOCUMENTOS DE A. Nada ejecutado: ni SQL, ni instalaciones, ni commit.
+**Última actualización:** 2026-11-15 (Ronda 4)
+**Sprint:** 0 cerrado por G0; Sprint 1 autorizado con condiciones abiertas.
+**Estado:** TRES CABOS CERRADOS EN DOCUMENTOS. Nada ejecutado: ni SQL, ni instalaciones, ni commit.
 
-## Hecho en este turno (Ronda 3)
+## Hecho en este turno (Ronda 4)
 
-- ADR: 0001, 0003, 0006, 0007 → ACEPTADO; 0004 → ACEPTADO condicionado a T-INF-01 y al Supabase nuevo; 0002 y 0005 → PENDIENTE. Solo estado y línea de resolución; contenido técnico intacto.
-- DM-03 aplicado: `opportunity_evidence` → `evidence` en `schema-propuesto.sql`, `MODELO-DATOS.md`, `ARQUITECTURA-MVP.md` y `SISTEMA-IA.md` (tabla, índices, políticas RLS, GRANT, ALTER, comentarios, diagrama). `opportunity_id` y `evidence_opp_idx` se mantienen. Nota de cabecera G0 #10 añadida al SQL. DM-03 y DM-01 marcadas "Aprobado en G0 #10"; DM-06 "Fuera del MVP — G0 #9".
-- `FUENTES-RD.md`: sección "Decisión G0 #7".
-- `SEGURIDAD-Y-CUMPLIMIENTO.md`: sección "Decisiones G0 aplicadas".
-- Comprobación: `grep`: `opportunity_evidence` solo queda como mención histórica (cabecera y 7.9 del SQL, fila DM-03 de MODELO-DATOS); en B-docs y PROMPT-MAESTRO no se toca; 26 `CREATE TABLE` (23 entidades + 3 particiones).
+1. **Crédito Público:** nota de conciliación G0 #5/#7 en `FUENTES-RD.md` y en `ARQUITECTURA-MVP.md` §14, presentada como conciliación (no decisión nueva): alcance de producto sí, conector no; entra por carga manual; único conector activable en Sprint 1 = DGCP tras T-SRC-01.
+2. **Backlog recalculado** (`backlog-tecnico.md` §10; filas marcadas en su sitio, sin borrar): T-AI-09 post-MVP; comparador fuera de T-WEB-06; T-ING-04/05/07 condicionadas; T-WEB-12 y T-SRC-09 Could; T-SRC-07/08 Should; T-ING-06 pasa a camino principal. **El total NO baja: 192,5 → 194,0 d (+0,8 %)**, porque los recortes retiran ≈ 5 d de este backlog y la carga manual principal + puerta P0 añaden ≈ 6,5 d. Base comprometible: 175 d (sin conectores condicionados ni Should/Could). Comparación con B (428 pts): el baseline 20–24 semanas solo es sostenible con 3 personas, o 2 personas a 24 semanas con ≈ 19 % de holgura; 2 personas × 20 semanas no cabe.
+3. **Guardia de publicación de eventos** (`schema-propuesto.sql`): columnas `reviewed_by/reviewed_at/review_notes/released_at`, CHECK `economic_events_p0_review` y `economic_events_released`, trigger `economic_events_publish_guard` (función `app.enforce_event_publication`), privilegios por columna sobre `economic_events` y pruebas de humo P0-01…P0-11 (comentadas al final del SQL; sumadas a T-INF-03). **Propuesto, no ejecutado (B-007).**
+4. **N provisional de DGCP = 5 años** `[PENDIENTE T-SRC-01]` con tabla de volumen (≈ 0,53 M filas de licitaciones+contratos, bajo un supuesto de reparto uniforme que es falso) y sugerencia de probar con ≈ 1,1 M filas.
+5. `MODELO-DATOS.md` §13 documenta la guardia y sus límites.
 
 ## NO verificado
 
-- El SQL (incluida la renombración) sigue sin ejecutarse en ningún Postgres (B-007). Renombrar con `sed` no garantiza que no haya roto nada: hay que ejecutarlo.
+- El SQL sigue sin ejecutarse (B-007). El trigger de eventos, las restricciones y los GRANT por columna están revisados solo a mano; un GRANT por columna mal puesto rompería la inserción de eventos desde la app.
+- Las cifras de N salen de la ficha de OCP y de un reparto uniforme por año; no hay medición.
 - Todo lo de Supabase, fuentes bloqueadas, normas legales y Next 16 sigue como antes.
-- Lo aprobado por G0 (abogado, herramientas, MFA, commit) **no está ejecutado**.
 
-## Bloqueos (condiciones abiertas de G0 §3)
+## Desviaciones respecto a la orden (explícitas)
 
-- Supabase nuevo y credenciales (B-003/G0 #2); proveedor LLM, clave y tope (B-011); abogado (B-009); equipo y dedicación (B-013); anotadores y revisores (B-015); contacto del `User-Agent` (SG-05); hosting (ADR-0005, B-012).
+- La orden pedía `published_at` en la guardia; en este modelo `published_at` es la **fecha de la fuente** (RF-A-06). Usé una columna nueva `released_at` (publicación en la plataforma).
+- Añadí privilegios por columna sobre `economic_events` (no pedido): sin ellos un analista podía marcar `verified` y saltarse P0.
 
-## Contradicción detectada en el acta (para el orquestador/usuario)
+## Bloqueos
 
-- El corte vertical del MVP (acta §2) es **DGCP + Crédito Público**, pero G0 #5 dice que **solo DGCP** se automatiza hasta contratar al abogado, y Crédito Público no tiene licencia explícita (FUENTES-RD F-03). Hasta decidir, A trata Crédito Público como **manual**. Opciones: (a) esperar al abogado para automatizarlo; (b) autorizar su automatización con riesgo asumido por el usuario; (c) cambiar el corte vertical. No se resuelve aquí.
+- Condiciones abiertas de G0 §3 (Supabase nuevo, proveedor LLM, abogado, equipo, anotadores, contacto del `User-Agent`, hosting) y B-007.
 
 ## Decisiones propuestas pendientes
 
-- Las de CONCILIACION §7 que G0 no cerró: DIS-02…DIS-08, criterio de "fuente autorizada", orden BCRD/Crédito Público, G2 con carga manual para B. Calendario: baseline 20–24 semanas con 2–3 personas aprobado; mi backlog (≈ 192,5 d) no se ha recalculado tras los recortes de G0 #9 (comparador, calculadora, vistas guardadas, CSV fuera): pendiente.
+- ¿Quién publica eventos no verificados: `analyst` o `opportunity_manager`+ (hoy gestor)? ¿Doble llave en `human_review`? ¿Seudonimizar al revisor en lugar de borrar su cuenta?
+- DIS-02…DIS-08 (CONCILIACION §2) siguen abiertas.
 
 ## Solicitudes a la Ventana B
 
-- Aplicar en sus archivos el cambio `evidence` y el alcance de G0 (yo no toco `producto`, `ux`, `qa`). Respuesta pendiente a mi entrada de las 20:00.
+- Confirmar el conflicto AC-02-04 (evento `disputed` visible en lista) frente a CC-23 y la salida propuesta (un revisor puede publicar un `disputed`).
+- Usar N = 5 provisional para dimensionar RNF-02/03 y aceptar que T-ING-04 queda condicionada.
 
 ## Solicitudes de cambio al contrato / alcance
 
@@ -43,6 +46,5 @@
 
 ## Próximo paso
 
-1. Usuario: Supabase nuevo, proveedor LLM, abogado, equipo, anotadores, contacto del `User-Agent`.
-2. A: recalcular `backlog-tecnico.md` con los recortes de G0 (T-AI-09 y T-WEB-12 salen del MVP; ya no hay vistas guardadas ni CSV) y definir N de histórico DGCP en T-SRC-01.
-3. Ejecutar T-INF-01/02 cuando exista el proyecto Supabase.
+1. Usuario: Supabase nuevo, abogado, equipo, proveedor LLM, anotadores, `User-Agent`.
+2. A: T-SRC-01 (fija N) y, con Supabase, T-INF-01/02/03 (ejecutar el SQL y las pruebas P0).

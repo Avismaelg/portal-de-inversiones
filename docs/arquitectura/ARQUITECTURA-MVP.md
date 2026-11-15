@@ -269,3 +269,16 @@ Las metas son las **propuestas de la Ventana B** (RNF-01…RNF-37). Desde la arq
 | Revisión humana | RF-F-11, RN-07 | `SISTEMA-IA.md` §7 |
 | Auditoría | RF-G-13, RNF-25 | `MODELO-DATOS.md` §8 |
 | RLS | RF-G-02, RNF-24 | `MODELO-DATOS.md` §7 |
+
+## 14. Nota de conciliación G0 #5 / #7 — conectores y carga manual (Ronda 4, 2026-11-15)
+
+No es una decisión nueva: concilia las decisiones 5 y 7 del acta (`G0-ACTA.md`).
+
+- «DGCP + Crédito Público» es el alcance **de producto** del corte vertical, no una autorización de conectores.
+- **Crédito Público entra por carga manual** (`ingest_method = 'manual_upload'`, mismo pipeline de la §6) hasta que el abogado autorice automatizarlo.
+- **El único conector activable en Sprint 1 es DGCP**, y solo tras T-SRC-01. En términos del esquema: ninguna fila de `sources` puede quedar `is_active = true` con `access_method <> 'manual'` salvo DGCP (restricción `sources_no_active_without_legal`).
+- Las demás fuentes y los módulos B, C-03 y E funcionan por carga manual con «cobertura pendiente» en la UI.
+
+### Guardia de publicación de eventos (P0, G0 #11a)
+
+El esquema propone para `economic_events` una guardia equivalente a la de oportunidades (`app.enforce_event_publication`, trigger `economic_events_publish_guard`; **propuesto, no ejecutado**, B-007): un evento 100 % `verified` puede publicarse sin revisor; cualquier otro estado solo lo publica una persona con rol de gestión, registrada como `reviewed_by`; `pending` nunca; y un evento publicado cuya verificación empeora vuelve a la cola. Detalle: `docs/datos/MODELO-DATOS.md` §12.

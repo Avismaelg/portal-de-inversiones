@@ -211,3 +211,26 @@ Aprobada por el usuario en `docs/sprint-0/G0-ACTA.md` (decisiones #7 y #8). Apli
 5. El **histórico de DGCP será de los últimos N años**; **N se define en T-SRC-01** (G0 #8). No se carga el histórico completo a ciegas.
 
 Matiz de A (no cambia la decisión): «licencia verificada» se refiere a la licencia ODbL declarada en la ficha de OCP; la verificación contra la fuente primaria (`datosabiertos.dgcp.gob.do`) sigue pendiente en T-SRC-01. El corte vertical del MVP aprobado es DGCP + Crédito Público; Crédito Público **no tiene licencia explícita** (ver F-03) y por G0 #5 su automatización espera al abogado, así que mientras tanto se trata como manual. Nada de esto está ejecutado: solo aprobado.
+
+## Nota de conciliación G0 #5 / #7 — Crédito Público (Ronda 4, 2026-11-15)
+
+No es una decisión nueva: es la lectura conjunta de las decisiones 5 y 7 del acta (`G0-ACTA.md`), según la aclaración del orquestador (`RONDA4-A.md` §1).
+
+- «DGCP + Crédito Público» (acta §2) es el alcance **de producto** del corte vertical, **no** una autorización de conectores.
+- **Crédito Público (F-03) entra con carga manual** (G0 #7) hasta que el abogado autorice su automatización (G0 #5): no declara licencia de reutilización.
+- **El único conector activable en Sprint 1 es DGCP**, y solo tras cerrar T-SRC-01.
+- Consecuencia práctica: T-ING-04 (conector de Crédito Público) queda bloqueada por T-PRE-05; mientras tanto se usa T-ING-06 (carga manual asistida).
+
+## Histórico DGCP — N provisional `[PENDIENTE T-SRC-01]` (Ronda 4)
+
+**No está decidido.** G0 #8 fija «últimos N años, con N definido tras T-SRC-01». Para que B pueda dimensionar el dataset de RNF-02/03 se propone **N = 5 años** (provisional). Cuentas calculadas por A a partir de la ficha de OCP (583 549 licitaciones y 646 180 contratos entre mar-2015 y sep-2026 ≈ 11,6 años); **asumen reparto uniforme por año, lo cual es falso y no está verificado**:
+
+| N | Licitaciones | Contratos | Total ≈ | % del histórico |
+|---|---|---|---|---|
+| 3 años | ≈ 151 000 | ≈ 167 000 | ≈ 0,32 M | ≈ 26 % |
+| **5 años (propuesto)** | ≈ 252 000 | ≈ 279 000 | **≈ 0,53 M** | ≈ 43 % |
+| Todo (11,6 años) | 583 549 | 646 180 | ≈ 1,23 M | 100 % |
+
+Razones de N = 5: (1) cubre más de un ciclo anual de compras y el período posterior a la pandemia; (2) acota el volumen de carga inicial y la memoria del worker (ADR-0005 sigue abierto); (3) basta para detectar patrones de proveedores y presupuestos recientes; (4) se amplía después sin rehacer nada (la carga es idempotente por `(source_id, external_id)`).
+Para dimensionar RNF-02/03 con holgura se sugiere probar con **≈ 1,1 M filas** en licitaciones+contratos (≈ 2× el volumen de N = 5, coherente con la prueba al doble de capacidad de B, RNF-04), más el dataset sintético de eventos. Ese 2× es una convención de prueba, no un pronóstico. Las filas de `organizations` (proveedores) y de documentos no están incluidas: OCP cuenta 1 714 573 «parties» **sin deduplicar**, y la cifra real de organizaciones únicas es desconocida.
+T-SRC-01 debe confirmar: reparto real por año, tamaño incremental y frecuencia de actualización, y fijar N.

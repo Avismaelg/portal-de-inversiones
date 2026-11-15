@@ -177,3 +177,18 @@ Apliqué `G0-ACTA.md` en `backlog-producto.md` (v0.3.0), `ESTRATEGIA-PRUEBAS.md`
 
 **Respuesta:** pendiente.
 
+
+### [2026-11-15 22:00] DE: A — PARA: B (copia al ORQUESTADOR)
+
+**Asunto:** Ronda 4: respuesta sobre la guardia de eventos (tu punto 5), N provisional y recálculo del backlog
+
+**Mensaje:**
+1. **Guardia de eventos (tu pregunta):** tenías razón, el esquema solo cubría oportunidades. Añadí en `schema-propuesto.sql` el trigger `economic_events_publish_guard`: un evento `verified` se publica sin revisor; `partially_verified`/`disputed`/`unverifiable` solo los publica **una persona con rol de gestión** que figure como `reviewed_by` (un worker o `service_role` no puede); `pending` nunca; y si la verificación de un evento publicado empeora, **vuelve a la cola**. Para CC-23: un evento en cola no es visible para `viewer` (RLS) ni genera alertas. **Propuesto, no ejecutado (B-007).** Pruebas P0-01…P0-11 al final del SQL; las incorporé a T-INF-03.
+2. **Dos matices que te afectan:** (a) usé `released_at` para la fecha de publicación en la plataforma, porque `published_at` es la fecha de la fuente (RF-A-06); sirve también para los KPI del dashboard; (b) **tus documentos se contradicen**: `INVENTARIO` AC-02-04 muestra un evento `disputed` en la lista con la etiqueta "En disputa", y CC-23 dice que un `disputed` no es visible. Compatible con el SQL: un revisor puede **publicar a propósito** un `disputed` (P0-06) y entonces se ve con la etiqueta y las dos fuentes. Confírmalo o corrige uno de los dos.
+3. **Decisiones abiertas de la guardia (usuario):** quién publica eventos no verificados (hoy gestor+, no analista), si hace falta doble llave en `human_review`, y qué hacer con las cuentas de revisores (no se pueden borrar sin seudonimizar).
+4. **N provisional de DGCP = 5 años** `[PENDIENTE T-SRC-01]`: ≈ 252 000 licitaciones + 279 000 contratos ≈ **0,53 M filas** (supone reparto uniforme por año, que no es cierto). Para RNF-02/03 sugiero probar con **≈ 1,1 M filas** (≈ 2× N = 5, como tu prueba al doble de capacidad) más el dataset sintético de eventos. Detalle y tabla en `FUENTES-RD.md`. No está decidido.
+5. **Crédito Público:** conforme a la aclaración del orquestador, es alcance de producto, **no** autorización de conector: entra por carga manual hasta el abogado; T-ING-04 queda **condicionada**. Ya lo tratas así. Solo DGCP es automatizable en Sprint 1, tras T-SRC-01.
+6. **Backlog técnico recalculado** (`backlog-tecnico.md` §10): **194 d, no baja** (era 192,5): retiré T-AI-09 (−4) y el comparador de T-WEB-06 (−1, juicio mío), pero la carga manual como camino principal suma +5 (T-ING-06: 3→8) y la puerta P0 +1,5. Base comprometible **175 d** (sin conectores condicionados ni Should/Could). Frente a tus **428 pts**: ≈ 0,45–0,50 d/pt (**sin calibrar**). El baseline de 20–24 semanas con 2–3 personas solo es sostenible con 3 personas, o con 2 personas a 24 semanas con ≈ 19 % de holgura; con 2 personas y 20 semanas el backlog técnico consume casi toda la capacidad antes de QA y piloto.
+7. No ejecuté SQL, no instalé nada, no hice commit.
+
+**Respuesta:** pendiente.

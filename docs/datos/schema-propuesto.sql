@@ -499,6 +499,11 @@ CREATE TABLE economic_events (
   verification_status verification_status NOT NULL DEFAULT 'pending',
   verification_reason text,
   verification_checked_at timestamptz,
+  -- Guardia de publicación P0 (G0 #11a; Ronda 4). PROPUESTO, NO EJECUTADO (B-007).
+  reviewed_by        uuid REFERENCES users(id),       -- revisor humano (ver nota de borrado de cuenta en MODELO-DATOS §12)
+  reviewed_at        timestamptz,
+  review_notes       text,
+  released_at        timestamptz,             -- cuándo se publicó EN LA PLATAFORMA (published_at es la fecha de la FUENTE, RF-A-06)
   publication_status publication_status NOT NULL DEFAULT 'draft',
   trust_layer        trust_layer NOT NULL DEFAULT 'ai_analysis',
   classification_confidence smallint CHECK (classification_confidence BETWEEN 0 AND 100),
@@ -512,7 +517,15 @@ CREATE TABLE economic_events (
   updated_at         timestamptz NOT NULL DEFAULT now(),
   CHECK (merged_into_id IS NULL OR merged_into_id <> id),
   -- Un evento publicado debe tener una decisión de verificación distinta de 'pending'.
-  CHECK (publication_status <> 'published' OR verification_status <> 'pending')
+  CHECK (publication_status <> 'published' OR verification_status <> 'pending'),
+  -- P0 (Ronda 4): publicado y no 100 % verificado => revisor humano registrado.
+  CONSTRAINT economic_events_p0_review CHECK (
+    publication_status <> 'published'
+    OR verification_status = 'verified'
+    OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL)
+  ),
+  CONSTRAINT economic_events_released CHECK (publication_status <> 'published' OR released_at IS NOT NULL),
+  CHECK ((reviewed_by IS NULL) = (reviewed_at IS NULL))
 );
 CREATE UNIQUE INDEX economic_events_dedup_uq ON economic_events (dedup_key) WHERE merged_into_id IS NULL;
 CREATE INDEX economic_events_fts_idx ON economic_events USING gin (search_vector);
@@ -522,6 +535,74 @@ CREATE INDEX economic_events_org_idx ON economic_events (organization_id);
 CREATE INDEX economic_events_loc_idx ON economic_events (location_id);
 CREATE TRIGGER economic_events_touch BEFORE UPDATE ON economic_events
   FOR EACH ROW EXECUTE FUNCTION app.touch_updated_at();
+
+-- Guardia de publicación de EVENTOS — puerta P0 (G0 #11a; B: CC-23). Ronda 4.
+-- PROPUESTO, NO EJECUTADO (B-007). Equivale a investment_opportunities_publish_guard.
+--   * 'verified' (100 % verificado): puede publicarse sin revisor humano (también un worker).
+--   * 'partially_verified' | 'disputed' | 'unverifiable': solo lo publica una PERSONA con
+--     rol de gestión (opportunity_manager+), que debe ser quien actúa (reviewed_by).
+--     Un worker o service_role NO puede (app.current_user_id() es NULL).
+--   * 'pending': nunca se publica (CHECK + mensaje explícito aquí).
+--   * Un evento ya publicado cuya verificación pasa a un estado distinto de 'verified'
+--     VUELVE A LA COLA ('in_review') y deja de ser visible para los lectores (RLS). Así una
+--     contradicción posterior no queda publicada y apply_verification() no falla.
+--   * Una vez publicado, reviewed_by/reviewed_at/released_at no se pueden alterar.
+-- [DECISIÓN pendiente] ¿Quién publica eventos no verificados: analyst o manager+? Aquí manager+
+-- (misma regla que oportunidades); cambiarlo es sustituir app.is_manager() por app.is_staff().
+CREATE FUNCTION app.enforce_event_publication() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_transition boolean;
+BEGIN
+  -- 1) Verificación que empeora sobre un evento publicado: vuelve a la cola.
+  IF TG_OP = 'UPDATE'
+     AND OLD.publication_status = 'published'
+     AND NEW.publication_status = 'published'
+     AND NEW.verification_status IS DISTINCT FROM OLD.verification_status
+     AND NEW.verification_status <> 'verified' THEN
+    NEW.publication_status := 'in_review';
+    NEW.released_at := NULL;
+  END IF;
+
+  IF NEW.publication_status <> 'published' THEN
+    RETURN NEW;
+  END IF;
+
+  v_transition := (TG_OP = 'INSERT') OR (OLD.publication_status IS DISTINCT FROM 'published');
+
+  -- 2) Ya estaba publicado y sigue igual: los campos de revisión son inmutables.
+  IF NOT v_transition THEN
+    IF NEW.reviewed_by IS DISTINCT FROM OLD.reviewed_by
+       OR NEW.reviewed_at IS DISTINCT FROM OLD.reviewed_at
+       OR NEW.released_at IS DISTINCT FROM OLD.released_at THEN
+      RAISE EXCEPTION 'review/release fields of a published event are immutable';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  -- 3) Transición a 'published'.
+  IF NEW.verification_status = 'pending' THEN
+    RAISE EXCEPTION 'an event with verification_status=pending can never be published';
+  END IF;
+
+  IF NEW.verification_status = 'verified' THEN
+    NEW.released_at := COALESCE(NEW.released_at, now());
+    RETURN NEW;                       -- 100 % verificado: sin revisor obligatorio
+  END IF;
+
+  IF app.current_user_id() IS NULL OR NOT app.is_manager() THEN
+    RAISE EXCEPTION 'publishing a non-verified event requires an authenticated human manager (P0)';
+  END IF;
+  IF NEW.reviewed_by IS DISTINCT FROM app.current_user_id() THEN
+    RAISE EXCEPTION 'reviewed_by must be the acting user';
+  END IF;
+  NEW.reviewed_at := now();
+  NEW.released_at := now();
+  RETURN NEW;
+END $$;
+CREATE TRIGGER economic_events_publish_guard
+  BEFORE INSERT OR UPDATE ON economic_events
+  FOR EACH ROW EXECUTE FUNCTION app.enforce_event_publication();
 
 -- 7.2 projects — Módulo B.
 CREATE TABLE projects (
@@ -1237,11 +1318,25 @@ GRANT SELECT (id, source_id, external_id, canonical_url, final_url, content_hash
   ON source_documents TO authenticated;
 
 -- Escritura por personal autorizado (RLS decide qué filas).
-GRANT INSERT, UPDATE ON organizations, economic_events, projects, permits, public_tenders, contracts,
+GRANT INSERT, UPDATE ON organizations, projects, permits, public_tenders, contracts,
                        financial_instruments, instrument_auctions, investment_opportunities,
                        evidence, entity_relationships
   TO authenticated;
 GRANT INSERT ON verification_records TO authenticated;      -- revisión humana
+
+-- economic_events: privilegios POR COLUMNA (Ronda 4). El personal NO puede escribir
+-- verification_status / verification_reason / verification_checked_at / released_at / reviewed_at /
+-- trust_layer / is_demo / dedup_key en UPDATE: los fijan el verificador (apply_verification, service_role)
+-- y el trigger de publicación. Sin esto, un analista podría marcar 'verified' y saltarse la puerta P0.
+-- Puede proponer la revisión (publication_status, reviewed_by, review_notes); el trigger decide.
+GRANT INSERT (title, summary, event_kind, primary_source_document_id, organization_id, sector_id,
+              location_id, occurred_at, published_at, timezone_assumed, classification_confidence,
+              dedup_key, trust_layer, is_demo)
+  ON economic_events TO authenticated;
+GRANT UPDATE (title, summary, event_kind, organization_id, sector_id, location_id, occurred_at,
+              published_at, timezone_assumed, classification_confidence, merged_into_id,
+              publication_status, reviewed_by, review_notes)
+  ON economic_events TO authenticated;
 
 -- users: lectura y actualización SOLO de columnas de perfil; "role" cambia por app.set_user_role().
 GRANT SELECT ON users TO authenticated;
@@ -1420,3 +1515,31 @@ COMMIT;
 --     WHERE n.nspname = 'public' AND c.relkind IN ('r','p') AND NOT c.relrowsecurity
 --       AND NOT c.relispartition;
 -- 3) Relaciones huérfanas:  SELECT * FROM app.orphan_relationships();
+
+-- =============================================================================
+-- Pruebas de humo de la guardia P0 de EVENTOS (Ronda 4) — PROPUESTAS, NO EJECUTADAS (B-007)
+-- Pertenecen a T-INF-03 (suite RLS/guardias) y alimentan CC-23 de B. Cada una indica el resultado
+-- ESPERADO; hasta ejecutarlas contra un Postgres de pruebas, ninguno está comprobado.
+-- Roles de prueba: service_role (worker), analyst, manager (opportunity_manager), viewer.
+-- -----------------------------------------------------------------------------
+-- P0-01 service_role INSERT evento con publication_status='published' y verification_status='partially_verified'
+--       -> ERROR "requires an authenticated human manager (P0)".
+-- P0-02 service_role INSERT evento 'published' con verification_status='verified'
+--       -> OK; released_at NOT NULL; reviewed_by NULL (no hace falta revisor).
+-- P0-03 service_role INSERT/UPDATE a 'published' con verification_status='pending'
+--       -> ERROR "can never be published".
+-- P0-04 analyst UPDATE publication_status='published' sobre un evento 'partially_verified'
+--       -> ERROR (no es gestor).
+-- P0-05 manager UPDATE publication_status='published', reviewed_by=<otro usuario> sobre 'disputed'
+--       -> ERROR "reviewed_by must be the acting user".
+-- P0-06 manager UPDATE publication_status='published', reviewed_by=<él mismo> sobre 'disputed'
+--       -> OK; reviewed_at y released_at asignados por el trigger; visible para viewer (con etiqueta "En disputa").
+-- P0-07 evento publicado y 'verified'; insertar verification_records(result='disputed')
+--       -> el evento pasa a publication_status='in_review', released_at NULL; viewer ya no lo ve;
+--          el INSERT del registro NO falla.
+-- P0-08 analyst UPDATE economic_events SET verification_status='verified' -> ERROR "permission denied for column".
+-- P0-09 evento publicado: UPDATE reviewed_by / reviewed_at / released_at -> ERROR "immutable".
+-- P0-10 viewer SELECT sobre eventos con publication_status<>'published' -> 0 filas (también con filtro explícito).
+-- P0-11 Alert Agent (service_role) no genera notificaciones para eventos no publicados (CC-23) -> 0 filas en notifications.
+-- Caso negativo (principio 3 de B): desactivar el trigger en una rama de prueba -> P0-01 y P0-04 deben FALLAR como prueba.
+-- =============================================================================
