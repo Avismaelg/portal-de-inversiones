@@ -8,7 +8,8 @@ const nextConfig: NextConfig = {
     // node_modules vive fuera del proyecto (junction a C:\Users\User\.portal-deps
     // para no sincronizar 400 MB en OneDrive). Turbopack necesita un root que
     // contenga tanto el proyecto como ese directorio.
-    root: "C:/Users/User",
+    // Solo en la máquina Windows del propietario (junction fuera de OneDrive). En CI (Linux) no se fija.
+    ...(process.platform === "win32" ? { root: "C:/Users/User" } : {}),
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],
