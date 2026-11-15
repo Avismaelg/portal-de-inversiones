@@ -234,3 +234,9 @@ No es una decisión nueva: es la lectura conjunta de las decisiones 5 y 7 del ac
 Razones de N = 5: (1) cubre más de un ciclo anual de compras y el período posterior a la pandemia; (2) acota el volumen de carga inicial y la memoria del worker (ADR-0005 sigue abierto); (3) basta para detectar patrones de proveedores y presupuestos recientes; (4) se amplía después sin rehacer nada (la carga es idempotente por `(source_id, external_id)`).
 Para dimensionar RNF-02/03 con holgura se sugiere probar con **≈ 1,1 M filas** en licitaciones+contratos (≈ 2× el volumen de N = 5, coherente con la prueba al doble de capacidad de B, RNF-04), más el dataset sintético de eventos. Ese 2× es una convención de prueba, no un pronóstico. Las filas de `organizations` (proveedores) y de documentos no están incluidas: OCP cuenta 1 714 573 «parties» **sin deduplicar**, y la cifra real de organizaciones únicas es desconocida.
 T-SRC-01 debe confirmar: reparto real por año, tamaño incremental y frecuencia de actualización, y fijar N.
+
+## T-SRC-01 — intento de verificación del nuevo host de DGCP (2026-11-15)
+
+Se consultó `https://datosabiertos.dgcp.gob.do/` (`/`, `/opendata`, `/opendata/tablas` y `/robots.txt`) con un lector de solo texto. Las 4 URL respondieron HTTP 200, pero el cuerpo es solo el título «Sistema de Información de Contrataciones Públicas» (54 caracteres); `/robots.txt` devuelve ese mismo HTML, no reglas. Probablemente la página se genera en el navegador con JavaScript, pero **no está confirmado**.
+
+**Resultado:** API, conjuntos descargables, frecuencia, licencia y reglas de `robots.txt` del host siguen `DESCONOCIDO — verificar`. **T-SRC-01 no se cierra** y N (5 años) sigue provisional. Hace falta ver la página en un navegador real (o la documentación del sitio) antes de activar el conector de DGCP.
