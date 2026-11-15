@@ -379,3 +379,19 @@ El esquema se aplicó al proyecto `PORTAL DE INVERSIONES` (`xzlwrlgjsdymcidlmqew
 - **Migración 09 — `app.handle_new_auth_user` + trigger `on_auth_user_created`:** cada fila nueva de `auth.users` crea su perfil en `users` con rol `viewer` en la primera organización `tenant`. Ignora los metadatos del cliente (probado: `{"role":"platform_admin"}` queda como `viewer`), tolera registros sin email, y **falla si no hay organización tenant**, para que no existan usuarios sin organización. Resuelve el hueco anotado en §16. Pendiente: crear la organización tenant (nombre legal por confirmar) y probar con un registro real por Supabase Auth.
 - **`supabase/tests/p0_suite.sql`:** bloques A (eventos), B (oportunidades, roles y vistas) y C (alta de usuarios). Se ejecutaron el 2026-11-15 y todos los resultados fueron los esperados. Cada bloque termina en `RAISE EXCEPTION` y no deja datos. Úsese después de cada migración.
 - **Comprobación de que no queda nada:** tras las ejecuciones, `users`, `economic_events` y `audit_logs` siguen en 0 filas.
+
+## 18. Primer corte vertical real (2026-11-15): tenant, fuentes y carga manual de Crédito Público
+
+**Cargado en Supabase (`xzlwrlgjsdymcidlmqew`):** 3 organizaciones (tenant `AviTech Solutions Group`; las instituciones `Dirección General de Crédito Público` bajo Hacienda y `DGCP`) y 2 fuentes: `credito_publico` (manual, activa, `legal_status = pending_review`, `redistribution_allowed = false`) y `dgcp_ocds` (bulk, **inactiva**: el conector no se activa hasta cerrar T-SRC-01). Nombre del tenant: propuesto por A y aceptado con «HAZLO»; **sin confirmación legal del nombre**.
+
+**Documento real preparado (no cargado):** `supabase/seed/manual_load_credito_publico_2026-09-08.sql`. Es el PDF oficial «Resultados de la Subasta Extraordinaria Competitiva a Precio Único» del 2026-09-08 (bono MH2-2041, ISIN DO1005254219). Se descargó a mano **una vez** de `creditopublico.gob.do`; SHA-256 `cb96e9d4…22e6`; copia local en `C:\Users\User\.portal-docs\credito_publico\` (fuera de OneDrive y del repositorio: la fuente no declara licencia de reutilización).
+Valores leídos del PDF: subasta 2026-09-08, liquidación 2026-09-11; vencimiento 2041-05-29; monto ofertado y adjudicado RD$20 000 000 000; tasa de adjudicación 9,9000 %; ofertas recibidas RD$74 118 700 000 al 10,3090 % medio; cupón 12,0000 %.
+El script crea documento, instrumento, subasta y 6 evidencias con cita literal, todo en `draft`.
+
+**Por qué no se ejecutó:** el esquema exige un **actor humano** en toda carga manual (`uploaded_by`) y todavía no existe ningún usuario (0 en `auth.users`). El script falla con un mensaje claro si no hay un `platform_admin` activo. **Se probó en seco** (usuario de prueba creado en la misma transacción y revertido): crea 1 documento, 1 instrumento, 1 subasta y 6 evidencias, todas con `literal_verified = true`.
+
+**Huecos del modelo detectados al usar datos reales:**
+1. **Cupón:** `rate_kind` solo admite `indicative`, `awarded` y `effective`; el cupón fijo de un bono (12,0000 %) no encaja en ninguno, así que **no se carga** (`coupon_rate` exige `rate_kind`). Hace falta decidir si se añade `coupon` al enum (valor que luego no se puede quitar).
+2. **Tipo de subasta:** «Extraordinaria Competitiva a Precio Único» se guardó como `extraordinary`; el enum no distingue extraordinaria de ordinaria competitiva a precio único (clave natural: instrumento + tipo + fecha + tasa).
+3. **Datos de ofertas recibidas/rechazadas** (RD$74 118,7 millones recibidos; 10,3090 % y 10,5273 % medios) no tienen columna: se conservan solo en `extracted_text`.
+4. **Autoridad de la fuente:** `legal_status = pending_review`, así que por el criterio de «fuente autorizada» (CONCILIACION §1.3 c) nada de esto podría llegar a `verified` por el verificador; por eso entra en `draft`.
