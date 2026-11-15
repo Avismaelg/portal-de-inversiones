@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **PROPUESTO** |
+| Estado | **ACEPTADO** — G0, 2026-11-15 |
 | Fecha | 2026-11-15 |
 | Autor | Ventana A |
 | Reversibilidad | La interfaz y los esquemas son reversibles; **publicar sin revisión humana, una vez hecho público, no se "deshace"** (daño reputacional/legal) — por eso es el valor por defecto conservador |
@@ -40,3 +40,7 @@ El PM exige: arquitectura independiente del proveedor, salidas estructuradas, tr
 ## Condiciones de revisión
 
 Tras cumplir RNF-19 (≤ 2 % de errores materiales) durante el período acordado y obtener visto bueno legal, reconsiderar la revisión por muestreo.
+
+## Resolución (G0, 2026-11-15)
+
+Aceptado en `docs/sprint-0/G0-ACTA.md` (decisiones #3, #4 y #11). G0 #11a: todo evento no verificado al 100 % pasa por cola de revisión humana (puerta P0). G0 #4: un solo proveedor de LLM al inicio y tope mensual bajo; proveedor, clave y cifra siguen pendientes del usuario. Anotadores y revisores sin designar (B-015).

@@ -323,7 +323,7 @@ Consecuencia técnica (no existe tarea en A): una vista o función de servidor q
 - **Postcondición:** Usuario llega al documento oficial sin intermediarios.
 - **Requisitos:** RF-D-01…RF-D-04, RF-D-10. **Pantalla:** SCR-05.
 
-### UC-08 — Comparar instrumentos (S)
+### UC-08 — Comparar instrumentos (**Post-MVP, G0 #9**)
 
 - **Actor:** Inversor, `analyst`.
 - **Objetivo:** Comparar instrumentos homogéneos.
@@ -332,7 +332,7 @@ Consecuencia técnica (no existe tarea en A): una vista o función de servidor q
 - **Postcondición:** Comparación trazable, sin suma indebida.
 - **Requisitos:** RF-C-04…RF-C-06, RF-C-08. **Pantalla:** SCR-06.
 
-### UC-09 — Calcular un rendimiento estimado (S)
+### UC-09 — Calcular un rendimiento estimado (**Post-MVP, G0 #9**)
 
 - **Actor:** Inversor, `analyst`.
 - **Objetivo:** Estimar un rendimiento bajo supuestos explícitos.
@@ -386,7 +386,7 @@ Consecuencia técnica (no existe tarea en A): una vista o función de servidor q
 - **Postcondición:** Usuario con rol efectivo y auditoría.
 - **Requisitos:** RF-G-02, RF-G-03, RF-G-13. **Pantalla:** SCR-14.
 
-### UC-15 — Exportar resultados (C, `[PENDIENTE ALCANCE]`)
+### UC-15 — Exportar resultados (**Post-MVP, G0 #13**)
 
 - **Actor:** `analyst`, gestor.
 - **Objetivo:** Llevar datos a una hoja de cálculo o informe.

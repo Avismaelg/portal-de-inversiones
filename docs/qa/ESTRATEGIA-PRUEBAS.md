@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Documento | `docs/qa/ESTRATEGIA-PRUEBAS.md` |
-| Versión | 0.1.0 (Sprint 0) |
+| Versión | 0.2.0 (Sprint 0, Ronda 3 — alineada con G0) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana B |
 | Estado | **BORRADOR PARA APROBACIÓN** |
@@ -83,7 +83,9 @@
 | Capturas en 4 anchos y 2 temas (RNF-31) | Nativo | Posible |
 | Peso en disco | Alto (navegadores) → instalar fuera de OneDrive | Variable |
 
-**Recomendación:** aprobar Playwright en Sprint 1. **Riesgo:** descarga de navegadores en una máquina con poco espacio/OneDrive; mitigar instalando en `C:\Users\User\.portal-deps` (mismo patrón que `node_modules`). `[PENDIENTE: aprobación del usuario]`.
+**Recomendación:** aprobar Playwright en Sprint 1. **Riesgo:** descarga de navegadores en una máquina con poco espacio/OneDrive; mitigar instalando en `C:\Users\User\.portal-deps` (mismo patrón que `node_modules`). Aprobada (G0 #12).
+
+> **Alcance tras G0.** Las pruebas `T-RF-C-06`, `T-RF-C-07`, `T-RF-G-05` y `T-RF-G-16` pertenecen a funciones **post-MVP** (G0 #9/#13): quedan `PLANIFICADA` pero **no** se ejecutan ni cuentan para el cierre del MVP. Los casos críticos no cambian salvo CC-09 (regla de monedas, que sigue como biblioteca de dominio) y el nuevo CC-23.
 
 ### 3.3 Herramientas por tipo de prueba
 
@@ -91,12 +93,12 @@
 |---|---|---|
 | Unitarias, integración | Vitest | Disponible |
 | Contrato de API/IA/conectores | Vitest + Zod (+ fixtures versionadas) | Disponible |
-| E2E, responsive, A11Y | Playwright + axe-core | `[PENDIENTE aprobación]` |
+| E2E, responsive, A11Y | Playwright + axe-core | Aprobada (G0 #12) |
 | RLS / autorización | Vitest con clientes por rol contra rama de Supabase | Depende de B-003 |
-| Seguridad | `npm audit`, gitleaks, ZAP, revisión manual (skill `security-audit` en Sprint 6) | `[PENDIENTE aprobación]` |
-| Carga | k6 | `[PENDIENTE aprobación]` |
+| Seguridad | `npm audit`, gitleaks, ZAP, revisión manual (skill `security-audit` en Sprint 6) | Aprobada (G0 #12) |
+| Carga | k6 | Aprobada (G0 #12) |
 | Evals de IA | Scripts Python/TS propios + golden sets versionados | A diseñar con Ventana A |
-| Lighthouse CI | Lighthouse CI | `[PENDIENTE aprobación]` |
+| Lighthouse CI | Lighthouse CI | Aprobada (G0 #12) |
 
 ---
 
@@ -156,7 +158,7 @@ El mapa completo (86 RF) está en `REQUISITOS-Y-TRAZABILIDAD.md` **Anexo B** (ID
 | CC-06 | Un proyecto con permiso solo “solicitado” nunca aparece como aprobado | Unitaria + E2E | RF-B-03/04 | AC-MVP-03; la transición sin documento es rechazada | Proyectos y permisos |
 | CC-07 | Licitación: fecha límite con zona, `closing_soon` y cierre correcto | Unitaria + E2E | RF-D-02, RN-09 | AC-MVP-04; fronteras (justo ±1 min de 72 h, cambio de día) | Licitaciones |
 | CC-08 | Instrumento sin confirmación: sin CTA de compra; tasa siempre con su tipo | E2E + revisión de textos | RF-C-05/12, RN-05 | AC-MVP-05 | Instrumentos |
-| CC-09 | Monedas distintas nunca se suman sin conversión con fuente (regla de la biblioteca de dominio: aplica a toda agregación; el comparador RF-C-06 la usa si se implementa) | Unitaria | RN-10, RNF-14, RF-C-06 | Suma bloqueada y avisada | Instrumentos |
+| CC-09 | Monedas distintas nunca se suman sin conversión con fuente (regla de la biblioteca de dominio: aplica a toda agregación; el comparador RF-C-06 es post-MVP por G0 #9) | Unitaria | RN-10, RNF-14, RF-C-06 | Suma bloqueada y avisada | Instrumentos |
 | CC-10 | Publicación de oportunidad bloqueada sin cita o con cifra sin cita | Unitaria + integración | RF-F-04/10, RN-06 | AC-MVP-06 | IA fundamentada |
 | CC-11 | Oportunidad no se genera desde evento `disputed`/`unverifiable` | Unitaria + integración | RF-F-01 | Intento rechazado y registrado | IA fundamentada |
 | CC-12 | Flujo de revisión humana: solo `opportunity_manager`+ publica; se registra revisor, fecha y modelo | E2E + seguridad | RF-F-11, RN-07, RN-12 | `analyst` recibe 403 al publicar | IA/seguridad |
@@ -170,6 +172,7 @@ El mapa completo (86 RF) está en `REQUISITOS-Y-TRAZABILIDAD.md` **Anexo B** (ID
 | CC-20 | Borrado de cuenta elimina datos personales y notas privadas | E2E + datos | RF-G-09, RNF-28 | Tras borrar, consultas por usuario = 0 (salvo auditoría anonimizada) | Privacidad |
 | CC-21 | Sin secretos en repo; escaneo bloqueante en CI | CI | RNF-26 | 0 hallazgos | Seguridad |
 | CC-22 | Restauración de backup dentro de RPO/RTO | Operación | RNF-09 | Acta con tiempos | Despliegue/operación |
+| CC-23 | **Puerta P0 (G0 #11):** todo evento no verificado al 100 % (`pending`, `partially_verified`, `disputed`, `unverifiable`) entra en la cola de revisión humana y **no** es visible para `viewer`; ningún worker lo publica | Integración + seguridad (RLS) | RF-A-11, RF-F-11, RN-07 | Dado un evento `partially_verified`, cuando termina la verificación, entonces queda en cola, no aparece en el radar ni genera alertas hasta que un revisor lo publica | IA/seguridad |
 
 **Criterio común:** el caso pasa si todos sus pasos pasan **y** su caso negativo (§1 principio 3) falla como se espera.
 
@@ -313,6 +316,7 @@ Suite GS-INJ (≥ 30 casos, crece con incidentes): instrucciones en el cuerpo de
 
 - Cola de revisión con muestreo ciego (rúbrica de 6 criterios: fidelidad, cita, cifras, capa, riesgos, lenguaje).
 - Cada rechazo registra etiqueta de error → alimenta GS y análisis de causas.
+- **Puerta P0 aprobada (G0 #11):** todo evento no verificado al 100 % pasa por la cola de revisión humana (CC-23). **Anotadores y revisores: `[PENDIENTE USUARIO]`**; sin ellos, la cola no tiene operadores y G-09 queda `NO CONCLUYENTE`.
 - **Relajar** la revisión humana (C-09) exige ≥ 3 meses consecutivos con RNF-19 concluyente y aprobación explícita del usuario.
 
 ---
@@ -324,7 +328,7 @@ Suite GS-INJ (≥ 30 casos, crece con incidentes): instrucciones en el cuerpo de
 | SEC-01 | Autenticación y autorización en 100 % de rutas/endpoints no públicos | RNF-23, UC-01/14 | Vitest + revisión de rutas | Cada PR |
 | SEC-RLS | Matriz rol × entidad × operación (select/insert/update/delete) | RNF-24, AC-MVP-13 | Vitest con clientes por rol contra rama Supabase | Cada PR que toque BD |
 | SEC-AUDIT | Acciones sensibles generan registro con actor, fecha, antes/después | RNF-25 | Integración | Cada PR |
-| SEC-SECRETS | 0 credenciales en repo y en historial | RNF-26 | gitleaks `[PENDIENTE aprobación]` | Cada PR |
+| SEC-SECRETS | 0 credenciales en repo y en historial | RNF-26 | gitleaks Aprobada (G0 #12) | Cada PR |
 | SEC-DEP | Dependencias sin vulnerabilidades críticas/altas abiertas > 7 días | RNF-23 | `npm audit` (+ revisión manual) | Semanal / PR |
 | SEC-INJ | SQLi/XSS: entradas hostiles en búsqueda, filtros, notas, campos extraídos mostrados | PM §10 | Vitest + E2E + ZAP | Cada release |
 | SEC-SSRF | Los conectores solo acceden a dominios de una lista blanca; sin acceso a IP privadas/metadata | PM §10 | Integración con servidor local simulado | Cada release |
@@ -440,7 +444,7 @@ El MVP **no** se declara terminado por sensación ni por porcentaje de tareas. S
 | G-19 | Datos demo etiquetados y excluidos de métricas (CC-16) | Informe |
 | G-20 | Aviso legal y revisión legal de RD completados para lo que se muestre (RNF-27) | Acta legal `[PENDIENTE LEGAL]` |
 | G-21 | Costo IA medido y dentro del tope aprobado (RNF-21) | Informe de costos |
-| G-22 | Todos los casos críticos CC-01…CC-22 en `PASA` en la **misma versión de código** que se lanzará | Informe de cierre |
+| G-22 | Todos los casos críticos CC-01…CC-23 en `PASA` en la **misma versión de código** que se lanzará | Informe de cierre |
 
 ### 13.2 Condiciones de bloqueo (cualquiera impide declarar “terminado”)
 
@@ -486,8 +490,8 @@ El MVP **no** se declara terminado por sensación ni por porcentaje de tareas. S
 
 | ID | Elemento | Estado |
 |---|---|---|
-| QA-D1 | Aprobación de Playwright, k6, gitleaks, ZAP, Lighthouse CI | `[PENDIENTE USUARIO]` |
-| QA-D2 | BD de pruebas (rama/proyecto Supabase) | **BLOQUEADA por B-003** |
+| QA-D1 | Playwright + axe, k6, gitleaks, `npm audit`, Dependabot, ZAP, Lighthouse CI | **Aprobadas en G0 #12**; instalar fuera de OneDrive con `tools\npm-install.ps1` |
+| QA-D2 | BD de pruebas (rama/proyecto Supabase) | Proyecto nuevo aprobado (G0 #2); **crearlo y aportar credenciales: `[PENDIENTE USUARIO]`** |
 | QA-D3 | Fuentes oficiales y licencias para fixtures y golden sets | `[PENDIENTE A]` |
 | QA-D4 | Esquemas de contrato (API, agentes, conectores) | `[PENDIENTE A]` |
 | QA-D5 | Anotadores humanos para golden sets (quién, con qué criterio) | `[PENDIENTE USUARIO]` |
@@ -506,4 +510,5 @@ El MVP **no** se declara terminado por sensación ni por porcentaje de tareas. S
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
+| 0.2.0 | 2026-11-15 | Ronda 3 (G0): herramientas aprobadas (G0 #12); CC-23 (puerta P0 de eventos); RF-C-06, RF-C-07, RF-G-05 y RF-G-16 post-MVP (sus T-RF no se ejecutan); QA-D1/D2/D5 actualizadas; anotadores y revisores `[PENDIENTE USUARIO]`. | Ventana B |
 | 0.1.0 | 2026-11-15 | Creación: pirámide, herramientas (con estado real), entornos, 22 casos críticos, calidad de datos, evals de IA con análisis de tamaños de muestra, seguridad, carga, A11Y, control de trazabilidad y definición de MVP terminado. | Ventana B |

@@ -3,12 +3,12 @@
 | Campo | Valor |
 |---|---|
 | Documento | `docs/ux/FICHAS-CLAVE.md` |
-| Versión | 0.2.0 (Sprint 0, Ronda 2) |
+| Versión | 0.3.0 (Sprint 0, Ronda 3) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana B |
 | Estado | **BORRADOR PARA APROBACIÓN** |
 | Fuentes | Prompt Maestro §4 (módulos A–F), §5, §9; `docs/ux/SISTEMA-DISENO.md` (capas, badges, componentes); `docs/producto/REQUISITOS-Y-TRAZABILIDAD.md` |
-| Dependencias | Ventana A: esquemas de `economic_events`, `projects`, `permits`, `public_tenders`, `financial_instruments`, `investment_opportunities`, `opportunity_evidence`, `verification_records`. **Ninguno validado aún** (`[PENDIENTE A]`). |
+| Dependencias | Ventana A: esquemas de `economic_events`, `projects`, `permits`, `public_tenders`, `financial_instruments`, `investment_opportunities`, `evidence`, `verification_records`. **Ninguno validado aún** (`[PENDIENTE A]`). |
 
 > **Cómo leer este documento.** Cada ficha especifica **qué se muestra, en qué orden y con qué garantías**. Los nombres de campo (`snake_case`) son propuestas alineadas con las entidades del Prompt Maestro §8; **no son el esquema**. Si la Ventana A cambia un campo, la ficha se ajusta, no al revés. Los ejemplos de pantalla son **ilustrativos** y usan marcadores `[EJEMPLO]`; no contienen datos reales.
 
@@ -142,7 +142,7 @@
 
 ## 2. Ficha de oportunidad
 
-**Entidad:** `investment_opportunities` + `opportunity_evidence`. **Pantalla:** SCR-07 (detalle). **Requisitos:** RF-F-01…RF-F-14.
+**Entidad:** `investment_opportunities` + `evidence`. **Pantalla:** SCR-07 (detalle). **Requisitos:** RF-F-01…RF-F-14.
 
 ### 2.1 Campos (los 11 del PM §4-F más metadatos)
 
@@ -465,7 +465,7 @@
 | `availability_status` (A: `not_confirmed` / `confirmed_by_source`) | Confirmado | Sí | Por defecto `not_confirmed` = “No confirmada”; `confirmed_by_source` exige documento (RF-C-12). |
 | `liquidity_info`, `risk_info` | Confirmado solo si la fuente lo declara | No | Sin ratings propios (RF-C-13). |
 | `calendar_events[]` (subastas, vencimientos) | Confirmado | Si existen | Con hora y zona (RF-C-09). |
-| `yield_estimate` | **`Cálculo`** (D-08, `[PENDIENTE]`) | No | Calculado por código determinista con supuestos visibles; `[PENDIENTE SRS V-05]`. |
+| `yield_estimate` | ~~`Cálculo`~~ **Post-MVP (G0 #9)** | — | No se muestra en el MVP: calculadora y capa `Cálculo` quedan fuera. |
 | `change_history[]` | Sistema | Sí | — |
 | `is_demo` | — | Sí | — |
 
@@ -475,7 +475,7 @@
 ┌───────────────────────────────────────────────────────────────────┐
 │ [Disponibilidad no confirmada]  [Tasa adjudicada]  [DEMO?]        │
 │ Nombre del instrumento (h1) · Emisor · Moneda                     │
-│                                         Guardar  Alerta  Comparar │
+│                                         Guardar  Alerta           │
 ├───────────────────────────────────────────────────────────────────┤
 │ ▌Confirmado                                                        │
 │   Tasa: [EJEMPLO]% · Tipo: Adjudicada · Fecha: …  [fuente ↗]      │
@@ -489,7 +489,7 @@
 │ Requisitos de participación → Ver requisitos en la fuente ↗       │
 │ Riesgos y liquidez (solo si la fuente los declara)                │
 ├───────────────────────────────────────────────────────────────────┤
-│ [Cálculo] Rendimiento estimado — supuestos visibles (si se aprueba)│
+│ (Rendimiento estimado: post-MVP, G0 #9)                            │
 ├───────────────────────────────────────────────────────────────────┤
 │ DisclaimerNote · Historial · Verificación                         │
 └───────────────────────────────────────────────────────────────────┘
@@ -522,8 +522,8 @@
 |---|---|---|
 | 1 | **Ver requisitos en la fuente** ↗ | Siempre (único “CTA transaccional” permitido) |
 | 2 | **Guardar** / **Avisarme de nuevas emisiones o vencimiento** | `viewer`+ |
-| 3 | **Comparar** (hasta 4) | Should (RF-C-06) |
-| 4 | **Calcular rendimiento** | Should; deshabilitado con motivo mientras V-05 siga abierta |
+| 3 | ~~Comparar~~ | **Post-MVP (G0 #9)** |
+| 4 | ~~Calcular rendimiento~~ | **Post-MVP (G0 #9)** |
 
 > **Prohibido** (RF-C-12, AC-UX-09): “Comprar”, “Invertir ahora”, “Suscribir”, “Mejor tasa”, “Recomendado”.
 
@@ -577,7 +577,7 @@
 | FK-04 | Umbral de “confianza baja” y metodología de la puntuación | `[PENDIENTE]` |
 | FK-05 | Política de conservación de documentos originales (licencia) para mostrar copia capturada | `[PENDIENTE A / LEGAL]` |
 | FK-06 | Redacción legal de `DisclaimerNote` | `[PENDIENTE LEGAL]` |
-| FK-07 | Aprobación de la etiqueta `Cálculo` (D-08) | `[PENDIENTE USUARIO]` |
+| FK-07 | Etiqueta `Cálculo` (D-08) | **Post-MVP (G0 #9)**: no se implementa |
 | FK-08 | Criterios de “oportunidad para PyME” | `[PENDIENTE SRS V-06]` |
 | FK-R1 | Riesgo: la ficha de oportunidad se percibe como recomendación | Mitigación: capa `Inferencia`, riesgos primero, sin CTA financiero. |
 | FK-R2 | Riesgo: estado de proyecto inflado por un registro | Mitigación: regla dura RF-B-04 + componente que exige documento. |
@@ -589,5 +589,6 @@
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
+| 0.3.0 | 2026-11-15 | Ronda 3 (G0): `opportunity_evidence` → `evidence` (G0 #10); comparador, calculadora y capa `Cálculo` marcados post-MVP en la ficha de instrumento (G0 #9). | Ventana B |
 | 0.2.0 | 2026-11-15 | Ronda 2: FC-06 historial por rol; FC-13 sin contenido íntegro de fuentes (de MODELO-DATOS §7.1). | Ventana B |
 | 0.1.0 | 2026-11-15 | Creación: 5 fichas (evento, oportunidad, proyecto/permiso, licitación, instrumento) con campos, jerarquía, fuente, evidencia, historial, verificación, CTA, estados vacíos y criterios de aceptación. | Ventana B |

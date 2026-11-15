@@ -3,47 +3,46 @@
 > Actualizar al final de **cada** turno. Es la fuente que lee el orquestador.
 > No escribir aquí planes largos: solo estado. Los entregables van en sus archivos.
 
-**Última actualización:** 2026-11-15 (Ronda 2)
-**Sprint:** 0
-**Estado:** ENTREGABLES REDACTADOS + CONCILIACIÓN CON B. Todo es propuesta; nada ejecutado ni validado.
+**Última actualización:** 2026-11-15 (Ronda 3, tras G0)
+**Sprint:** 0 cerrado por G0 (`G0-ACTA.md`); Sprint 1 autorizado, con condiciones abiertas.
+**Estado:** DECISIONES DE G0 APLICADAS A LOS DOCUMENTOS DE A. Nada ejecutado: ni SQL, ni instalaciones, ni commit.
 
-## Hecho en este turno (Ronda 2)
+## Hecho en este turno (Ronda 3)
 
-- Leídos completos los 6 documentos de B pedidos (PERSONAS, INVENTARIO, SISTEMA-DISENO, FICHAS-CLAVE, ESTRATEGIA-PRUEBAS, backlog-producto). De `REQUISITOS-Y-TRAZABILIDAD.md` solo leí 428 de 563 líneas (anexos sin leer).
-- Respondidos los 8 puntos de B y los 3 puntos de §4 de RONDA2-A (`CONCILIACION-A-B.md`).
-- 14 discrepancias documentadas (DIS-01…DIS-14); DIS-01 resuelta adoptando los criterios de B en `SISTEMA-IA.md`.
-- Tabla de conflicto de calendario (168,5 d → 192,5 d con habilitadores frente a 16 semanas/353 pts Must).
-- SQL corregido (a mano, sin ejecutar): RLS y REVOKE en las 3 particiones de `audit_logs`; `users_auth_fk` obligatorio y fail-closed; `timezone_assumed`; función `create_audit_partition`.
-- `grep`: 26 `CREATE TABLE` (23 entidades + 3 particiones), 27 `ENABLE ROW LEVEL SECURITY`.
+- ADR: 0001, 0003, 0006, 0007 → ACEPTADO; 0004 → ACEPTADO condicionado a T-INF-01 y al Supabase nuevo; 0002 y 0005 → PENDIENTE. Solo estado y línea de resolución; contenido técnico intacto.
+- DM-03 aplicado: `opportunity_evidence` → `evidence` en `schema-propuesto.sql`, `MODELO-DATOS.md`, `ARQUITECTURA-MVP.md` y `SISTEMA-IA.md` (tabla, índices, políticas RLS, GRANT, ALTER, comentarios, diagrama). `opportunity_id` y `evidence_opp_idx` se mantienen. Nota de cabecera G0 #10 añadida al SQL. DM-03 y DM-01 marcadas "Aprobado en G0 #10"; DM-06 "Fuera del MVP — G0 #9".
+- `FUENTES-RD.md`: sección "Decisión G0 #7".
+- `SEGURIDAD-Y-CUMPLIMIENTO.md`: sección "Decisiones G0 aplicadas".
+- Comprobación: `grep`: `opportunity_evidence` solo queda como mención histórica (cabecera y 7.9 del SQL, fila DM-03 de MODELO-DATOS); en B-docs y PROMPT-MAESTRO no se toca; 26 `CREATE TABLE` (23 entidades + 3 particiones).
 
 ## NO verificado
 
-- El SQL sigue sin ejecutarse en ningún Postgres (B-007). Los cambios de esta ronda tampoco.
-- Supabase, fuentes bloqueadas (SIMV, BVRD, Hacienda, CNE, datos.gob.do), normas legales de memoria, Next 16: igual que el turno anterior.
-- El factor 0,53 d/punto es ilustrativo (cociente de dos cifras sin calibrar), no una medición.
-- B no ha confirmado mi lectura de RNF-02/03 (dataset de prueba) ni los 8 puntos de la bandeja.
+- El SQL (incluida la renombración) sigue sin ejecutarse en ningún Postgres (B-007). Renombrar con `sed` no garantiza que no haya roto nada: hay que ejecutarlo.
+- Todo lo de Supabase, fuentes bloqueadas, normas legales y Next 16 sigue como antes.
+- Lo aprobado por G0 (abogado, herramientas, MFA, commit) **no está ejecutado**.
 
-## Bloqueos
+## Bloqueos (condiciones abiertas de G0 §3)
 
-- B-001…B-012 (míos y previos) siguen abiertos; B-013…B-015 los añadió B y los comparto (equipo, herramientas de prueba, anotadores).
+- Supabase nuevo y credenciales (B-003/G0 #2); proveedor LLM, clave y tope (B-011); abogado (B-009); equipo y dedicación (B-013); anotadores y revisores (B-015); contacto del `User-Agent` (SG-05); hosting (ADR-0005, B-012).
 
-## Decisiones propuestas (requieren aprobación del usuario)
+## Contradicción detectada en el acta (para el orquestador/usuario)
 
-- Previas: ADR-0001…0007; DM-01, DM-03; FD-01…05; SG-01…05.
-- Nuevas (CONCILIACION §7): equipo y calendario; DIS-02, 03, 04, 05, 06, 07, 08; criterio de "fuente autorizada"; orden BCRD/Crédito Público; volumen del dataset de prueba; G2 con carga manual para el Módulo B.
+- El corte vertical del MVP (acta §2) es **DGCP + Crédito Público**, pero G0 #5 dice que **solo DGCP** se automatiza hasta contratar al abogado, y Crédito Público no tiene licencia explícita (FUENTES-RD F-03). Hasta decidir, A trata Crédito Público como **manual**. Opciones: (a) esperar al abogado para automatizarlo; (b) autorizar su automatización con riesgo asumido por el usuario; (c) cambiar el corte vertical. No se resuelve aquí.
+
+## Decisiones propuestas pendientes
+
+- Las de CONCILIACION §7 que G0 no cerró: DIS-02…DIS-08, criterio de "fuente autorizada", orden BCRD/Crédito Público, G2 con carga manual para B. Calendario: baseline 20–24 semanas con 2–3 personas aprobado; mi backlog (≈ 192,5 d) no se ha recalculado tras los recortes de G0 #9 (comparador, calculadora, vistas guardadas, CSV fuera): pendiente.
 
 ## Solicitudes a la Ventana B
 
-- Confirmar que RNF-02/03 son dataset de prueba y considerar ≈ 1,2 M filas de licitaciones/contratos (DIS-11).
-- Corregir la inconsistencia interna sobre quién fusiona duplicados (PERSONAS §3.2 vs INVENTARIO AC-08-04) y reformular US-G-03/AC-10-03 (DIS-08).
-- Mover US-A-02/A-11 a S4–S5 y/o invertir BCRD↔Crédito Público (DIS-12, DIS-14); alinear G2 (DIS-13).
+- Aplicar en sus archivos el cambio `evidence` y el alcance de G0 (yo no toco `producto`, `ux`, `qa`). Respuesta pendiente a mi entrada de las 20:00.
 
 ## Solicitudes de cambio al contrato / alcance
 
-- Ninguna. Observación: `CONCILIACION-A-B.md` no figura en la lista de rutas de A del contrato; se creó por orden del orquestador (RONDA2-A §5).
+- Ninguna.
 
 ## Próximo paso
 
-1. El usuario decide equipo/calendario y las decisiones de CONCILIACION §7.
-2. Resolver B-003 (Supabase), T-PRE-05 (abogado) y ejecutar T-INF-01/02 para validar el SQL.
-3. Verificar fuentes bloqueadas desde un navegador real (T-SRC-01…09).
+1. Usuario: Supabase nuevo, proveedor LLM, abogado, equipo, anotadores, contacto del `User-Agent`.
+2. A: recalcular `backlog-tecnico.md` con los recortes de G0 (T-AI-09 y T-WEB-12 salen del MVP; ya no hay vistas guardadas ni CSV) y definir N de histórico DGCP en T-SRC-01.
+3. Ejecutar T-INF-01/02 cuando exista el proyecto Supabase.

@@ -99,7 +99,7 @@ Regla: si `quote` no aparece en `source_documents.extracted_text` (comparación 
 }
 ```
 
-Campos que **no** produce el modelo y añade el código: `literal_verified`, `quote_hash`, `ai_run_id` (columnas de `opportunity_evidence`).
+Campos que **no** produce el modelo y añade el código: `literal_verified`, `quote_hash`, `ai_run_id` (columnas de `evidence`).
 
 **Esquemas de agentes todavía NO escritos** (a completar en Sprint 1 junto a las pruebas de contrato): `ProjectCandidate`, `PermitCandidate`, `TenderCandidate`/`ContractCandidate` (estos dos vienen de OCDS estructurado y no pasan por LLM), `InstrumentCandidate`. Hoy existen solo: envoltorio (§3.1), `evidence`, `EventCandidate`, resultado de Discovery, `VerificationResult`, `OpportunityDraft` y `FinancialAnalysis`.
 
@@ -148,7 +148,7 @@ Salida (ejemplo; `result`):
 | Naturaleza | LLM con salida estructurada + validación de esquema + verificador literal |
 | Entradas | Texto de un `source_document` (troceado con solapamiento), tipo de fuente, catálogos (sectores, ubicaciones) |
 | Herramientas | **Ninguna con efectos.** Solo funciones puras de lectura (p. ej. buscar ubicación por nombre en el catálogo). El modelo no puede escribir en la base |
-| Salidas | `EventCandidate`, `ProjectCandidate`, `PermitCandidate`… (validados), `opportunity_evidence` con `literal_verified` |
+| Salidas | `EventCandidate`, `ProjectCandidate`, `PermitCandidate`… (validados), `evidence` con `literal_verified` |
 | Límites | Máx. tokens de entrada por documento `[PENDIENTE]`; máx. trozos por documento; presupuesto por documento (§9) |
 | Errores/reintentos | JSON inválido ⇒ 1 reintento con mensaje de error de esquema; 2.º fallo ⇒ `schema_invalid` y cola de revisión humana |
 | Idempotencia | `idempotency_key = sha256(document_hash ‖ prompt_version ‖ schema_version ‖ model)`; misma clave ⇒ se reutiliza el resultado |

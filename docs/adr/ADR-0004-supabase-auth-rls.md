@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **PROPUESTO** — condicionado a la prueba de humo T-INF-01 y a confirmar el proyecto (B-003) |
+| Estado | **ACEPTADO** — G0, 2026-11-15; condicionado a T-INF-01 y al proyecto Supabase nuevo (G0 #2a) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana A |
 | Reversibilidad | **Difícil** en Auth (identidades y JWT) y en RLS (políticas ligadas a `auth.*`); **moderada** en datos (Postgres estándar). Es la decisión con mayor acoplamiento |
@@ -41,3 +41,7 @@ El PM prefiere Supabase. **No se pudo verificar nada contra el proyecto real**: 
 ## Condiciones de revisión
 
 Si T-INF-01 revela que algo esencial no está disponible (p. ej. `BYPASSRLS`, extensiones, límites), reabrir.
+
+## Resolución (G0, 2026-11-15)
+
+Aceptado en `docs/sprint-0/G0-ACTA.md` (decisiones #2 y #3), **condicionado** a T-INF-01 y a un proyecto Supabase **nuevo y exclusivo** (G0 #2a; `ecmqmgpruxclmpnnpgzv` no se reutiliza). Hasta que ese proyecto exista y T-INF-01 se ejecute, ninguna afirmación sobre Supabase de este ADR está verificada.

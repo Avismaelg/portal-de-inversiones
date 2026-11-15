@@ -96,7 +96,7 @@ Módulos de dominio (carpetas previstas en Sprint 1; hoy **no existen**: `src/li
 | **C instrumentos** | Instrumentos, subastas, cálculo | `financial_instruments`, `instrument_auctions` | Mostrar "comprar" |
 | **D licitaciones** | Licitaciones y contratos | `public_tenders`, `contracts` | — |
 | **E expansión** | Empresas (organizaciones tipo `company`), relaciones | `entity_relationships` (empresas) | — |
-| **F oportunidades** | Oportunidades, evidencia, verificación | `investment_opportunities`, `opportunity_evidence`, `verification_records` | Publicar sin revisión humana |
+| **F oportunidades** | Oportunidades, evidencia, verificación | `investment_opportunities`, `evidence`, `verification_records` | Publicar sin revisión humana |
 | **ai** | Ejecuciones de agentes, trazabilidad | `ai_analysis_runs` | Escribir tablas de dominio saltándose validadores |
 | **alerts** | Preferencias, watchlists, notificaciones | `watchlists`, `user_alert_preferences`, `notifications` | — |
 

@@ -30,7 +30,7 @@ Las **23 entidades** del PM §8, ni una más ni una menos (verificado contando `
 | 11 | `financial_instruments` | C | Instrumentos |
 | 12 | `instrument_auctions` | C | Subastas y observaciones de tasa (historial) |
 | 13 | `investment_opportunities` | F | Oportunidades |
-| 14 | `opportunity_evidence` | F/A | Evidencia citada (generalizada, ver §3) |
+| 14 | `evidence` | F/A | Evidencia citada (generalizada, ver §3) |
 | 15 | `sectors` | ref | 11 categorías del PM |
 | 16 | `geographic_locations` | ref | Jerarquía geográfica |
 | 17 | `entity_relationships` | E | Aristas entre entidades |
@@ -53,12 +53,12 @@ erDiagram
     sources ||--o{ source_documents : yields
     ingestion_jobs ||--o{ source_documents : produces
     source_documents ||--o{ economic_events : "primary source"
-    source_documents ||--o{ opportunity_evidence : cited
+    source_documents ||--o{ evidence : cited
     economic_events ||--o{ investment_opportunities : originates
-    investment_opportunities ||--o{ opportunity_evidence : "supported by"
-    economic_events ||--o{ opportunity_evidence : "supported by"
+    investment_opportunities ||--o{ evidence : "supported by"
+    economic_events ||--o{ evidence : "supported by"
     projects ||--o{ permits : has
-    projects ||--o{ opportunity_evidence : "supported by"
+    projects ||--o{ evidence : "supported by"
     public_tenders ||--o{ contracts : awarded
     financial_instruments ||--o{ instrument_auctions : observed
     sectors ||--o{ economic_events : classifies
@@ -67,7 +67,7 @@ erDiagram
     users ||--o{ user_alert_preferences : owns
     users ||--o{ notifications : receives
     ai_analysis_runs ||--o{ economic_events : "produced by"
-    ai_analysis_runs ||--o{ opportunity_evidence : "produced by"
+    ai_analysis_runs ||--o{ evidence : "produced by"
     verification_records }o--|| economic_events : "polymorphic subject"
     entity_relationships }o--o{ organizations : "polymorphic ends"
 ```
@@ -78,12 +78,12 @@ erDiagram
 
 | ID | Decisión / riesgo | Detalle | Estado |
 |---|---|---|---|
-| DM-01 | **`organizations` mezcla tenant y empresas** | C-07 (B) pide `organizations` para empresas y C-12/RF-G-03 pide pertenencia de usuarios a una organización. Se resuelve con `org_type` (`tenant` vs. `company`/`government`/…) y un trigger que obliga a `users.organization_id` a ser `tenant`. **Riesgo:** una tabla con dos significados; una política mal escrita podría exponer tenants. Alternativa: separar `tenants`, pero eso sería la entidad 24. | **Pendiente de aprobación** |
+| DM-01 | **`organizations` mezcla tenant y empresas** | C-07 (B) pide `organizations` para empresas y C-12/RF-G-03 pide pertenencia de usuarios a una organización. Se resuelve con `org_type` (`tenant` vs. `company`/`government`/…) y un trigger que obliga a `users.organization_id` a ser `tenant`. **Riesgo:** una tabla con dos significados; una política mal escrita podría exponer tenants. Alternativa: separar `tenants`, pero eso sería la entidad 24. | **Aprobado en G0 #10** (2026-11-15) |
 | DM-02 | **Sin SRS** | Campos, enumeraciones y reglas derivan del PM y de los RF provisionales de B. | `[PENDIENTE SRS]` |
-| DM-03 | **`opportunity_evidence` se usa para todos los sujetos** | RF-A-05 exige evidencia por evento y RN-06 por cifra. El nombre del PM solo habla de oportunidades. Se mantiene el nombre y se añaden FK opcionales (exactamente una no nula). Propuesta: renombrar a `evidence` (no cambia el conteo de 23). | **Pendiente de aprobación** |
+| DM-03 | **`evidence` se usa para todos los sujetos** (antes `opportunity_evidence`) | RF-A-05 exige evidencia por evento y RN-06 por cifra; el nombre original del PM solo habla de oportunidades, por eso se renombra la tabla a `evidence` (no cambia el conteo de 23). La columna `opportunity_id` y el índice `evidence_opp_idx` se mantienen. | **Aprobado en G0 #10** — renombrar a evidence antes de ejecutar el SQL |
 | DM-04 | `instrument_auctions` guarda también `rate_observation` | Para el historial de tasas indicativas/efectivas sin crear otra tabla. El nombre es engañoso; la columna `auction_type` lo aclara. | Pendiente |
 | DM-05 | Un evento con `primary_source_document_id` + más fuentes en `entity_relationships`/evidencia | C-08 (B): hecho originador singular + secundarios. | Alineado con B, pendiente de aprobación |
-| DM-06 | Vistas guardadas de búsqueda (RF-G-05, Should) **no tienen tabla** | Requeriría la entidad 24. Se pospone. | `[PENDIENTE SRS]` |
+| DM-06 | Vistas guardadas de búsqueda (RF-G-05, Should) **no tienen tabla** | Requeriría la entidad 24. Se pospone. | **Fuera del MVP — G0 #9** (post-MVP; sin tabla) |
 | DM-07 | Datos de usuario y Auth | `users.id = auth.users.id` (FK comentada) | `[VERIFICAR Sprint 1]` |
 | DM-08 | Cobertura geográfica | Sin catálogo oficial de provincias/municipios cargado: se sembrará desde fuente oficial, no de memoria | `[PENDIENTE]` |
 
@@ -192,7 +192,7 @@ Leyenda: **S**=SELECT, **I**=INSERT, **U**=UPDATE, **D**=DELETE; `pub`=solo fila
 | `financial_instruments` | — | S pub | S/I/U | idem | idem | todo | Idem |
 | `instrument_auctions` | — | S pub | S/I/U | idem | idem | todo | Idem |
 | `investment_opportunities` | — | S pub | S/I/U sobre no publicadas | S/I/U **y publicar** | idem | todo (**no** publica) | RN-07: revisión humana |
-| `opportunity_evidence` | — | S si el sujeto está publicado | S/I/U | idem | idem | todo | Evidencia no debe filtrar borradores |
+| `evidence` | — | S si el sujeto está publicado | S/I/U | idem | idem | todo | Evidencia no debe filtrar borradores |
 | `sectors`, `geographic_locations` | — | S | S | S | S | todo | Referencia pública; escritura solo `service_role` |
 | `entity_relationships` | — | S pub | S/I/U | idem | idem | todo | Relaciones inferidas no publicadas no se muestran |
 | `watchlists` | — | S/I/U/D own | own | own | own | todo | Datos privados; ni los admins los leen |

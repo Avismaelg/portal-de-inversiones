@@ -1,3 +1,4 @@
+-- G0 #10 (2026-11-15): opportunity_evidence renombrada a evidence. No ejecutar el esquema anterior.
 -- =============================================================================
 -- AviTech Investment Intelligence — ESQUEMA PROPUESTO (Sprint 0)
 -- Ventana A · 2026-11-15 · versión 0.1.0
@@ -789,10 +790,10 @@ CREATE INDEX opportunities_fts_idx ON investment_opportunities USING gin (search
 CREATE TRIGGER investment_opportunities_touch BEFORE UPDATE ON investment_opportunities
   FOR EACH ROW EXECUTE FUNCTION app.touch_updated_at();
 
--- 7.9 opportunity_evidence — fragmentos de evidencia. Nombre del Prompt Maestro;
--- se generaliza a CUALQUIER sujeto (RF-A-05 exige evidencia por evento). Ver
--- MODELO-DATOS.md §3 (decisión DM-03: renombrar a "evidence" si el usuario lo aprueba).
-CREATE TABLE opportunity_evidence (
+-- 7.9 evidence — fragmentos de evidencia (antes "opportunity_evidence", nombre original del
+-- Prompt Maestro). Se generaliza a CUALQUIER sujeto (RF-A-05 exige evidencia por evento).
+-- Ver MODELO-DATOS.md §3 (DM-03, aprobado en G0 #10: renombrar a evidence).
+CREATE TABLE evidence (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   opportunity_id     uuid REFERENCES investment_opportunities(id) ON DELETE CASCADE,
   event_id           uuid REFERENCES economic_events(id)          ON DELETE CASCADE,
@@ -819,14 +820,14 @@ CREATE TABLE opportunity_evidence (
   ),
   CHECK (char_end IS NULL OR char_start IS NULL OR char_end > char_start)
 );
-CREATE UNIQUE INDEX opportunity_evidence_uq ON opportunity_evidence (
+CREATE UNIQUE INDEX evidence_uq ON evidence (
   COALESCE(opportunity_id, event_id, project_id, permit_id, tender_id, contract_id, instrument_id, auction_id),
   source_document_id, claim_field, quote_hash
 );
-CREATE INDEX evidence_opp_idx   ON opportunity_evidence (opportunity_id) WHERE opportunity_id IS NOT NULL;
-CREATE INDEX evidence_event_idx ON opportunity_evidence (event_id)       WHERE event_id IS NOT NULL;
-CREATE INDEX evidence_proj_idx  ON opportunity_evidence (project_id)     WHERE project_id IS NOT NULL;
-CREATE INDEX evidence_doc_idx   ON opportunity_evidence (source_document_id);
+CREATE INDEX evidence_opp_idx   ON evidence (opportunity_id) WHERE opportunity_id IS NOT NULL;
+CREATE INDEX evidence_event_idx ON evidence (event_id)       WHERE event_id IS NOT NULL;
+CREATE INDEX evidence_proj_idx  ON evidence (project_id)     WHERE project_id IS NOT NULL;
+CREATE INDEX evidence_doc_idx   ON evidence (source_document_id);
 
 -- 7.10 entity_relationships — aristas genéricas (empresa↔proyecto, evento↔sector, etc.).
 -- Polimórfica: NO tiene FK real; la integridad se vigila con app.orphan_relationships().
@@ -914,7 +915,7 @@ BEGIN
     RAISE EXCEPTION 'originating event must be verified or partially_verified';
   END IF;
   IF NOT EXISTS (
-    SELECT 1 FROM public.opportunity_evidence ev
+    SELECT 1 FROM public.evidence ev
      WHERE ev.opportunity_id = NEW.id AND ev.literal_verified
   ) THEN
     RAISE EXCEPTION 'at least one literally verified evidence is required';
@@ -1224,7 +1225,7 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;   -- identidad de a
 GRANT SELECT ON sectors, geographic_locations, organizations, sources,
                 economic_events, projects, permits, public_tenders, contracts,
                 financial_instruments, instrument_auctions, investment_opportunities,
-                opportunity_evidence, entity_relationships, verification_records
+                evidence, entity_relationships, verification_records
   TO authenticated;
 
 -- source_documents: sin extracted_text ni storage_path (se sirven desde el servidor
@@ -1238,7 +1239,7 @@ GRANT SELECT (id, source_id, external_id, canonical_url, final_url, content_hash
 -- Escritura por personal autorizado (RLS decide qué filas).
 GRANT INSERT, UPDATE ON organizations, economic_events, projects, permits, public_tenders, contracts,
                        financial_instruments, instrument_auctions, investment_opportunities,
-                       opportunity_evidence, entity_relationships
+                       evidence, entity_relationships
   TO authenticated;
 GRANT INSERT ON verification_records TO authenticated;      -- revisión humana
 
@@ -1272,7 +1273,7 @@ ALTER TABLE contracts                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE financial_instruments    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE instrument_auctions      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE investment_opportunities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE opportunity_evidence     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE evidence     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sectors                  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE geographic_locations     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE entity_relationships     ENABLE ROW LEVEL SECURITY;
@@ -1348,15 +1349,15 @@ CREATE POLICY opportunities_update ON investment_opportunities FOR UPDATE TO aut
   WITH CHECK (app.is_staff() AND (publication_status <> 'published' OR app.is_manager()));
 
 -- 12.6 Evidencia: visible si el sujeto está publicado; personal ve todo.
-CREATE POLICY evidence_select ON opportunity_evidence FOR SELECT TO authenticated
+CREATE POLICY evidence_select ON evidence FOR SELECT TO authenticated
   USING (
     app.is_staff()
     OR app.evidence_parent_published(opportunity_id, event_id, project_id, permit_id,
                                      tender_id, contract_id, instrument_id, auction_id)
   );
-CREATE POLICY evidence_insert ON opportunity_evidence FOR INSERT TO authenticated
+CREATE POLICY evidence_insert ON evidence FOR INSERT TO authenticated
   WITH CHECK (app.is_staff());
-CREATE POLICY evidence_update ON opportunity_evidence FOR UPDATE TO authenticated
+CREATE POLICY evidence_update ON evidence FOR UPDATE TO authenticated
   USING (app.is_staff()) WITH CHECK (app.is_staff());
 
 -- 12.7 Verificaciones: lectura si el sujeto está publicado o si es personal. Alta solo humana.

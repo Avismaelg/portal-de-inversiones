@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Documento | `docs/producto/REQUISITOS-Y-TRAZABILIDAD.md` |
-| Versión | 0.3.0 (Sprint 0, Ronda 2) |
+| Versión | 0.4.0 (Sprint 0, Ronda 3) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana B — Producto, UX, Requisitos y QA |
 | Estado | **BORRADOR PARA APROBACIÓN** — no sustituye a la SRS |
@@ -98,6 +98,22 @@
 | Traducción completa al inglés | El PM exige español para documentación; la UI nace es-DO. |
 
 ---
+
+### 2.4 Efecto de G0 (`G0-ACTA.md`, 2026-11-15)
+
+La matriz de §3 y el Anexo B **no se renumeran**: conservan los 86 RF provisionales (G0 #1, `[PENDIENTE SRS]`). El acta cambia el **estado de alcance** de estos requisitos y las reglas con las que se ejecutan los demás:
+
+| Requisito | Efecto | Decisión |
+|---|---|---|
+| RF-C-06 (comparador de instrumentos), RF-C-07 (calculadora), RF-G-05 (vistas guardadas), RF-G-16 (exportación CSV) | **Post-MVP**: no cuentan para el cierre del MVP; sus pruebas `T-RF-*` no se ejecutan | G0 #9, #13 |
+| Capa visual `Cálculo` (D-08) | **Post-MVP**; `trust_layer` no cambia | G0 #9 |
+| RF-B-* (todos), RF-C-03, RF-E-* | **Cobertura manual / “cobertura pendiente”** visible en la UI; solo se automatiza lo que verifiquen `T-SRC-04…06` | G0 #7 |
+| RF-C-01 (BCRD) y RF-C-02 (Crédito Público) | BCRD fuera del corte vertical; automatizar Crédito Público exige opinión legal (G0 #5); mientras, carga manual | G0 #5, #7 |
+| RF-D-01 (histórico) | Últimos **N** años, N definido en `T-SRC-01` | G0 #8 |
+| RF-A-11, RF-F-11 | Puerta P0: todo evento no verificado al 100 % pasa por cola de revisión (caso crítico CC-23) | G0 #11 |
+| RF-G-03, RF-G-08 | Una sola organización; alertas solo in-app; sin facturación | G0 #13 |
+
+Recuento del MVP tras G0: 82 historias (Must 65, Should 15, Could 2). El Anexo A se mantiene como recuento **antes de G0**.
 
 ## 3. Requisitos funcionales
 
@@ -449,6 +465,7 @@ La Ventana B puede registrar ADRs de producto/UX (Contrato §2). Estas decisione
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 2026-11-15 | Creación: 86 requisitos funcionales, 37 RNF, 12 reglas de negocio, 15 criterios de MVP, 15 contradicciones y 12 vacíos. | Ventana B |
+| 0.4.0 | 2026-11-15 | Ronda 3 (G0): §2.4 con el efecto del acta (Post-MVP, cobertura manual, histórico de N años, puerta P0); sin renumerar requisitos. | Ventana B |
 | 0.3.0 | 2026-11-15 | Ronda 2: RNF-02/03 aclaran que 100 000 eventos es dataset de prueba y que el histórico de DGCP puede multiplicarlo; sin otros cambios de alcance. | Ventana B |
 | 0.2.0 | 2026-11-15 | Revisión D-002: RF-B-04 pasa a US-B-04 (antes duplicaba US-B-03); AC-MVP-06 alineado con la matriz de roles (publica el gestor, no el analista); `closing_soon` definido (≤ 72 h, propuesto); C-15 cerrada. AC-MVP-07 desacoplado de RF-G-05 (Should). Conteos de Anexo A verificados por script (86 RF; 65/18/3). RNF-16 y RNF-19 reformulados con intervalo de confianza y tamaño de muestra (ver `docs/qa/ESTRATEGIA-PRUEBAS.md` §8.3). | Ventana B |
 

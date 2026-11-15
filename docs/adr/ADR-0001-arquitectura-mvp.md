@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **PROPUESTO** (requiere aprobación del usuario) |
+| Estado | **ACEPTADO** — G0, 2026-11-15 |
 | Fecha | 2026-11-15 |
 | Autor | Ventana A |
 | Reversibilidad | **Parcialmente reversible**: separar un módulo en servicio es posible si los límites se respetan; rehacer un monolito acoplado no |
@@ -40,3 +40,7 @@ Reabrir si una medición (RNF-02/04 de B) muestra que un módulo no cumple su ob
 ## Verificación
 
 Lint de imports falla ante una dependencia prohibida (T-INF-05); informe de carga (Fase 6).
+
+## Resolución (G0, 2026-11-15)
+
+Aceptado en `docs/sprint-0/G0-ACTA.md` (decisión #3). Sin cambios al contenido técnico.

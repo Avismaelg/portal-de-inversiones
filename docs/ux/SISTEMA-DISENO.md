@@ -425,7 +425,7 @@ Estados: sin evidencia (“Sin evidencia verificable”; sin botón de generar o
 | ID | Decisión | Alternativas | Motivo |
 |---|---|---|---|
 | D-01 (REQUISITOS §10) | Tres capas con icono + texto + patrón. | Solo color. | Accesibilidad y confianza. |
-| D-08 | Añadir etiqueta `Cálculo` para resultados deterministas. | Etiquetar como `confirmed`; etiquetar como IA. | Evita etiquetar mal un resultado; **requiere aprobación** porque amplía el vocabulario del PM. |
+| D-08 | **POST-MVP (G0 #9; no se implementa).** Añadir etiqueta `Cálculo` para resultados deterministas. | Etiquetar como `confirmed`; etiquetar como IA. | Evita etiquetar mal un resultado; **requiere aprobación** porque amplía el vocabulario del PM. |
 | D-09 | Rojo/verde reservados a estado del dato, nunca a variaciones de tasa. | Semáforo de tasas. | Evita que la UI parezca recomendar. |
 | D-10 | Modo oscuro con tokens propios y tema “Sistema” por defecto. | Solo claro; solo oscuro. | PM §9 exige ambos. |
 | D-11 | Paginación en tablas del MVP. | Scroll infinito. | Accesibilidad y simplicidad; se reevalúa tras la prueba de rendimiento. |

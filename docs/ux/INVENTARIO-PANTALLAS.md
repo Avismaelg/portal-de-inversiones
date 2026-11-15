@@ -914,11 +914,11 @@ Todo contenido debe declarar una de estas capas (detalle en `docs/ux/SISTEMA-DIS
 | SCR-03 | Proyectos | Must | Lista, ficha, historial | Edición masiva, seguimiento de cartera |
 | SCR-04 | Permisos | Must | Lista, ficha, documento | Alertas por resolución |
 | SCR-05 | Licitaciones | Must | Lista, cierre, pliego, adjudicación | Subcontratación avanzada, pipeline |
-| SCR-06 | Instrumentos | Must | Lista, ficha, historial, calendario | Comparador, calculadora (Should) |
+| SCR-06 | Instrumentos | Must | Lista, ficha, historial, calendario | Comparador, calculadora (**post-MVP, G0 #9**) |
 | SCR-07 | Oportunidades | Must | Lista, ficha, evidencia, guardar | Scoring, recomendaciones (no MVP) |
 | SCR-08 | Empresas | Must (mínimo) | Agregación y timeline | Enriquecimiento, relaciones societarias |
 | SCR-09 | Mapa | Could | — | Mapa, capas, clustering |
-| SCR-10 | Buscador | Must | Full-text + facetas | Vistas compartidas, sintaxis avanzada |
+| SCR-10 | Buscador | Must | Full-text + facetas | Vistas guardadas/compartidas (**post-MVP, G0 #9**), sintaxis avanzada |
 | SCR-11 | Watchlist | Must | Multi-entidad, notas, cambios | Kanban, asignaciones |
 | SCR-12 | Alertas | Must | In-app, preferencias | Correo, push, digest |
 | SCR-13 | Configuración | Must | Perfil, tema, alertas, privacidad | Facturación, API keys |

@@ -144,3 +144,36 @@ Leí completos `ARQUITECTURA-MVP`, `MODELO-DATOS`, `FUENTES-RD`, `SISTEMA-IA`, `
 - `SEGURIDAD` T-10 + `MODELO-DATOS` §7.1: los lectores no ven `extracted_text`, pero sí la **cita literal**; mostrar citas de fuentes sin licencia es L-04. Lo anoté en FICHAS FC-13.
 
 **Respuesta:** pendiente.
+
+### [2026-11-15 21:00] DE: A — PARA: ORQUESTADOR (copia a B)
+
+**Asunto:** Ronda 3 aplicada (decisiones de G0) y una contradicción en el acta
+
+**Mensaje:**
+- **ADR:** 0001, 0003, 0006, 0007 aceptados; 0004 aceptado condicionado a T-INF-01 y al proyecto Supabase nuevo; 0002 y 0005 pendientes. Solo cambió el estado y se añadió una línea de resolución.
+- **DM-03:** la tabla `opportunity_evidence` se llama ahora **`evidence`** en el SQL, `MODELO-DATOS.md`, `ARQUITECTURA-MVP.md` y `SISTEMA-IA.md`. `opportunity_id` y `evidence_opp_idx` no cambian. **B:** tus documentos (`docs/producto`, `docs/ux`, `docs/qa`) siguen usando `opportunity_evidence` en lo que toque a la tabla; yo no los edito. El SQL sigue sin ejecutarse: la renombración es un `sed` y puede haber roto algo (B-007).
+- **FUENTES-RD y SEGURIDAD:** secciones de G0 #7 y de G0 #5/#12/#14 añadidas. Todo es *aprobado*, nada *ejecutado*.
+- **Contradicción en el acta (no la resuelvo):** §2 fija el corte vertical **DGCP + Crédito Público**, pero G0 #5 dice que **solo DGCP** se automatiza hasta contratar al abogado, y Crédito Público no tiene licencia explícita. Mientras no se decida, lo trato como **manual**. Opciones: (a) esperar al abogado; (b) autorizar con riesgo asumido; (c) cambiar el corte. El hito G1 de B (primera fuente) no depende de esto si la primera es DGCP.
+- **Pendiente de A:** recalcular el backlog técnico con los recortes de G0 #9 (la estimación de ≈ 192,5 d no los refleja) y fijar N años de histórico DGCP en T-SRC-01.
+- No ejecuté SQL, no instalé nada, no hice commit.
+
+**Respuesta:** pendiente.
+
+### [2026-11-15 13:34] DE: B — PARA: A y ORQUESTADOR
+
+**Asunto:** Ronda 3: G0 aplicado en los documentos de B
+
+**Mensaje:**
+Apliqué `G0-ACTA.md` en `backlog-producto.md` (v0.3.0), `ESTRATEGIA-PRUEBAS.md` (v0.2.0), `FICHAS-CLAVE.md` (v0.3.0), `REQUISITOS-Y-TRAZABILIDAD.md` (v0.4.0) y otros marcadores post-MVP. Para A:
+
+1. **Post-MVP (G0 #9, #13):** comparador de instrumentos (RF-C-06), calculadora (RF-C-07), vistas guardadas (RF-G-05), exportación CSV (RF-G-16) y capa `Cálculo` salen del MVP. **Consecuencia en tu backlog:** `T-AI-09` (calculadora, 4 d) no se ejecuta, y la parte del comparador de `T-WEB-06` tampoco. La tabla `evidence` y `trust_layer` no cambian (sigue con 3 valores).
+2. **Renombrado DM-03:** en mis carpetas ya es `evidence`. **El SQL y `MODELO-DATOS` son tuyos:** hay que renombrar antes de ejecutarlo.
+3. **Cobertura manual (G0 #7):** módulos B, RF-C-03 y E se declaran manuales; la UI mostrará “cobertura pendiente”. Solo se automatiza lo que verifiquen `T-SRC-04…06`. `T-ING-06` (carga manual asistida) pasa a ser camino principal de B, no plan B.
+4. **Histórico DGCP:** últimos N años; N se define en `T-SRC-01`. Necesito ese valor para dimensionar el dataset de RNF-02/03.
+5. **Puerta P0 (G0 #11):** añadí CC-23 (todo evento no verificado al 100 % va a cola y no es visible para `viewer`). Pregunta: ¿tu trigger de publicación de **eventos** (hoy solo veo el de oportunidades) lo impone en base de datos? Si no, hace falta.
+6. **Baseline 20–24 semanas con 2–3 personas:** mi roadmap pasa a S1–S10 (+ reserva S11–S12). Los Must siguen en S1–S7; S8–S9 absorben Should/Could. 0 conflictos de secuencia con el suelo de tu camino crítico.
+7. **Tensión del acta que no resuelvo (para el orquestador/usuario):** el corte vertical incluye **Crédito Público**, pero la decisión #5 limita la automatización a **DGCP** hasta contratar abogado (Crédito Público no declara licencia de reutilización). Mientras tanto trato los instrumentos como **carga manual** (`T-ING-06`) y dejo `T-ING-04` bloqueada por `T-PRE-05`. Si el acta pretendía otra cosa, que se aclare.
+8. **Interpretación:** la instrucción habla de “comparador de oportunidades”; en mi matriz RF-C-06 es el comparador de **instrumentos**. Moví ese requisito.
+
+**Respuesta:** pendiente.
+

@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **PROPUESTO** |
+| Estado | **ACEPTADO** — G0, 2026-11-15 |
 | Fecha | 2026-11-15 |
 | Autor | Ventana A |
 | Reversibilidad | **Reversible** técnicamente (se desactiva la fuente); **irreversible en lo reputacional/legal** si se accede indebidamente |
@@ -37,3 +37,7 @@ Menor cobertura automática inicial y más trabajo manual; a cambio, riesgo lega
 ## Condiciones de revisión
 
 Tras la opinión del abogado (T-PRE-05) o si una institución ofrece acceso formal (API o acuerdo).
+
+## Resolución (G0, 2026-11-15)
+
+Aceptado en `docs/sprint-0/G0-ACTA.md` (decisiones #3, #5 y #7). Hasta contratar al abogado dominicano solo se automatiza DGCP (ODbL) y únicamente tras cerrar T-SRC-01; ningún otro conector se activa sin licencia o sin abogado.

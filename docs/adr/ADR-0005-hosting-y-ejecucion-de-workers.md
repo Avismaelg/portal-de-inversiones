@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **ABIERTO — requiere decisión del usuario.** No hay recomendación firme: faltan datos |
+| Estado | **PENDIENTE** — decidir antes de T-INF-08 (G0 #3) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana A |
 | Reversibilidad | **Moderada**: depende de cuánto se use de funciones propias de la plataforma |
@@ -31,3 +31,7 @@ Condiciona: rate limiting (en serverless el contador en memoria no sirve), gesti
 ## Recomendación provisional
 
 Sin datos, la opción 2 es la más probable para workers de larga duración, pero **no la recomiendo todavía**: hace falta medir primero el bulk real y confirmar el presupuesto. Decidir antes de T-INF-08 (entornos).
+
+## Resolución (G0, 2026-11-15)
+
+Sigue **PENDIENTE** (`docs/sprint-0/G0-ACTA.md`, decisión #3): se decide antes de T-INF-08. Sin recomendación firme todavía.

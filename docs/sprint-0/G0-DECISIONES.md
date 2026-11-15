@@ -1,3 +1,5 @@
+> **CERRADO el 2026-11-15.** Las 14 decisiones fueron aprobadas. La resolución vinculante está en `G0-ACTA.md`.
+
 # G0 — Decisiones que debe tomar el usuario antes de Sprint 1
 
 Ventana B · 2026-11-15 · Fuente: `backlog-producto.md` §4.4–§7, `backlog-tecnico.md` (T-PRE, SG), `FUENTES-RD.md`, `MODELO-DATOS.md` §3. Las recomendaciones son de B; **no cambian alcance hasta que decidas**. Sin G0 aprobado no hay Sprint 1.

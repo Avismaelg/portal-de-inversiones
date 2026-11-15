@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **PROPUESTO** |
+| Estado | **ACEPTADO** — G0, 2026-11-15 |
 | Fecha | 2026-11-15 |
 | Autor | Ventana A |
 | Reversibilidad | **Reversible** si el acceso se encapsula en una interfaz `JobQueue` |
@@ -34,3 +34,7 @@ Usar la tabla `ingestion_jobs` como cola: reclamo con `SELECT … FOR UPDATE SKI
 ## Condiciones de revisión
 
 Migrar si el tiempo de reclamo p95 supera `[umbral a definir]` o si los jobs encolados por minuto superan el valor medido en T-INF-09.
+
+## Resolución (G0, 2026-11-15)
+
+Aceptado en `docs/sprint-0/G0-ACTA.md` (decisión #3). Sin cambios al contenido técnico.

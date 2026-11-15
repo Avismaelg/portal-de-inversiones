@@ -239,3 +239,16 @@ Responsables y canal de contacto: `[PENDIENTE]`.
 | SG-03 | Proveedor de hosting (condiciona rate limiting, egress y secretos) | Decidir en ADR-0005 |
 | SG-04 | ¿Se aprueba `gitleaks`/`npm audit`/Dependabot? | Sí (cada herramienta, con aprobación) |
 | SG-05 | Contacto institucional para el `User-Agent` de los conectores | Definir |
+
+## Decisiones G0 aplicadas (2026-11-15)
+
+Fuente: `docs/sprint-0/G0-ACTA.md` (decisiones #5, #12 y #14). **Aprobadas, no ejecutadas**: no se ha contratado al abogado, no se ha instalado ninguna herramienta y no existe `.env.local` ni commit.
+
+| G0 | Decisión | Qué implica |
+|---|---|---|
+| #5 | **Abogado dominicano contratado** antes de activar fuentes sin licencia y antes de G5 | Responde L-01…L-12 de §7. Hasta entonces solo se automatiza DGCP (ODbL), tras T-SRC-01 |
+| #12 | **Herramientas aprobadas:** gitleaks, `npm audit`, Dependabot, Playwright + axe, k6, OWASP ZAP y Lighthouse CI | Instalación **fuera de OneDrive** (patrón `tools\npm-install.ps1` / `C:\Users\User\.portal-deps`). Cada instalación sigue siendo una acción de Sprint 1 y se registra |
+| #14 | **MFA para administradores**, **`.env.local` para secretos** y **primer commit tras revisión de secretos** | Cierra SG-02. El primer commit exige antes revisar secretos (T-PRE-04) |
+| #14 | **Contacto del `User-Agent`** pendiente (**SG-05**) | Bloquea T-ING-01 hasta que el usuario lo defina |
+
+Recordatorio: **no se afirma que nada de esto esté ejecutado; solo aprobado.** Las pruebas de seguridad de §10 siguen en estado planificado y el SQL con RLS no se ha probado (B-007).

@@ -34,6 +34,8 @@
 
 Incluye: radar de eventos, proyectos y permisos con carga manual asistida, licitaciones, watchlist, alertas in-app y oportunidades con revisión humana.
 
+**Interpretación de cierre (orquestador, 2026-11-15):** «DGCP + Crédito Público» es alcance **de producto**, no autorización de conectores. Crédito Público entra con **carga manual** (G0 #7) hasta que el abogado autorice su automatización (G0 #5). El único conector que puede activarse en Sprint 1 es DGCP, y solo tras cerrar `T-SRC-01`. Esta interpretación no amplía el alcance aprobado: concilia las decisiones 5 y 7.
+
 **Excluido del MVP:** comparador, calculadora de inversión, búsquedas/vistas guardadas, capa `Cálculo`, alertas por correo, facturación, multi-tenant y exportación CSV.
 
 ---

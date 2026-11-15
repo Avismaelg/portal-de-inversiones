@@ -199,3 +199,15 @@ Prompt Maestro §6 incluye "Instituciones responsables de proyectos públicos". 
 ## 15. Fuentes internacionales (expansión posterior — fuera de Sprint 0)
 
 SEC EDGAR, USAspending.gov, Federal Reserve: **no verificadas en esta sesión**; se evaluarán en una fase posterior.
+
+## Decisión G0 #7 (2026-11-15)
+
+Aprobada por el usuario en `docs/sprint-0/G0-ACTA.md` (decisiones #7 y #8). Aplica sin ambigüedad:
+
+1. Los módulos con fuentes no verificadas — **B** (permisos y proyectos), **C-03** (mercado de valores) y **E** (expansión empresarial) — y las fuentes **F-05 a F-09** (CNE, SIMV, BVRD, ProDominicana, `datos.gob.do`) se declaran **cobertura manual**.
+2. La UI debe mostrar **«cobertura pendiente»** en esos módulos; no se presentan como cubiertos.
+3. **Solo se automatiza lo que verifiquen T-SRC-04…06** (MIMARENA, CNE, SIMV). Mientras no se verifiquen, esas fuentes operan por procedimiento manual (T-ING-06).
+4. **DGCP es la única fuente con licencia verificada (ODbL)**, y su conector **no se activa hasta cerrar T-SRC-01**. Ningún otro conector se activa sin licencia o sin abogado (G0 #5).
+5. El **histórico de DGCP será de los últimos N años**; **N se define en T-SRC-01** (G0 #8). No se carga el histórico completo a ciegas.
+
+Matiz de A (no cambia la decisión): «licencia verificada» se refiere a la licencia ODbL declarada en la ficha de OCP; la verificación contra la fuente primaria (`datosabiertos.dgcp.gob.do`) sigue pendiente en T-SRC-01. El corte vertical del MVP aprobado es DGCP + Crédito Público; Crédito Público **no tiene licencia explícita** (ver F-03) y por G0 #5 su automatización espera al abogado, así que mientras tanto se trata como manual. Nada de esto está ejecutado: solo aprobado.

@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **PROPUESTO — NO APROBADO.** El orquestador indicó que los workers en Python "quedan como propuesta en ADR; no es una decisión aprobada todavía" (BANDEJA, D-001/D-002) |
+| Estado | **PENDIENTE** — experimento en Sprint 1 antes de decidir (G0 #3) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana A |
 | Reversibilidad | **Reversible con coste moderado** mientras los contratos (esquemas JSON y SQL) sean independientes del lenguaje |
@@ -33,3 +33,7 @@ Se necesita: gestión de dependencias Python (el entorno actual no tiene `uv`/`p
 ## Condiciones de revisión
 
 Si el experimento no muestra ventaja clara de Python, preferir B (menos piezas).
+
+## Resolución (G0, 2026-11-15)
+
+Sigue **PENDIENTE** (`docs/sprint-0/G0-ACTA.md`, decisión #3): se decide tras el experimento de Sprint 1 descrito arriba. No se construye nada que dependa del lenguaje antes.
