@@ -1,0 +1,382 @@
+-- =============================================================================
+-- Suite P0 (guardias, RLS y privilegios) — AviTech Investment Intelligence
+-- Consolidada el 2026-11-15 a partir de los scripts ejecutados contra Supabase
+-- `xzlwrlgjsdymcidlmqew`. NO modifica nada: cada bloque DO termina con un
+-- RAISE EXCEPTION que revierte la transacción y devuelve el informe en el mensaje.
+--
+-- Uso: ejecutar CADA bloque DO por separado (SQL Editor o MCP execute_sql) en un
+-- entorno de pruebas con el esquema aplicado. El resultado aparece como un error
+-- "RESULTADOS (revertido)". Compara cada línea con el texto "esperado".
+-- Requisitos: ejecutar como `postgres` (puede hacer SET ROLE y escribir en auth.users).
+-- Estado: los bloques A, B y C se ejecutaron el 2026-11-15 con el esquema de las migraciones 01–09 y dieron el resultado esperado en todas las líneas (los textos de A y B se pegaron con comentarios abreviados; la lógica es la misma);
+-- una ejecución del archivo íntegro desde cero queda pendiente (no hay psql ni CLI en esta máquina; se ejecuta con el MCP o el SQL Editor).
+-- =============================================================================
+
+-- ------------------------------ BLOQUE A: eventos ----------------------------
+DO $$
+DECLARE
+  res text := '';
+  tn uuid := '00000000-0000-0000-0000-0000000000a1';
+  m  uuid := '00000000-0000-0000-0000-0000000000b1';
+  a  uuid := '00000000-0000-0000-0000-0000000000b2';
+  v  uuid := '00000000-0000-0000-0000-0000000000b3';
+  s  uuid := '00000000-0000-0000-0000-0000000000c1';
+  d  uuid := '00000000-0000-0000-0000-0000000000c2';
+  e2 uuid; e3 uuid; n int; st text;
+BEGIN
+  -- El trigger on_auth_user_created (migración 09) crea la fila de users; por eso la
+  -- organización tenant debe existir ANTES de insertar en auth.users, y se actualiza el rol después.
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn,'tenant','Tenant de prueba');
+  INSERT INTO auth.users (id, email) VALUES (m,'m@test.invalid'),(a,'a@test.invalid'),(v,'v@test.invalid');
+  UPDATE users SET role = 'opportunity_manager' WHERE id = m;
+  UPDATE users SET role = 'analyst' WHERE id = a;
+  INSERT INTO sources (id, code, name, base_url, allowed_hosts, access_method) VALUES (s,'test_src','Fuente de prueba','https://example.invalid',ARRAY['example.invalid'],'manual');
+  INSERT INTO source_documents (id, source_id, canonical_url, content_hash) VALUES (d, s, 'https://example.invalid/d', repeat('b',64));
+
+  BEGIN
+    INSERT INTO economic_events (title, primary_source_document_id, dedup_key, verification_status, publication_status)
+    VALUES ('E-p0-01', d, repeat('1',64), 'partially_verified', 'published');
+    res := res || E'P0-01 INESPERADO: se publicó\n';
+  EXCEPTION WHEN others THEN res := res || 'P0-01 OK (esperado error de gestor humano): ' || SQLERRM || E'\n'; END;
+
+  INSERT INTO economic_events (title, primary_source_document_id, dedup_key, verification_status, publication_status)
+  VALUES ('E-p0-02', d, repeat('2',64), 'verified', 'published') RETURNING id INTO e2;
+  SELECT (released_at IS NOT NULL)::text || '/reviewed_by=' || coalesce(reviewed_by::text,'NULL') INTO st FROM economic_events WHERE id = e2;
+  res := res || 'P0-02 (esperado true/reviewed_by=NULL): ' || st || E'\n';
+
+  BEGIN
+    INSERT INTO economic_events (title, primary_source_document_id, dedup_key, verification_status, publication_status)
+    VALUES ('E-p0-03', d, repeat('3',64), 'pending', 'published');
+    res := res || E'P0-03 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'P0-03 OK (esperado: pending nunca se publica): ' || SQLERRM || E'\n'; END;
+
+  INSERT INTO economic_events (title, primary_source_document_id, dedup_key, verification_status, publication_status)
+  VALUES ('E-p0-04', d, repeat('4',64), 'partially_verified', 'in_review') RETURNING id INTO e3;
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE economic_events SET publication_status='published', reviewed_by=a WHERE id = e3;
+    GET DIAGNOSTICS n = ROW_COUNT;
+    RESET ROLE;
+    res := res || 'P0-04 INESPERADO: filas=' || n || E'\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-04 OK (esperado: analista no publica): ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE economic_events SET publication_status='published', reviewed_by=a WHERE id = e3;
+    RESET ROLE;
+    res := res || E'P0-05 INESPERADO\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-05 OK (esperado: reviewed_by debe ser quien actúa): ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE economic_events SET publication_status='published', reviewed_by=m WHERE id = e3;
+    GET DIAGNOSTICS n = ROW_COUNT;
+    RESET ROLE;
+    SELECT publisher_role::text || '/released=' || (released_at IS NOT NULL) || '/reviewed_at=' || (reviewed_at IS NOT NULL) INTO st FROM economic_events WHERE id = e3;
+    res := res || 'P0-06 (esperado filas=1 opportunity_manager/released=true/reviewed_at=true): filas=' || n || ' ' || st || E'\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-06 FALLÓ: ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE economic_events SET verification_status='verified' WHERE id = e3;
+    RESET ROLE;
+    res := res || E'P0-08 INESPERADO\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-08 OK (esperado: permiso denegado): ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    UPDATE economic_events SET review_notes='cambio' WHERE id = e3;
+    res := res || E'P0-09 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'P0-09 OK (esperado: inmutable): ' || SQLERRM || E'\n'; END;
+
+  INSERT INTO notifications (user_id, entity_type, entity_id, reason, title, body, status, dedup_key)
+  VALUES (v, 'event', e3, 'new_event', 'Nuevo evento', 'cuerpo', 'delivered', 'k1');
+  UPDATE economic_events SET publication_status='in_review' WHERE id = e3;
+  SELECT nn.status::text || '/' || nn.title || '/body=' || coalesce(nn.body,'NULL') || '/released=' || coalesce(ev.released_at::text,'NULL')
+    INTO st FROM notifications nn, economic_events ev WHERE nn.entity_id = e3 AND ev.id = e3;
+  res := res || 'P0-16 (esperado superseded/Contenido no disponible/body=NULL/released=NULL): ' || st || E'\n';
+
+  BEGIN
+    INSERT INTO verification_records (subject_type, subject_id, check_type, result, reasons)
+    VALUES ('event', e2, 'contradiction', 'disputed', '["amount_mismatch"]'::jsonb);
+    SELECT publication_status::text || '/' || verification_status::text || '/released=' || coalesce(released_at::text,'NULL') INTO st FROM economic_events WHERE id = e2;
+    res := res || 'P0-07 (esperado in_review/disputed/released=NULL): ' || st || E'\n';
+  EXCEPTION WHEN others THEN res := res || 'P0-07 FALLÓ: ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE economic_events SET publication_status='published', reviewed_by=m WHERE id = e2;
+    RESET ROLE;
+    SELECT publication_status::text || '/' || verification_status::text || '/' || publisher_role::text INTO st FROM economic_events WHERE id = e2;
+    res := res || 'P0-06b (esperado published/disputed/opportunity_manager): ' || st || E'\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-06b FALLÓ: ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+    SET LOCAL ROLE authenticated;
+    SELECT count(*) INTO n FROM economic_events WHERE publication_status <> 'published';
+    res := res || 'P0-10 viewer ve no publicados (esperado 0): ' || n || E'\n';
+    SELECT count(*) INTO n FROM economic_events;
+    res := res || '   viewer ve publicados (esperado 1): ' || n || E'\n';
+    BEGIN
+      PERFORM review_notes FROM economic_events;
+      res := res || E'P0-12 INESPERADO\n';
+    EXCEPTION WHEN others THEN res := res || 'P0-12 OK (esperado: permiso denegado): ' || SQLERRM || E'\n'; END;
+    SELECT count(*) INTO n FROM staff_economic_events;
+    res := res || 'P0-13 viewer en staff_economic_events (esperado 0): ' || n || E'\n';
+    RESET ROLE;
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'viewer-tests FALLÓ: ' || SQLERRM || E'\n'; END;
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+    SET LOCAL ROLE authenticated;
+    SELECT count(*) INTO n FROM staff_economic_events;
+    res := res || 'P0-13 analista en staff_economic_events (esperado 2): ' || n || E'\n';
+    RESET ROLE;
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'analyst-view FALLÓ: ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE notifications SET status='read' WHERE user_id = v;
+    RESET ROLE;
+    res := res || E'P0-20 INESPERADO\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-20 OK (esperado: permiso denegado): ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    SET LOCAL ROLE anon;
+    PERFORM 1 FROM sectors;
+    RESET ROLE;
+    res := res || E'ANON INESPERADO\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'ANON sin acceso OK: ' || SQLERRM || E'\n'; END;
+
+  PERFORM set_config('request.jwt.claims', '', true);   -- limpiar el JWT simulado (si no, el siguiente INSERT hereda el actor)
+  INSERT INTO watchlists (user_id, entity_type, entity_id, private_note) VALUES (m, 'event', e3, 'nota privada');
+  PERFORM app.pseudonymize_user(m);
+  SELECT email || '/' || is_active || '/watchlists=' || (SELECT count(*) FROM watchlists WHERE user_id = m) INTO st FROM users WHERE id = m;
+  res := res || 'P0-18 (esperado deleted+...@invalid.local/false/watchlists=0): ' || st || E'\n';
+  BEGIN
+    DELETE FROM users WHERE id = m;
+    res := res || E'P0-18b INESPERADO: borró al revisor\n';
+  EXCEPTION WHEN others THEN res := res || 'P0-18b OK (esperado RESTRICT): ' || left(SQLERRM, 90) || E'\n'; END;
+  SELECT count(*) INTO n FROM audit_logs WHERE table_name='users' AND (old_data ? 'email' OR new_data ? 'email');
+  res := res || 'P0-18c audit_logs de users con email (esperado 0): ' || n || E'\n';
+
+  BEGIN
+    INSERT INTO investment_opportunities (opportunity_type, title, description, originating_event_id, dedup_key, publication_status, confidence, confidence_explanation, reviewed_by, reviewed_at, publisher_role, published_at)
+    VALUES ('services','t','d', e2, repeat('9',64), 'published', 50, 'x', a, now(), 'analyst', now());
+    res := res || E'OPP INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'OPP worker no publica OK: ' || SQLERRM || E'\n'; END;
+
+  RAISE EXCEPTION E'RESULTADOS A (revertido):\n%', res;
+END $$;
+
+-- ------------------------ BLOQUE B: oportunidades, roles, vistas --------------
+DO $$
+DECLARE
+  res text := '';
+  tn uuid := '00000000-0000-0000-0000-0000000000a1';
+  t2 uuid := '00000000-0000-0000-0000-0000000000a2';
+  m  uuid := '00000000-0000-0000-0000-0000000000b1';
+  a  uuid := '00000000-0000-0000-0000-0000000000b2';
+  v  uuid := '00000000-0000-0000-0000-0000000000b3';
+  pa uuid := '00000000-0000-0000-0000-0000000000b4';
+  a2 uuid := '00000000-0000-0000-0000-0000000000b5';
+  s  uuid := '00000000-0000-0000-0000-0000000000c1';
+  d  uuid := '00000000-0000-0000-0000-0000000000c2';
+  e1 uuid; op uuid; n int; st text;
+BEGIN
+  -- Con el trigger de alta (migración 09), los usuarios se crean con rol viewer en el PRIMER tenant.
+  -- t2 se crea después y a2 se inserta en users directamente (con FK a auth.users ya creado).
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn,'tenant','Tenant 1');
+  INSERT INTO auth.users (id, email) VALUES (m,'m@t.invalid'),(a,'a@t.invalid'),(v,'v@t.invalid'),(pa,'pa@t.invalid');
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (t2,'tenant','Tenant 2');
+  INSERT INTO auth.users (id, email) VALUES (a2,'a2@t.invalid');
+  UPDATE users SET role='opportunity_manager', display_name='Manager Uno' WHERE id = m;
+  UPDATE users SET role='analyst', display_name='Analista Uno' WHERE id = a;
+  UPDATE users SET role='viewer', display_name='Viewer Uno' WHERE id = v;
+  UPDATE users SET role='platform_admin', display_name='Admin Plat' WHERE id = pa;
+  UPDATE users SET organization_id = t2, role='analyst', display_name='Analista Dos' WHERE id = a2;
+  INSERT INTO sources (id, code, name, base_url, allowed_hosts, access_method) VALUES (s,'test_src','F','https://example.invalid',ARRAY['example.invalid'],'manual');
+  INSERT INTO source_documents (id, source_id, canonical_url, content_hash, extracted_text, storage_path) VALUES (d, s, 'https://example.invalid/d', repeat('b',64), 'texto secreto', 'ruta/x');
+  INSERT INTO economic_events (title, primary_source_document_id, dedup_key, verification_status, publication_status)
+    VALUES ('E1', d, repeat('1',64), 'verified', 'published') RETURNING id INTO e1;
+  INSERT INTO evidence (event_id, source_document_id, claim_field, quote, quote_hash, literal_verified)
+    VALUES (e1, d, 'title', 'cita', repeat('c',64), true);
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+    SET LOCAL ROLE authenticated;
+    INSERT INTO verification_records (subject_type, subject_id, check_type, result, reviewer_id, reviewer_role)
+      VALUES ('event', e1, 'human_review', 'verified', a, 'platform_admin');
+    RESET ROLE;
+    SELECT reviewer_role::text INTO st FROM verification_records WHERE check_type='human_review';
+    res := res || 'P0-15 (esperado analyst, aunque el cliente diga platform_admin): ' || st || E'\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-15 FALLÓ: ' || SQLERRM || E'\n'; END;
+  PERFORM set_config('request.jwt.claims', '', true);   -- sin actor: debe rechazarse
+  BEGIN
+    INSERT INTO verification_records (subject_type, subject_id, check_type, result, reviewer_id)
+      VALUES ('event', e1, 'human_review', 'verified', a);
+    res := res || E'P0-15b INESPERADO: human_review sin actor humano\n';
+  EXCEPTION WHEN others THEN res := res || 'P0-15b OK (esperado CHECK): ' || left(SQLERRM, 80) || E'\n'; END;
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+    SET LOCAL ROLE authenticated;
+    SELECT count(*) INTO n FROM verification_records;
+    BEGIN PERFORM reviewer_id FROM verification_records; res := res || E'P0-14 INESPERADO reviewer_id legible\n';
+    EXCEPTION WHEN others THEN res := res || 'P0-14 viewer ve verification_records=' || n || ' (esperado 1), reviewer_id denegado OK' || E'\n'; END;
+    RESET ROLE;
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-14 FALLÓ: ' || SQLERRM || E'\n'; END;
+
+  INSERT INTO investment_opportunities (opportunity_type, title, description, originating_event_id, dedup_key, confidence, confidence_explanation)
+    VALUES ('services','O1','desc', e1, repeat('9',64), 60, 'x') RETURNING id INTO op;
+  INSERT INTO evidence (opportunity_id, source_document_id, claim_field, quote, quote_hash, literal_verified)
+    VALUES (op, d, 'need', 'cita2', repeat('d',64), true);
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE investment_opportunities SET publication_status='published', reviewed_by=m WHERE id = op;
+    RESET ROLE;
+    SELECT publication_status::text || '/' || publisher_role::text || '/published_at=' || (published_at IS NOT NULL) INTO st FROM investment_opportunities WHERE id = op;
+    res := res || 'OPP (esperado published/opportunity_manager/published_at=true): ' || st || E'\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'OPP gestor FALLÓ: ' || SQLERRM || E'\n'; END;
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE investment_opportunities SET review_notes='x' WHERE id = op;
+    RESET ROLE;
+    res := res || E'P0-19 INESPERADO\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-19 OK (esperado inmutable): ' || SQLERRM || E'\n'; END;
+  PERFORM set_config('request.jwt.claims', '', true);
+  UPDATE investment_opportunities SET publication_status='rejected' WHERE id = op;
+  SELECT coalesce(published_at::text,'NULL') INTO st FROM investment_opportunities WHERE id = op;
+  res := res || 'P0-25 (esperado NULL): ' || st || E'\n';
+
+  BEGIN
+    INSERT INTO investment_opportunities (opportunity_type, title, description, originating_event_id, dedup_key, confidence, confidence_explanation)
+      VALUES ('supply','O2','desc', e1, repeat('8',64), 60, 'x') RETURNING id INTO op;
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE investment_opportunities SET publication_status='published', reviewed_by=m WHERE id = op;
+    RESET ROLE;
+    res := res || E'OPP-sin-evidencia INESPERADO\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'OPP sin evidencia no se publica OK: ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+    SET LOCAL ROLE authenticated; SELECT count(*) INTO n FROM staff_users; RESET ROLE;
+    res := res || 'P0-21 viewer en staff_users (esperado 0): ' || n || E'\n';
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+    SET LOCAL ROLE authenticated; SELECT count(*) INTO n FROM staff_users; RESET ROLE;
+    res := res || 'P0-21 analista Tenant1 (esperado 4): ' || n || E'\n';
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', pa)::text, true);
+    SET LOCAL ROLE authenticated; SELECT count(*) INTO n FROM staff_users; RESET ROLE;
+    res := res || 'P0-21 platform_admin (esperado 5): ' || n || E'\n';
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+    SET LOCAL ROLE authenticated;
+    BEGIN PERFORM email FROM staff_users; res := res || E'P0-21 INESPERADO: email visible\n';
+    EXCEPTION WHEN others THEN res := res || 'P0-21 staff_users sin columna email OK' || E'\n'; END;
+    RESET ROLE;
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-21 FALLÓ: ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+    SET LOCAL ROLE authenticated;
+    BEGIN PERFORM * FROM economic_events; res := res || E'P0-22 INESPERADO: SELECT * funciona\n';
+    EXCEPTION WHEN others THEN res := res || 'P0-22 SELECT * denegado OK' || E'\n'; END;
+    PERFORM id, title, publisher_role FROM economic_events;
+    res := res || E'P0-22 columnas públicas OK\n';
+    RESET ROLE;
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-22 FALLÓ: ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+    SET LOCAL ROLE authenticated;
+    SELECT count(*) INTO n FROM source_documents;
+    BEGIN PERFORM extracted_text FROM source_documents; res := res || E'DOC INESPERADO: extracted_text legible\n';
+    EXCEPTION WHEN others THEN res := res || 'DOC viewer ve ' || n || ' documento(s); extracted_text denegado OK' || E'\n'; END;
+    RESET ROLE;
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'DOC FALLÓ: ' || SQLERRM || E'\n'; END;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  BEGIN
+    INSERT INTO notifications (user_id, entity_type, entity_id, reason, title, status, dedup_key) VALUES (v,'event',e1,'r','t','superseded','z1');
+    res := res || E'P0-23 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'P0-23 OK (esperado CHECK): ' || left(SQLERRM, 80) || E'\n'; END;
+  INSERT INTO notifications (user_id, entity_type, entity_id, reason, title, status, dedup_key) VALUES (v,'event',e1,'r','t','delivered','z2');
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE notifications SET read_at = now() WHERE user_id = v AND dedup_key='z2';
+    RESET ROLE;
+    SELECT status::text INTO st FROM notifications WHERE dedup_key='z2';
+    res := res || 'P0-20b read_at -> status (esperado read): ' || st || E'\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'P0-20b FALLÓ: ' || SQLERRM || E'\n'; END;
+
+  PERFORM set_config('request.jwt.claims', '', true);
+  INSERT INTO watchlists (user_id, entity_type, entity_id, private_note) VALUES (a, 'event', e1, 'mi nota');
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', pa)::text, true);
+    SET LOCAL ROLE authenticated; SELECT count(*) INTO n FROM watchlists; RESET ROLE;
+    res := res || 'WATCHLIST platform_admin ve ajenas (esperado 0): ' || n || E'\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'WATCHLIST FALLÓ: ' || SQLERRM || E'\n'; END;
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+    SET LOCAL ROLE authenticated; SELECT count(*) INTO n FROM audit_logs; RESET ROLE;
+    res := res || 'AUDIT analista (esperado 0): ' || n || E'\n';
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', pa)::text, true);
+    SET LOCAL ROLE authenticated; SELECT count(*) INTO n FROM audit_logs; RESET ROLE;
+    res := res || 'AUDIT platform_admin (esperado >0): ' || n || E'\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'AUDIT FALLÓ: ' || SQLERRM || E'\n'; END;
+  BEGIN
+    DELETE FROM audit_logs;
+    res := res || E'AUDIT INESPERADO: DELETE permitido\n';
+  EXCEPTION WHEN others THEN res := res || 'AUDIT append-only OK: ' || SQLERRM || E'\n'; END;
+
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE users SET role='platform_admin' WHERE id = v;
+    RESET ROLE;
+    res := res || E'ROL INESPERADO: viewer cambió su rol\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'ROL viewer no cambia role OK: ' || SQLERRM || E'\n'; END;
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+    SET LOCAL ROLE authenticated; PERFORM app.set_user_role(v, 'platform_admin'); RESET ROLE;
+    res := res || E'ROL INESPERADO: set_user_role por viewer\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'ROL set_user_role por viewer rechazado OK: ' || SQLERRM || E'\n'; END;
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a2)::text, true);
+    SET LOCAL ROLE authenticated; PERFORM app.set_user_role(a, 'viewer'); RESET ROLE;
+    res := res || E'ROL INESPERADO: analista sin rol de administración\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'ROL analista rechazado OK: ' || SQLERRM || E'\n'; END;
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+    SET LOCAL ROLE authenticated; SELECT count(*) INTO n FROM ingestion_jobs; RESET ROLE;
+    res := res || 'JOBS analista (esperado 0): ' || n || E'\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'JOBS FALLÓ: ' || SQLERRM || E'\n'; END;
+
+  RAISE EXCEPTION E'RESULTADOS B (revertido):\n%', res;
+END $$;
+
+-- ----------------------------- BLOQUE C: alta de usuarios ---------------------
+DO $$
+DECLARE res text := ''; tn uuid := gen_random_uuid(); u1 uuid := gen_random_uuid(); u2 uuid := gen_random_uuid(); u3 uuid := gen_random_uuid(); r record;
+BEGIN
+  BEGIN
+    INSERT INTO auth.users (id, email) VALUES (u1, 'x1@t3.invalid');
+    res := res || E'SIGNUP-1 INESPERADO: alta sin tenant\n';
+  EXCEPTION WHEN others THEN res := res || 'SIGNUP-1 OK (esperado: se rechaza sin organización tenant): ' || left(SQLERRM, 90) || E'\n'; END;
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn, 'tenant', 'Tenant prueba');
+  INSERT INTO auth.users (id, email, raw_user_meta_data) VALUES (u2, 'x2@t3.invalid', '{"role":"platform_admin"}'::jsonb);
+  SELECT role::text AS role, (organization_id = tn) AS org_ok, email, is_active INTO r FROM users WHERE id = u2;
+  res := res || 'SIGNUP-2 (esperado role=viewer org_ok=t active=t; la metadata se ignora): role=' || r.role || ' org_ok=' || r.org_ok || ' active=' || r.is_active || E'\n';
+  INSERT INTO auth.users (id, email) VALUES (u3, NULL);
+  SELECT email INTO r FROM users WHERE id = u3;
+  res := res || 'SIGNUP-3 sin email (esperado <uuid>@no-email.invalid): ' || r.email || E'\n';
+  RAISE EXCEPTION E'RESULTADOS C (revertido):\n%', res;
+END $$;

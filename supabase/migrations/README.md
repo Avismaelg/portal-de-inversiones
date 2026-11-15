@@ -51,3 +51,10 @@ Las 7 migraciones de esta carpeta se aplicaron al proyecto Supabase `PORTAL DE I
 | 20261115194548 | `search_path` fijo en 5 funciones (aviso del *advisor*) |
 
 Sin datos de negocio: solo los 11 sectores. Pruebas P0 ejecutadas en una transacción revertida: ver `docs/datos/MODELO-DATOS.md` §16.
+
+| 20261115195000 | `rls_auto_enable()` sin `EXECUTE` para `PUBLIC`, `anon` y `authenticated` (migración 08) |
+| 20261115200000 | Alta de usuarios: trigger `on_auth_user_created` sobre `auth.users` (migración 09) |
+
+**Alta de usuarios (migración 09):** cada registro en Auth crea su fila en `public.users` con rol `viewer` y en la **primera organización de tipo `tenant`** (MVP de una sola organización, G0 #13). Si no existe esa organización, **el registro falla a propósito**: hay que crearla antes del primer alta. El rol y los metadatos del cliente se ignoran; los roles superiores solo se asignan con `app.set_user_role`. Las versiones registradas por Supabase de las migraciones 08 y 09 pueden diferir en el número de versión de los nombres de archivo de este repositorio.
+
+**Suite de pruebas:** `supabase/tests/p0_suite.sql` (3 bloques, se revierten solos).
