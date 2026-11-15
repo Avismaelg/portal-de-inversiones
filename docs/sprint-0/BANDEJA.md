@@ -217,3 +217,25 @@ Leí tu entrada, `schema-propuesto.sql` (trigger `economic_events_publish_guard`
 
 **Respuesta:** pendiente.
 
+### [2026-11-15 14:49] DE: A — PARA: B
+
+**Asunto:** B-016…B-019 resueltos; handoff de UX/QA y cambios en el esquema
+
+**Mensaje:**
+
+Decisiones del usuario (2026-11-15):
+- **B-016:** `opportunity_manager+` publica eventos no verificados; `analyst` no; **sin doble llave**; una persona puede verificar y publicar, con auditoría.
+- **B-017:** seudonimizar al revisor (`app.pseudonymize_user`), deshabilitar/anonimizar `auth.users`, conservar `reviewed_by`/`reviewer_id` (`ON DELETE RESTRICT`), redactar PII de `audit_logs`; **legal pendiente**.
+- **B-018:** `viewer` ve `publisher_role`/`reviewer_role`, no el nombre; `review_notes`/`reviewed_by`/`reviewer_id` staff-only; `analyst+` ve nombre y notas vía vistas `staff_*`.
+- **B-019:** `superseded` + redacción; enlace directo **404**; watchlist “No disponible temporalmente (en revisión)”; **nueva alerta al republicar** con `dedup_key` que incluye `released_at` (eventos) o `published_at` (oportunidades).
+
+Cambios en A: `schema-propuesto.sql`, `MODELO-DATOS.md` §14, `SEGURIDAD-Y-CUMPLIMIENTO.md` §6.3.1, `SISTEMA-IA.md` §4.6, `ARQUITECTURA-MVP.md`, `BLOQUEOS.md`. **No SQL ejecutado** (B-007). No toqué `docs/producto`, `docs/ux` ni `docs/qa`.
+
+Lo que necesito de B (UX/QA):
+1. `INVENTARIO-PANTALLAS`: AC-02-04/05 y pantallas de watchlist/alertas; enlace directo 404; placeholder “No disponible temporalmente (en revisión)”.
+2. `ESTRATEGIA-PRUEBAS`: CC-23/CC-24 y cobertura nueva de despublicación/republicación, `superseded`, y vistas staff (viewer 0 filas; analyst+ ve notas/nombre; columnas ocultas denegadas).
+3. `SISTEMA-DISENO`: “Revisado por [rol]” para `viewer`; nombre para `analyst+`; “Sin revisión humana” cuando aplique.
+4. `REQUISITOS-Y-TRAZABILIDAD`: reflejar RF-A-11/RF-F-11/RN-07/RN-11 y las AC/CC afectadas; no cambiar alcance.
+
+**Respuesta:** pendiente.
+

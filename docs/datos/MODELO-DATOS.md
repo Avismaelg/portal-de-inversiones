@@ -156,7 +156,7 @@ Principio: **la clave determinista decide los duplicados exactos; la similitud s
 | `public_tenders`, `contracts` | `UNIQUE (source_id, external_id)` (OCID) |
 | `financial_instruments` | `UNIQUE (isin)` si existe; si no, `sha256(emisor ‖ tipo ‖ moneda ‖ vencimiento ‖ nombre_normalizado)` |
 | `instrument_auctions` | `UNIQUE (instrument_id, auction_type, auction_date, rate_kind)` |
-| `notifications` | `UNIQUE (user_id, channel, dedup_key)`; `dedup_key = sha256(reason ‖ entity_type ‖ entity_id ‖ ventana)` (ventana = día para digest; id de versión para cambio de estado) |
+| `notifications` | `UNIQUE (user_id, channel, dedup_key)`; `dedup_key = sha256(reason ‖ entity_type ‖ entity_id ‖ ventana ‖ released_at/published_at)` (ventana = día para digest; id de versión para cambio de estado). Al despublicar, la notificación pasa a `superseded` y se redacta; al republicar se calcula una clave nueva con el `released_at` (eventos) o `published_at` (oportunidades) refrescado |
 | `ai_analysis_runs` | `UNIQUE (agent, idempotency_key)`; `idempotency_key = sha256(agent ‖ input_hash ‖ prompt_version ‖ schema_version ‖ model)` |
 
 Límites conocidos: los hashes de contenido fallan ante cambios cosméticos del documento (marca de agua, fecha de impresión) ⇒ llegan como "nueva versión"; el costo es almacenamiento extra, no datos duplicados en `economic_events` (porque ahí manda la clave semántica). Se medirá en el piloto (RNF-12 de B: ≤ 2 % de duplicados).
@@ -184,29 +184,33 @@ Leyenda: **S**=SELECT, **I**=INSERT, **U**=UPDATE, **D**=DELETE; `pub`=solo fila
 | `sources` | — | S | S | S | S (escritura solo `service_role` en Sprint 1) | todo | Mostrar procedencia; sin secretos en la tabla |
 | `source_documents` | — | S (columnas limitadas) | idem | idem | idem | todo | Sin `extracted_text` ni `storage_path` (licencias dudosas); texto y archivo se sirven desde servidor |
 | `ingestion_jobs` | — | — | — | — | S | todo | Operativo |
-| `economic_events` | — | S pub | S/I/U todos | idem | idem | todo | Borradores internos hasta verificar |
+| `economic_events` | — | S pub (sin `review_notes`/`reviewed_by`) | S/I/U todos; `review_notes`/`reviewed_by` staff-only | idem | idem | todo | Borradores internos hasta verificar; `publisher_role` público |
 | `projects` | — | S pub | S/I/U | idem | idem | todo | Idem |
 | `permits` | — | S pub | S/I/U | idem | idem | todo | Idem |
 | `public_tenders` | — | S pub | S/I/U | idem | idem | todo | Datos oficiales estructurados; `pub` por defecto |
 | `contracts` | — | S pub | S/I/U | idem | idem | todo | Idem |
 | `financial_instruments` | — | S pub | S/I/U | idem | idem | todo | Idem |
 | `instrument_auctions` | — | S pub | S/I/U | idem | idem | todo | Idem |
-| `investment_opportunities` | — | S pub | S/I/U sobre no publicadas | S/I/U **y publicar** | idem | todo (**no** publica) | RN-07: revisión humana |
+| `investment_opportunities` | — | S pub (sin `review_notes`/`reviewed_by`) | S/I/U sobre no publicadas; `review_notes`/`reviewed_by` staff-only | S/I/U **y publicar** | idem | todo (**no** publica) | RN-07: revisión humana; `publisher_role` público |
 | `evidence` | — | S si el sujeto está publicado | S/I/U | idem | idem | todo | Evidencia no debe filtrar borradores |
 | `sectors`, `geographic_locations` | — | S | S | S | S | todo | Referencia pública; escritura solo `service_role` |
 | `entity_relationships` | — | S pub | S/I/U | idem | idem | todo | Relaciones inferidas no publicadas no se muestran |
 | `watchlists` | — | S/I/U/D own | own | own | own | todo | Datos privados; ni los admins los leen |
 | `user_alert_preferences` | — | S/I/U/D own | own | own | own | todo | Idem |
-| `notifications` | — | S own; U (`read_at`,`status`) own | own | own | own | todo | Creación solo por servidor (Alert Agent) |
+| `notifications` | — | S own; U (`read_at`) own | own | own | own | todo | `status` lo gestiona el servidor; `superseded` al despublicar |
 | `ai_analysis_runs` | — | — | S | S | S | todo | Trazabilidad para revisores; lectores ven procedencia vía API del servidor |
-| `verification_records` | — | S si el sujeto está publicado | S; I (solo `human_review` propia) | idem | idem | todo | Motivo visible para el lector (RF-A-11) |
+| `verification_records` | — | S si el sujeto está publicado (sin `reviewer_id`) | S; I (solo `human_review` propia); `reviewer_id` staff-only | idem | idem | todo | Motivo visible; `reviewer_role` público; identidad staff-only |
 | `audit_logs` | — | — | — | — | platform: S todo; org_admin: S su organización | todo (INSERT) | Mínimo privilegio; inmutable |
 
-Limitaciones honestas: (a) el modelo `anon/authenticated` no distingue roles de aplicación a nivel de privilegios SQL: se hace con políticas que llaman a funciones `STABLE` (coste por fila; medir en Sprint 1, RNF-24/02); (b) `SELECT *` sobre `source_documents` fallará para `authenticated` por los `GRANT` por columna: el código debe listar columnas; (c) `notifications` permite al usuario fijar `status` libremente (riesgo bajo, solo afecta su bandeja); endurecer en Sprint 1 si procede.
+**Vistas staff-only (B-018).** `staff_economic_events`, `staff_investment_opportunities`, `staff_verification_records` y `staff_users` se conceden a `authenticated`, pero su `WHERE app.is_staff()` devuelve 0 filas a `viewer`. El owner de la vista omite RLS; **no** convertir a `security_invoker` (el rol `authenticated` no tiene las columnas ocultas). `staff_users` no expone `email`.
+
+Limitaciones honestas: (a) el modelo `anon/authenticated` no distingue roles de aplicación a nivel de privilegios SQL: se hace con políticas que llaman a funciones `STABLE` (coste por fila; medir en Sprint 1, RNF-24/02); (b) `SELECT *` sobre `source_documents`, `economic_events`, `investment_opportunities` y `verification_records` fallará para `authenticated` por los `GRANT` por columna: el código debe listar columnas o usar las vistas `staff_*` si el usuario es staff; (c) `notifications` ya no permite al usuario fijar `status`: solo `read_at`; el estado lo fija el servidor (B-019).
 
 ### 7.2 Pruebas RLS requeridas (no ejecutadas)
 
 T-DB-01: para cada una de las 23 tablas × 5 roles × {S,I,U,D} verificar permitido/denegado según la matriz (generada desde un archivo de datos). T-DB-02: intentar `UPDATE users SET role='platform_admin'` como `viewer` ⇒ debe fallar. T-DB-03: `service_role` intenta publicar una oportunidad ⇒ debe fallar. Estas pruebas materializan RNF-24 y AC-MVP-13 de B.
+
+**T-DB-04 (B-016…B-019, propuestas; no ejecutadas).** Viewer no puede leer `review_notes`/`reviewed_by`/`reviewer_id` (error de columna) ni obtener filas de las vistas `staff_*`; `analyst` sí las obtiene y ve el nombre del revisor, pero no `email`. Un evento no verificado solo lo publica `manager+`, sin doble llave (auto-revisión auditada). `reviewer_role` se fija al insertar `human_review` y es público; `reviewer_id` es staff-only. Al despublicar, las notificaciones pasan a `superseded`, se redactan y no se pueden revertir; al republicar se genera una clave de deduplicación nueva. `app.pseudonymize_user` deja el perfil seudonimizado, conserva `reviewed_by`/`reviewer_id` y la auditoría no guarda email/nombre/consentimiento. Detalle: `schema-propuesto.sql` P0-12…P0-25.
 
 ## 8. Retención, historial de cambios y auditoría
 
@@ -215,7 +219,7 @@ T-DB-01: para cada una de las 23 tablas × 5 roles × {S,I,U,D} verificar permit
 - **Mecanismo:** trigger `audit_row_change` en 12 tablas (usuarios, organizaciones, fuentes, eventos, proyectos, permisos, licitaciones, contratos, instrumentos, subastas, oportunidades, relaciones) guarda `old_data`/`new_data` completos. Cubre RF-A-12, RF-B-06 y RF-G-13 **sin tablas de historial adicionales**.
 - **Costo:** duplica escrituras en tablas auditadas. Para ingesta masiva (bulk DGCP: cientos de miles de contratos) el trigger puede ser un cuello de botella → en cargas masivas se desactiva por sesión **y** se registra un único resumen en `audit_logs` `[DECISIÓN pendiente, Sprint 1]`. No se audita `ai_analysis_runs` (ya es append-only), `ingestion_jobs` ni `notifications` (alto volumen).
 - **Versionado de oportunidades:** además del log, `version` + `supersedes_id` (RF-F-14).
-- `users` auditado incluye `email` (dato personal) en `old_data/new_data`: se reducirá con una lista de columnas sensibles a omitir `[PENDIENTE LEGAL]`.
+- `users` auditado: `audit_row_change` **redacta** `email`, `display_name`, `consent_accepted_at` y `consent_version` de `old_data`/`new_data` (B-017, 2026-11-15). La identidad se conserva por `id`/`role`; el historial no guarda PII. La redacción se aplica a partir de esta ronda; las filas históricas no existen (el SQL no se ha ejecutado).
 
 ### 8.2 Auditoría
 
@@ -232,7 +236,7 @@ T-DB-01: para cada una de las 23 tablas × 5 roles × {S,I,U,D} verificar permit
 | `ai_analysis_runs` | ≥ 1 año (trazabilidad, RN-12) | — | `output` puede crecer; evaluar compresión |
 | `audit_logs` | ≥ 1 año en caliente; luego archivo | `DROP` de partición mensual tras exportar | `[PENDIENTE LEGAL]` plazo mínimo |
 | `notifications` | 180 días leídas | `DELETE` por lotes | |
-| Datos de usuario | Borrado en ≤ 30 días tras solicitud (RNF-28 de B) | Borrado lógico (`deleted_at`) → purga; `CASCADE` en watchlists/prefs/notifications; auditoría seudonimizada | `REQUIERE ABOGADO` (Ley de protección de datos, ver SEGURIDAD §7) |
+| Datos de usuario | Borrado en ≤ 30 días tras solicitud (RNF-28 de B) | Seudonimización (`app.pseudonymize_user`: email/nombre/consentimiento) + `auth.users` deshabilitado/anonimizado; el perfil se conserva porque `reviewed_by`/`reviewer_id` son `ON DELETE RESTRICT`; auditoría seudonimizada | `REQUIERE ABOGADO` (Ley de protección de datos, ver SEGURIDAD §7) |
 | Datos `is_demo` | Solo staging | — | C-11 de B |
 
 ### 8.4 Backups
@@ -291,10 +295,43 @@ El conteo de entidades sigue siendo 23 (`grep`: 26 `CREATE TABLE` = 23 + 3 parti
 
 **Alertas:** el Alert Agent solo actúa sobre eventos publicados; un evento en cola no genera notificaciones (P0-11).
 
-**Conflicto detectado en los documentos de B (no lo resuelvo):** `INVENTARIO-PANTALLAS` AC-02-04 muestra en la lista un evento `disputed` con etiqueta "En disputa", mientras que CC-23 dice que un evento `disputed` no es visible para `viewer` hasta que un revisor lo publica. Conciliación posible y compatible con el SQL: un **revisor puede publicar a propósito un evento `disputed`** (P0-06) y entonces sí se muestra con la etiqueta y las dos fuentes. B debe confirmarlo.
+**Conciliación B-016 (2026-11-15).** Un `manager+` puede publicar a propósito un evento `disputed`; se muestra con la etiqueta y las fuentes. El `analyst` no publica. B debe reflejarlo en AC-02-04/CC-23 (handoff en `BANDEJA.md`).
 
-**Límites y decisiones abiertas:**
-- ¿Quién publica eventos no verificados: `analyst` o `opportunity_manager`+? Está como gestor (misma regla que oportunidades); cambiarlo es una línea.
-- Una persona puede insertar un `verification_records` de tipo `human_review` con resultado `verified` y publicar: no hay segunda persona. Si se quiere "doble llave", hay que restringir esa política. Pendiente de decisión.
-- `reviewed_by` referencia `users(id)` sin `ON DELETE`: no se puede borrar la cuenta de un revisor (choca con RNF-28). Falta decidir seudonimizar en lugar de borrar. Lo mismo ocurre ya con `investment_opportunities.reviewed_by`.
+**Decisiones cerradas el 2026-11-15 (B-016…B-019):** ver §14. En resumen: `manager+` sin doble llave; cuentas de revisor seudonimizadas; identidad/notas staff-only con rol público; despublicación con `superseded`. La guardia sigue **sin ejecutar** (B-007); las pruebas P0-01…P0-11 y P0-12…P0-25 se corren en T-INF-03.
 - La guardia depende de que `verification_status` solo la escriba el verificador o un humano vía `verification_records`; las pruebas P0-01…P0-11 (al final del SQL) lo comprueban cuando se ejecuten (tarea T-INF-03).
+
+## 14. Ronda 5 (2026-11-15): B-016…B-019 cerrados
+
+**Estado:** decisiones del usuario aprobadas el 2026-11-15. El SQL está editado a mano y **NO EJECUTADO** (B-007); nada de esta ronda está probado contra Postgres/Supabase.
+
+| ID | Decisión aprobada | Implementación en `schema-propuesto.sql` |
+|---|---|---|
+| B-016 | `opportunity_manager+` publica eventos no verificados; `analyst` no; **sin doble llave**; una persona puede verificar y publicar, con auditoría; se acepta el riesgo de auto-revisión | `app.enforce_event_publication` usa `app.is_manager()`; `publisher_role` registra el rol; `audit_economic_events` deja rastro. No se añade segunda aprobación |
+| B-017 | Seudonimizar al revisor y deshabilitar/anonimizar `auth.users`; conservar `reviewed_by`; redactar PII de `audit_logs`; confirmación legal pendiente | `users.pseudonymized_at` + CHECK; `app.pseudonymize_user(uuid)` (solo `service_role`); FK de revisión `ON DELETE RESTRICT`; `audit_row_change` redacta `email`/`display_name`/`consent_*` |
+| B-018 | `viewer` ve el **rol** del revisor, no su nombre; `review_notes`/`reviewed_by`/`reviewer_id` staff-only; `analyst+` ve nombre y notas; `publisher_role`/`reviewer_role` públicos | `GRANT SELECT` por columna; vistas `staff_economic_events`, `staff_investment_opportunities`, `staff_verification_records`, `staff_users`; trigger `verification_records_set_role`; `review_notes` inmutable mientras la entidad sigue publicada |
+| B-019 | Enlace directo a contenido despublicado: 404; watchlist: “No disponible temporalmente (en revisión)”; notificaciones `superseded` y redactadas; nueva alerta al republicar con `dedup_key` que incluye `released_at` | Enum `superseded`; `notifications.superseded_at` + CHECK; `app.supersede_notifications`; `notifications_mark_read`; `GRANT UPDATE (read_at)` (no `status`); `released_at` se limpia al despublicar y se renueva al republicar; en oportunidades se hace lo propio con `published_at` |
+
+**Detalles de implementación y límites:**
+
+- **Staff views.** Son vistas del owner (no `security_invoker`): el owner omite RLS y el filtro `app.is_staff()` es la frontera. Si se convierten a `security_invoker`, el rol `authenticated` no tiene `review_notes`/`reviewed_by`/`reviewer_id` y la vista fallaría; no hacerlo. `staff_users` no expone `email`.
+- **`SELECT *`.** El `GRANT SELECT` por columna hace que `SELECT *` falle en `economic_events`, `investment_opportunities` y `verification_records`. El frontend debe listar columnas o usar `staff_*` cuando el usuario es staff.
+- **`review_notes` inmutable.** La guardia de eventos la incluye en la inmutabilidad mientras el evento sigue publicado; la de oportunidades lanza excepción si cambia en una edición `published → published`. Al despublicar se permite la edición (no hay contenido público que proteger).
+- **Notificaciones.** `superseded` es terminal: no se reintenta. La redacción sustituye `title` por “Contenido no disponible” y deja `body`/`error` en `NULL`. El usuario solo puede escribir `read_at`; el trigger marca `read` cuando corresponde.
+- **Republicación.** `released_at` (eventos) y `published_at` (oportunidades) se limpian al despublicar y se asignan de nuevo al publicar. El Alert Agent debe incluir ese valor en `dedup_key`; la notificación anterior sigue `superseded` y no colisiona por el `UNIQUE`.
+- **Carrera de entrega.** El worker debe revalidar que la entidad sigue `published` justo antes de entregar; el trigger de despublicación no puede impedir una entrega concurrente. Si ya no está publicada, la notificación se marca `superseded` y no se entrega.
+- **Seudonimización.** `app.pseudonymize_user` no borra la fila: conserva `id`, `role`, `organization_id` y los vínculos `reviewed_by`/`reviewer_id`. El servidor debe banear/anonimizar `auth.users` después; **no borrar** mientras haya referencias, porque las FK son `ON DELETE RESTRICT`. Si el abogado exige borrado duro, hay que desacoplar la identidad del revisor antes de G5.
+- **Auditoría.** La redacción de PII de `users` se aplica en `audit_row_change`; `audit_logs` sigue siendo admin-only. Los `review_notes`/`reviewed_by` de eventos y oportunidades quedan en `audit_logs`, visible solo para `org_admin`/`platform_admin`; no se exponen al `viewer`.
+- **Legal.** B-017 es una decisión técnica; la suficiencia legal de la seudonimización sigue `REQUIERE ABOGADO` (B-009/B-017). No se afirma cumplimiento.
+- **Handoff B.** Las AC/CC de UX/QA no se editan desde A; el parte está en `docs/sprint-0/BANDEJA.md` para que B actualice AC-02-04/05 (watchlist/alertas) y CC-23/CC-24, y añada la cobertura de 404/placeholder y “Revisado por [rol]”.
+
+### 14.1 Revisión posterior de la Ronda 5 (2026-11-15, otra sesión de A)
+
+Revisión **estática** del SQL de la Ronda 5 (B-016…B-019), sin ejecutarlo. Comprobado con `grep`: `BEGIN`/`COMMIT` únicos, 54 `$$` (pares), paréntesis equilibrados (810/810), sin nombres duplicados de funciones, triggers, índices, tipos ni vistas; 23 entidades. **Eso no demuestra que el script corra**: sigue sin ejecutarse (B-007).
+
+Puntos que conviene tener presentes antes de partir en migraciones:
+
+1. **`app.pseudonymize_user` — RESUELTO (Ronda 6):** además del perfil, borra de forma explícita `watchlists`, `user_alert_preferences` y `notifications` de la persona (RNF-28). Sigue sin ejecutarse (B-007); el plazo y la base legal los fija el abogado.
+2. **Vistas `staff_*`:** dependen de que el propietario de la vista omita RLS y los permisos por columna; no deben pasar a `security_invoker`. `SELECT e.*` fija la lista de columnas al crearla: cada columna nueva exige recrear la vista. En Supabase, las vistas con propietario privilegiado pueden aparecer como aviso en los *advisors* `[VERIFICAR Sprint 1]`.
+3. **Permisos por columna:** con `SELECT` restringido en `economic_events`, `investment_opportunities` y `verification_records`, la aplicación **nunca** puede usar `SELECT *` ni `RETURNING *` como `authenticated` (el personal usa las vistas). Está previsto en P0-22; debe vigilarlo el código de acceso a datos (T-WEB-01).
+4. **Auditoría:** la redacción de PII de `users` en `audit_logs` rige hacia delante; `audit_logs` es inmutable, así que no se puede limpiar lo anterior. No hay filas previas (nada se ha ejecutado), pero es una limitación para cualquier carga futura.
+5. La guardia de oportunidades exige rol de gestión también para **editar** una oportunidad ya publicada; un proceso de servidor no puede tocarla (las versiones nuevas se insertan como filas nuevas, RF-F-14).

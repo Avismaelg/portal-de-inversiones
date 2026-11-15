@@ -1,7 +1,8 @@
 -- G0 #10 (2026-11-15): opportunity_evidence renombrada a evidence. No ejecutar el esquema anterior.
 -- =============================================================================
 -- AviTech Investment Intelligence — ESQUEMA PROPUESTO (Sprint 0)
--- Ventana A · 2026-11-15 · versión 0.1.0
+-- Ventana A · 2026-11-15 · versión 0.1.1
+-- Ronda 5 (2026-11-15): B-016…B-019 (seudonimización, columnas staff-only, superseded). Ver MODELO-DATOS §14.
 --
 -- ESTADO: PROPUESTA. NO APLICAR. NO PROBADO.
 --   * No se ejecutó en ningún Postgres (no hay psql/Docker/Supabase accesible:
@@ -110,7 +111,7 @@ CREATE TYPE entity_type AS ENUM
 
 CREATE TYPE alert_channel   AS ENUM ('in_app', 'email');          -- email: [PENDIENTE SRS]
 CREATE TYPE alert_frequency AS ENUM ('immediate', 'daily_digest');
-CREATE TYPE notification_status AS ENUM ('pending', 'delivered', 'failed', 'read');
+CREATE TYPE notification_status AS ENUM ('pending', 'delivered', 'failed', 'read', 'superseded');
 
 CREATE TYPE agent_name AS ENUM
   ('discovery', 'extraction', 'verification', 'opportunity_intelligence', 'financial_analysis', 'alert');
@@ -227,8 +228,11 @@ CREATE TABLE users (
   consent_accepted_at timestamptz,             -- [PENDIENTE LEGAL] texto y versión
   consent_version text,
   deleted_at      timestamptz,                 -- borrado lógico previo a purga (RNF-28)
+  pseudonymized_at timestamptz,                -- seudonimización irreversible de PII (B-017); conserva id/rol
   created_at      timestamptz NOT NULL DEFAULT now(),
-  updated_at      timestamptz NOT NULL DEFAULT now()
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT users_pseudonymized_requires_deleted
+    CHECK (pseudonymized_at IS NULL OR deleted_at IS NOT NULL)
 );
 CREATE UNIQUE INDEX users_email_uq ON users (lower(email));
 CREATE INDEX users_org_idx ON users (organization_id);
@@ -248,6 +252,8 @@ CREATE TRIGGER users_touch BEFORE UPDATE ON users
 -- Comprobación posterior (debe devolver 1 fila en Supabase):
 --   SELECT conname FROM pg_constraint WHERE conname = 'users_auth_fk';
 -- NO PROBADO (sin Postgres/Supabase accesible, B-003/B-006).
+-- B-017: si el usuario tiene reviewed_by/reviewer_id, la seudonimización (app.pseudonymize_user)
+-- debe ejecutarse ANTES de borrar auth.users; las FK de revisión son ON DELETE RESTRICT.
 -- -----------------------------------------------------------------------------
 DO $$
 BEGIN
@@ -500,9 +506,10 @@ CREATE TABLE economic_events (
   verification_reason text,
   verification_checked_at timestamptz,
   -- Guardia de publicación P0 (G0 #11a; Ronda 4). PROPUESTO, NO EJECUTADO (B-007).
-  reviewed_by        uuid REFERENCES users(id),       -- revisor humano (ver nota de borrado de cuenta en MODELO-DATOS §12)
+  reviewed_by        uuid REFERENCES users(id) ON DELETE RESTRICT,  -- revisor humano; staff-only (B-018)
   reviewed_at        timestamptz,
-  review_notes       text,
+  review_notes       text,                    -- staff-only (B-018)
+  publisher_role     user_role,               -- rol del publicador humano; público, sin identidad (B-018)
   released_at        timestamptz,             -- cuándo se publicó EN LA PLATAFORMA (published_at es la fecha de la FUENTE, RF-A-06)
   publication_status publication_status NOT NULL DEFAULT 'draft',
   trust_layer        trust_layer NOT NULL DEFAULT 'ai_analysis',
@@ -519,10 +526,11 @@ CREATE TABLE economic_events (
   -- Un evento publicado debe tener una decisión de verificación distinta de 'pending'.
   CHECK (publication_status <> 'published' OR verification_status <> 'pending'),
   -- P0 (Ronda 4): publicado y no 100 % verificado => revisor humano registrado.
+  -- B-018: el rol del publicador es público; la identidad (reviewed_by) queda staff-only.
   CONSTRAINT economic_events_p0_review CHECK (
     publication_status <> 'published'
     OR verification_status = 'verified'
-    OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL)
+    OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL AND publisher_role IS NOT NULL)
   ),
   CONSTRAINT economic_events_released CHECK (publication_status <> 'published' OR released_at IS NOT NULL),
   CHECK ((reviewed_by IS NULL) = (reviewed_at IS NULL))
@@ -546,34 +554,47 @@ CREATE TRIGGER economic_events_touch BEFORE UPDATE ON economic_events
 --   * Un evento ya publicado cuya verificación pasa a un estado distinto de 'verified'
 --     VUELVE A LA COLA ('in_review') y deja de ser visible para los lectores (RLS). Así una
 --     contradicción posterior no queda publicada y apply_verification() no falla.
---   * Una vez publicado, reviewed_by/reviewed_at/released_at no se pueden alterar.
--- [DECISIÓN pendiente] ¿Quién publica eventos no verificados: analyst o manager+? Aquí manager+
--- (misma regla que oportunidades); cambiarlo es sustituir app.is_manager() por app.is_staff().
+--   * Una vez publicado, reviewed_by/reviewed_at/review_notes/publisher_role/released_at no se pueden alterar.
+-- DECIDIDO 2026-11-15 (B-016): manager+, sin doble llave en el MVP. El analista revisa;
+-- el manager publica. Una persona puede verificar y publicar; queda auditado.
 CREATE FUNCTION app.enforce_event_publication() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   v_transition boolean;
 BEGIN
-  -- 1) Verificación que empeora sobre un evento publicado: vuelve a la cola.
-  IF TG_OP = 'UPDATE'
-     AND OLD.publication_status = 'published'
-     AND NEW.publication_status = 'published'
-     AND NEW.verification_status IS DISTINCT FROM OLD.verification_status
-     AND NEW.verification_status <> 'verified' THEN
-    NEW.publication_status := 'in_review';
-    NEW.released_at := NULL;
+  IF TG_OP = 'UPDATE' THEN
+    -- B-019: al despublicar, se limpia released_at; una republicación genera una ventana nueva.
+    IF OLD.publication_status = 'published'
+       AND NEW.publication_status <> 'published' THEN
+      NEW.released_at := NULL;
+    END IF;
+
+    -- 1) Verificación que empeora sobre un evento publicado: vuelve a la cola.
+    IF OLD.publication_status = 'published'
+       AND NEW.publication_status = 'published'
+       AND NEW.verification_status IS DISTINCT FROM OLD.verification_status
+       AND NEW.verification_status <> 'verified' THEN
+      NEW.publication_status := 'in_review';
+      NEW.released_at := NULL;
+    END IF;
   END IF;
 
   IF NEW.publication_status <> 'published' THEN
     RETURN NEW;
   END IF;
 
-  v_transition := (TG_OP = 'INSERT') OR (OLD.publication_status IS DISTINCT FROM 'published');
+  IF TG_OP = 'INSERT' THEN
+    v_transition := true;
+  ELSE
+    v_transition := (OLD.publication_status IS DISTINCT FROM 'published');
+  END IF;
 
   -- 2) Ya estaba publicado y sigue igual: los campos de revisión son inmutables.
   IF NOT v_transition THEN
     IF NEW.reviewed_by IS DISTINCT FROM OLD.reviewed_by
        OR NEW.reviewed_at IS DISTINCT FROM OLD.reviewed_at
+       OR NEW.review_notes IS DISTINCT FROM OLD.review_notes
+       OR NEW.publisher_role IS DISTINCT FROM OLD.publisher_role
        OR NEW.released_at IS DISTINCT FROM OLD.released_at THEN
       RAISE EXCEPTION 'review/release fields of a published event are immutable';
     END IF;
@@ -586,7 +607,9 @@ BEGIN
   END IF;
 
   IF NEW.verification_status = 'verified' THEN
-    NEW.released_at := COALESCE(NEW.released_at, now());
+    NEW.publisher_role := CASE WHEN app.current_user_id() IS NULL
+                               THEN NULL ELSE app.current_user_role() END;
+    NEW.released_at := now();
     RETURN NEW;                       -- 100 % verificado: sin revisor obligatorio
   END IF;
 
@@ -597,6 +620,7 @@ BEGIN
     RAISE EXCEPTION 'reviewed_by must be the acting user';
   END IF;
   NEW.reviewed_at := now();
+  NEW.publisher_role := app.current_user_role();
   NEW.released_at := now();
   RETURN NEW;
 END $$;
@@ -838,9 +862,10 @@ CREATE TABLE investment_opportunities (
   next_steps         jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(next_steps) = 'array'),
   trust_layer        trust_layer NOT NULL DEFAULT 'inference',
   publication_status publication_status NOT NULL DEFAULT 'draft',
-  reviewed_by        uuid REFERENCES users(id),
+  reviewed_by        uuid REFERENCES users(id) ON DELETE RESTRICT,  -- staff-only (B-018)
   reviewed_at        timestamptz,
-  review_notes       text,
+  review_notes       text,                    -- staff-only (B-018)
+  publisher_role     user_role,               -- rol del publicador; público, sin identidad (B-018)
   published_at       timestamptz,
   version            integer NOT NULL DEFAULT 1 CHECK (version >= 1),
   supersedes_id      uuid REFERENCES investment_opportunities(id),
@@ -858,7 +883,8 @@ CREATE TABLE investment_opportunities (
   ),
   CONSTRAINT opps_published_needs_review CHECK (
     publication_status <> 'published'
-    OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL AND published_at IS NOT NULL)
+    OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL
+        AND publisher_role IS NOT NULL AND published_at IS NOT NULL)
   ),
   CONSTRAINT opps_published_needs_confidence CHECK (publication_status <> 'published' OR confidence IS NOT NULL)
 );
@@ -949,11 +975,27 @@ CREATE TABLE verification_records (
   result             verification_status NOT NULL,
   reasons            jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(reasons) = 'array'),
   ai_run_id          uuid REFERENCES ai_analysis_runs(id),
-  reviewer_id        uuid REFERENCES users(id),
+  reviewer_id        uuid REFERENCES users(id) ON DELETE RESTRICT,  -- staff-only (B-018)
+  reviewer_role      user_role,               -- rol del revisor; público, sin identidad (B-018)
   created_at         timestamptz NOT NULL DEFAULT now(),
-  CHECK (check_type <> 'human_review' OR reviewer_id IS NOT NULL)
+  CHECK (check_type <> 'human_review'
+         OR (reviewer_id IS NOT NULL AND reviewer_role IS NOT NULL))
 );
 CREATE INDEX verification_records_subject_idx ON verification_records (subject_type, subject_id, created_at DESC);
+
+-- B-018: el rol del revisor se fija al insertar; no se confía en el cliente.
+CREATE FUNCTION app.set_verification_reviewer_role() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NEW.check_type = 'human_review' THEN
+    NEW.reviewer_role := app.current_user_role();
+  ELSE
+    NEW.reviewer_role := NULL;   -- solo la revisión humana tiene rol público
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER verification_records_set_role BEFORE INSERT ON verification_records
+  FOR EACH ROW EXECUTE FUNCTION app.set_verification_reviewer_role();
 
 -- Sincroniza el último resultado en la entidad (solo eventos y oportunidades lo guardan).
 CREATE FUNCTION app.apply_verification() RETURNS trigger
@@ -980,14 +1022,41 @@ CREATE FUNCTION app.enforce_opportunity_publication() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   v_status public.verification_status;
+  v_new_publication boolean := true;
 BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    -- B-019: al despublicar, se limpia published_at; una republicación genera una ventana nueva.
+    IF OLD.publication_status = 'published'
+       AND NEW.publication_status <> 'published' THEN
+      NEW.published_at := NULL;
+    END IF;
+  END IF;
+
   IF NEW.publication_status <> 'published' THEN
     RETURN NEW;
   END IF;
+
+  IF TG_OP = 'UPDATE' THEN
+    -- B-018: los metadatos de revisión de una oportunidad publicada no cambian al editarla.
+    IF OLD.publication_status = 'published'
+       AND NEW.publication_status = 'published' THEN
+      IF NEW.review_notes IS DISTINCT FROM OLD.review_notes THEN
+        RAISE EXCEPTION 'review_notes of a published opportunity are immutable';
+      END IF;
+      NEW.reviewed_by    := OLD.reviewed_by;
+      NEW.reviewed_at    := OLD.reviewed_at;
+      NEW.publisher_role := OLD.publisher_role;
+      NEW.published_at   := OLD.published_at;
+      v_new_publication  := false;
+    END IF;
+  END IF;
+
   IF app.current_user_id() IS NULL OR NOT app.is_manager() THEN
     RAISE EXCEPTION 'opportunity publication requires an authenticated manager';
   END IF;
-  IF NEW.reviewed_by IS DISTINCT FROM app.current_user_id() THEN
+  -- La auto-revisión solo se exige al publicar; editar una oportunidad ya publicada
+  -- no cambia al revisor original (B-018).
+  IF v_new_publication AND NEW.reviewed_by IS DISTINCT FROM app.current_user_id() THEN
     RAISE EXCEPTION 'reviewed_by must be the acting user';
   END IF;
   SELECT e.verification_status INTO v_status
@@ -1001,8 +1070,11 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'at least one literally verified evidence is required';
   END IF;
-  NEW.published_at := COALESCE(NEW.published_at, now());
-  NEW.reviewed_at  := COALESCE(NEW.reviewed_at, now());
+  IF v_new_publication THEN
+    NEW.publisher_role := app.current_user_role();
+    NEW.published_at := now();
+    NEW.reviewed_at := now();
+  END IF;
   RETURN NEW;
 END $$;
 CREATE TRIGGER investment_opportunities_publish_guard
@@ -1140,17 +1212,57 @@ CREATE TABLE notifications (
   body          text,
   priority      smallint NOT NULL DEFAULT 3 CHECK (priority BETWEEN 1 AND 5),
   channel       alert_channel NOT NULL DEFAULT 'in_app',
-  status        notification_status NOT NULL DEFAULT 'pending',
+  status        notification_status NOT NULL DEFAULT 'pending',  -- 'superseded' solo lo fija el servidor (B-019)
   dedup_key     text NOT NULL CHECK (btrim(dedup_key) <> ''),
   attempts      integer NOT NULL DEFAULT 0,
   error         text,
   created_at    timestamptz NOT NULL DEFAULT now(),
   delivered_at  timestamptz,
   read_at       timestamptz,
-  CONSTRAINT notifications_dedup_uq UNIQUE (user_id, channel, dedup_key)
+  superseded_at timestamptz,                   -- B-019: contenido despublicado
+  CONSTRAINT notifications_dedup_uq UNIQUE (user_id, channel, dedup_key),
+  CONSTRAINT notifications_superseded_consistent
+    CHECK ((status = 'superseded') = (superseded_at IS NOT NULL))
 );
 CREATE INDEX notifications_inbox_idx ON notifications (user_id, created_at DESC);
 CREATE INDEX notifications_pending_idx ON notifications (created_at) WHERE status = 'pending';
+
+-- B-019: el usuario solo puede marcar leído; el estado de entrega es del servidor.
+CREATE FUNCTION app.notifications_mark_read() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NEW.read_at IS NOT NULL AND OLD.read_at IS NULL AND NEW.status = 'delivered' THEN
+    NEW.status := 'read';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER notifications_mark_read BEFORE UPDATE ON notifications
+  FOR EACH ROW EXECUTE FUNCTION app.notifications_mark_read();
+
+-- B-019: al despublicar un evento/oportunidad, las alertas ya emitidas quedan superseded
+-- y se redacta su contenido. No se borran: el usuario ve que el contenido dejó de estar disponible.
+CREATE FUNCTION app.supersede_notifications() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF OLD.publication_status = 'published' AND NEW.publication_status <> 'published' THEN
+    UPDATE public.notifications
+       SET status = 'superseded',
+           superseded_at = now(),
+           title = 'Contenido no disponible',
+           body = NULL,
+           error = NULL
+     WHERE entity_type = TG_ARGV[0]::public.entity_type
+       AND entity_id = NEW.id
+       AND status <> 'superseded';
+  END IF;
+  RETURN NULL;
+END $$;
+CREATE TRIGGER economic_events_supersede_notifications
+  AFTER UPDATE ON economic_events
+  FOR EACH ROW EXECUTE FUNCTION app.supersede_notifications('event');
+CREATE TRIGGER opportunities_supersede_notifications
+  AFTER UPDATE ON investment_opportunities
+  FOR EACH ROW EXECUTE FUNCTION app.supersede_notifications('opportunity');
 
 -- -----------------------------------------------------------------------------
 -- 10. Auditoría — append-only, particionada por mes (retención = DROP PARTITION)
@@ -1229,15 +1341,23 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   v_uid  uuid := app.current_user_id();
   v_row  jsonb := CASE WHEN TG_OP = 'DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END;
+  v_old  jsonb := CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) END;
+  v_new  jsonb := CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) END;
 BEGIN
+  -- RNF-28/B-017: la auditoría no conserva PII de users (email, nombre, consentimiento).
+  IF TG_TABLE_NAME = 'users' THEN
+    v_old := v_old - 'email' - 'display_name' - 'consent_accepted_at' - 'consent_version';
+    v_new := v_new - 'email' - 'display_name' - 'consent_accepted_at' - 'consent_version';
+  END IF;
+
   INSERT INTO public.audit_logs
     (actor_kind, actor_user_id, actor_org_id, actor_role, action, table_name, row_id, old_data, new_data, request_id)
   VALUES (
     CASE WHEN v_uid IS NULL THEN 'service'::public.actor_kind ELSE 'user'::public.actor_kind END,
     v_uid, app.current_org_id(), app.current_user_role(),
     TG_OP, TG_TABLE_NAME, v_row ->> 'id',
-    CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) END,
-    CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) END,
+    v_old,
+    v_new,
     NULLIF(current_setting('app.request_id', true), '')
   );
   RETURN NULL;   -- AFTER trigger
@@ -1280,6 +1400,66 @@ END $$;
 REVOKE ALL ON FUNCTION app.set_user_role(uuid, public.user_role) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION app.set_user_role(uuid, public.user_role) TO authenticated;
 
+-- B-017: seudonimiza una cuenta referenciada por reviewed_by/reviewer_id.
+-- No borra la fila: el UUID sigue siendo el vínculo de auditoría. Solo service_role.
+-- El servidor debe banear/anonimizar auth.users después; no borrar mientras haya referencias
+-- (las FK de revisión son ON DELETE RESTRICT).
+-- No sustituye DIS-07 (protección de la última cuenta platform_admin), pendiente de decisión.
+CREATE FUNCTION app.pseudonymize_user(p_target uuid) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM public.users WHERE id = p_target) THEN
+    RAISE EXCEPTION 'target user not found';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.users
+              WHERE id = p_target AND pseudonymized_at IS NOT NULL) THEN
+    RETURN;   -- idempotente
+  END IF;
+
+  UPDATE public.users
+     SET email = 'deleted+' || p_target::text || '@invalid.local',
+         display_name = 'Revisor eliminado',
+         locale = 'es-DO',
+         timezone = 'America/Santo_Domingo',
+         theme = 'system',
+         consent_accepted_at = NULL,
+         consent_version = NULL,
+         is_active = false,
+         deleted_at = COALESCE(deleted_at, now()),
+         pseudonymized_at = now()
+   WHERE id = p_target;
+
+  -- RNF-28: datos privados del usuario (Ronda 6). La fila de users se conserva, así que el
+  -- ON DELETE CASCADE no se dispara; se borran aquí de forma explícita. Solo afecta a los
+  -- datos propios de esa persona; no toca evidencia, revisiones ni auditoría.
+  DELETE FROM public.watchlists             WHERE user_id = p_target;
+  DELETE FROM public.user_alert_preferences WHERE user_id = p_target;
+  DELETE FROM public.notifications          WHERE user_id = p_target;
+END $$;
+REVOKE ALL ON FUNCTION app.pseudonymize_user(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION app.pseudonymize_user(uuid) TO service_role;
+
+-- -----------------------------------------------------------------------------
+-- 10.1 Vistas staff-only (B-018). El owner de la vista omite RLS; el filtro
+-- app.is_staff() es la frontera de seguridad. No convertir a security_invoker:
+-- el rol authenticated no tiene SELECT sobre review_notes/reviewed_by/reviewer_id.
+-- -----------------------------------------------------------------------------
+CREATE VIEW public.staff_economic_events AS
+  SELECT e.* FROM public.economic_events e WHERE app.is_staff();
+
+CREATE VIEW public.staff_investment_opportunities AS
+  SELECT o.* FROM public.investment_opportunities o WHERE app.is_staff();
+
+CREATE VIEW public.staff_verification_records AS
+  SELECT v.* FROM public.verification_records v WHERE app.is_staff();
+
+CREATE VIEW public.staff_users AS
+  SELECT u.id, u.organization_id, u.display_name, u.role, u.is_active,
+         u.deleted_at, u.pseudonymized_at
+    FROM public.users u
+   WHERE app.is_staff()
+     AND (app.is_platform_admin() OR u.organization_id = app.current_org_id());
+
 -- -----------------------------------------------------------------------------
 -- 11. Privilegios: DENEGAR por defecto y conceder lo mínimo
 -- -----------------------------------------------------------------------------
@@ -1304,9 +1484,38 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;   -- identidad de a
 
 -- authenticated: lectura de referencia y de contenido publicado.
 GRANT SELECT ON sectors, geographic_locations, organizations, sources,
-                economic_events, projects, permits, public_tenders, contracts,
-                financial_instruments, instrument_auctions, investment_opportunities,
-                evidence, entity_relationships, verification_records
+                projects, permits, public_tenders, contracts,
+                financial_instruments, instrument_auctions,
+                evidence, entity_relationships
+  TO authenticated;
+
+-- B-018: columnas públicas. review_notes/reviewed_by/reviewer_id son staff-only;
+-- las vistas staff_* los exponen solo a app.is_staff().
+GRANT SELECT (id, title, summary, event_kind, primary_source_document_id, organization_id,
+              sector_id, location_id, occurred_at, published_at, timezone_assumed, detected_at,
+              verification_status, verification_reason, verification_checked_at, reviewed_at,
+              publisher_role, released_at, publication_status, trust_layer,
+              classification_confidence, ai_run_id, dedup_key, merged_into_id, is_demo,
+              search_vector, created_at, updated_at)
+  ON economic_events TO authenticated;
+
+GRANT SELECT (id, opportunity_type, title, description, originating_event_id, sector_id,
+              location_id, estimated_capital, capital_currency, capital_basis,
+              participation_requirements, risks, horizon_value, horizon_unit, confidence,
+              confidence_explanation, next_steps, trust_layer, publication_status,
+              reviewed_at, publisher_role, published_at, version, supersedes_id, ai_run_id,
+              dedup_key, is_demo, search_vector, created_at, updated_at)
+  ON investment_opportunities TO authenticated;
+
+GRANT SELECT (id, subject_type, subject_id, check_type, result, reasons, ai_run_id,
+              reviewer_role, created_at)
+  ON verification_records TO authenticated;
+
+REVOKE ALL ON staff_economic_events, staff_investment_opportunities,
+              staff_verification_records, staff_users
+  FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON staff_economic_events, staff_investment_opportunities,
+                staff_verification_records, staff_users
   TO authenticated;
 
 -- source_documents: sin extracted_text ni storage_path (se sirven desde el servidor
@@ -1346,7 +1555,8 @@ GRANT UPDATE (display_name, locale, timezone, theme, consent_accepted_at, consen
 -- Datos propios del usuario.
 GRANT SELECT, INSERT, UPDATE, DELETE ON watchlists, user_alert_preferences TO authenticated;
 GRANT SELECT ON notifications TO authenticated;
-GRANT UPDATE (read_at, status) ON notifications TO authenticated;
+-- B-019: el estado lo gestiona el servidor; el usuario solo marca leído.
+GRANT UPDATE (read_at) ON notifications TO authenticated;
 
 -- Operación e IA (solo personal).
 GRANT SELECT ON ingestion_jobs, ai_analysis_runs TO authenticated;
@@ -1542,4 +1752,42 @@ COMMIT;
 -- P0-10 viewer SELECT sobre eventos con publication_status<>'published' -> 0 filas (también con filtro explícito).
 -- P0-11 Alert Agent (service_role) no genera notificaciones para eventos no publicados (CC-23) -> 0 filas en notifications.
 -- Caso negativo (principio 3 de B): desactivar el trigger en una rama de prueba -> P0-01 y P0-04 deben FALLAR como prueba.
+--
+-- Pruebas de B-016…B-019 (Ronda 5) — PROPUESTAS, NO EJECUTADAS (B-007)
+-- P0-12 viewer SELECT review_notes/reviewed_by de economic_events o investment_opportunities,
+--       o reviewer_id de verification_records -> ERROR "permission denied for column".
+-- P0-13 viewer SELECT staff_economic_events / staff_investment_opportunities /
+--       staff_verification_records / staff_users -> 0 filas. analyst SELECT las mismas vistas
+--       -> filas; analyst ve review_notes/reviewed_by/reviewer_id y display_name; staff_users
+--       NO tiene columna email (ERROR si se pide); users base sigue self/org_admin.
+-- P0-14 manager publica evento 'disputed' -> publisher_role='opportunity_manager';
+--       viewer ve publisher_role y reviewed_at, pero no reviewed_by ni review_notes.
+-- P0-15 analyst INSERT verification_records(human_review, reviewer_id=self) -> reviewer_role='analyst';
+--       viewer ve reviewer_role, no reviewer_id. service_role INSERT human_review -> CHECK falla
+--       (reviewer_role NULL): la revisión humana exige un actor humano.
+-- P0-16 evento publicado -> notificación delivered; el evento vuelve a 'in_review' (verificación
+--       empeora o despublicación manual) -> notificación status='superseded', superseded_at NOT NULL,
+--       title='Contenido no disponible', body/error NULL; viewer no puede UPDATE status; enlace
+--       directo y SELECT del evento -> 0 filas; la fila de watchlists del usuario permanece.
+-- P0-17 republicar el evento -> released_at nuevo; nueva notificación con dedup_key nuevo
+--       (incluye released_at); la anterior sigue superseded; el UNIQUE no colisiona.
+--       Para oportunidades, el equivalente es published_at (se limpia al despublicar).
+-- P0-18 service_role SELECT app.pseudonymize_user(<revisor>) -> (también borra watchlists, user_alert_preferences y notifications de esa persona) email='deleted+<uuid>@invalid.local',
+--       display_name='Revisor eliminado', is_active=false, deleted_at/pseudonymized_at NOT NULL;
+--       reviewed_by/reviewer_id siguen apuntando al id; audit_logs.old_data/new_data de users
+--       NO contienen email/display_name/consent_*; segunda llamada es no-op; authenticated no
+--       puede ejecutar la función; DELETE del usuario referenciado falla por RESTRICT.
+-- P0-19 evento publicado: UPDATE review_notes / publisher_role -> ERROR "immutable".
+--       oportunidad publicada: UPDATE review_notes -> ERROR "immutable".
+-- P0-20 usuario UPDATE notifications SET status='read' -> ERROR "permission denied for column";
+--       UPDATE read_at=now() sobre delivered -> status='read'; sobre superseded -> sigue superseded.
+-- P0-21 staff_users: viewer 0 filas; analyst solo su organización; platform_admin todas; sin email.
+-- P0-22 viewer SELECT * FROM economic_events -> ERROR por review_notes/reviewed_by; SELECT
+--       id,title,publisher_role -> OK. Igual para investment_opportunities y verification_records.
+-- P0-23 INSERT notification(status='superseded', superseded_at=NULL) -> CHECK falla;
+--       status='delivered' con superseded_at NOT NULL -> CHECK falla.
+-- P0-24 verificar que las vistas staff_* NO son security_invoker (reloptions NULL); si se cambian,
+--       el rol authenticated no tiene las columnas ocultas y la vista debe fallar, no filtrar.
+-- P0-25 evento publicado -> UPDATE publication_status='in_review' -> released_at NULL;
+--       oportunidad publicada -> UPDATE publication_status='rejected' -> published_at NULL.
 -- =============================================================================

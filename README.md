@@ -2,7 +2,7 @@
 
 Plataforma SaaS de inteligencia económica, financiera y de oportunidades de negocio para República Dominicana, con expansión internacional.
 
-> **Estado:** Sprint 0 cerrado y G0 aprobado (2026-11-15). Sprint 1 técnico con habilitadores listos en local; Supabase sigue bloqueado (B-003). No hay código de producto todavía.
+> **Estado:** Sprint 0 cerrado y G0 aprobado (2026-11-15). Sprint 1 técnico con habilitadores listos en local; Supabase sigue bloqueado (B-003). B-016…B-019 resueltos el 2026-11-15; el SQL sigue sin ejecutar. No hay código de producto todavía.
 
 - **Organización:** AviTech Solutions Group
 - **Versión:** 0.1.0
@@ -61,7 +61,7 @@ Evidencia de la última ejecución: `docs/sprint-1/PLAN-SPRINT-1.md` §5. No se 
 
 - **Sprint 0:** cerrado. G0 aprobado con recortes y condiciones (`docs/sprint-0/G0-ACTA.md`).
 - **Sprint 1 técnico:** CI, Vitest, Playwright, axe, gitleaks, Dependabot y estructura de migraciones (`docs/sprint-1/PLAN-SPRINT-1.md`).
-- **Bloqueado:** proyecto Supabase (B-003), proveedor LLM (B-011), abogado y licencias (B-009/B-017), equipo y dedicación (B-013), decisiones B-016…B-019. Detalle en `docs/sprint-0/BLOQUEOS.md`.
+- **Bloqueado:** proyecto Supabase (B-003), proveedor LLM (B-011), abogado y licencias (B-009/B-017), equipo y dedicación (B-013). B-016…B-019 resueltos el 2026-11-15; B-017 queda sujeto a abogado. Detalle en `docs/sprint-0/BLOQUEOS.md`.
 - **Fuera del MVP:** comparador, calculadora V-05, vistas guardadas, capa `Cálculo`, CSV, alertas por email, facturación y multi-tenant.
 
 ---

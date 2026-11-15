@@ -13,7 +13,7 @@ Mercado inicial: República Dominicana. Expansión: internacional.
 
 ## Estado actual: Sprint 1 — habilitadores técnicos
 
-Sprint 0 cerrado y G0 aprobado (2026-11-15). Sprint 1 autorizado para CI, pruebas, gitleaks y estructura de migraciones. **No hay proyecto Supabase todavía (B-003): no ejecutar SQL, no crear tablas y no afirmar RLS probado.** El código de producto del corte vertical espera Supabase. Evidencia en `docs/sprint-1/PLAN-SPRINT-1.md`.
+Sprint 0 cerrado y G0 aprobado (2026-11-15). Sprint 1 autorizado para CI, pruebas, gitleaks y estructura de migraciones. **B-016…B-019 resueltos el 2026-11-15 (B-017 sujeto a abogado); el SQL sigue sin ejecutar.** **No hay proyecto Supabase todavía (B-003): no ejecutar SQL, no crear tablas y no afirmar RLS probado.** El código de producto del corte vertical espera Supabase. Evidencia en `docs/sprint-1/PLAN-SPRINT-1.md`.
 
 ## Reglas no negociables
 

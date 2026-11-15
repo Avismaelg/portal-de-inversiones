@@ -142,12 +142,22 @@ Los valores son **hipótesis**. El almacén del contador (memoria, Redis, tabla)
 - Nada en el repositorio. `.env.example` solo contiene nombres. Verificar que `.gitignore` excluya `.env*` (comprobación pendiente en Sprint 1).
 - Secretos en el gestor del hosting/CI; **no** en `NEXT_PUBLIC_*`. Variables `NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY` son públicas por diseño; `SERVICE_ROLE` y `AI_API_KEY` no.
 - Una credencial por entorno (dev/staging/prod) y por componente; rotación al salir una persona y ante sospecha; procedimiento documentado.
-- `gitleaks` o equivalente bloqueante en CI (RNF-26 de B; **herramienta a aprobar**, no se instala hoy).
-- Cualquier secreto detectado en un commit se considera comprometido y se rota.
+- `gitleaks` 8.30.1 instalado y ejecutado en local/CI (RNF-26 de B); `npm run secret:scan` y job de CI. Cualquier secreto detectado en un commit se considera comprometido y se rota.
 
 ### 6.3 Auditoría
 
 `audit_logs` append-only, particionado, con actor, rol, acción, antes/después y `request_id` (`MODELO-DATOS.md` §8). Eventos mínimos a registrar: inicio de sesión administrativo, cambios de rol, publicación/rechazo, edición de entidades, cambios de fuente (incluido `legal_status`), alta de hosts permitidos, exportaciones, borrado de cuentas. Acceso: solo administradores. Alertas sobre patrones anómalos (cambios de rol fuera de horario, muchos rechazos). **Retención y contenido de IP/UA:** `[PENDIENTE LEGAL]`.
+
+### 6.3.1 Seudonimización de revisores (B-017, 2026-11-15)
+
+**Decisión técnica, no legal.** Cuando una cuenta con `reviewed_by` o `reviewer_id` debe darse de baja:
+
+1. El servidor ejecuta `app.pseudonymize_user(uuid)` (solo `service_role`): sustituye `email` por `deleted+<uuid>@invalid.local`, `display_name` por “Revisor eliminado”, borra el consentimiento y restablece las preferencias de perfil, marca `is_active = false`, `deleted_at` y `pseudonymized_at`. Conserva `id`, `role`, `organization_id` y los vínculos de revisión.
+2. `audit_row_change` redacta `email`, `display_name`, `consent_accepted_at` y `consent_version` de `old_data`/`new_data`; la auditoría conserva el hecho del cambio y el UUID, no la PII.
+3. Las FK `economic_events.reviewed_by`, `investment_opportunities.reviewed_by` y `verification_records.reviewer_id` son `ON DELETE RESTRICT`. El servidor debe **deshabilitar/anonimizar** `auth.users`, no borrarlo mientras existan referencias. Si el abogado exige borrado duro, hay que desacoplar la identidad del revisor antes de G5.
+4. La suficiencia legal de este esquema sigue **`REQUIERE ABOGADO`** (L-06/L-11). No se afirma cumplimiento.
+
+**Límite:** el `viewer` ve `publisher_role`/`reviewer_role` (rol), no el nombre; `analyst+` ve el nombre vía las vistas `staff_*`; `review_notes`/`reviewed_by`/`reviewer_id` no se conceden al `viewer` (B-018).
 
 ### 6.4 Backups y recuperación
 
@@ -200,7 +210,7 @@ Requisito (propuesto por B): RPO ≤ 24 h, RTO ≤ 4 h (RNF-09). Diseño: copias
 ## 8. Seguridad de la cadena de suministro y del ciclo de desarrollo
 
 - `package-lock.json` versionado; instalación con el script del repo (`tools\npm-install.ps1`) por el junction fuera de OneDrive; **sin dependencias nuevas sin aprobación** (Regla 5).
-- Revisión de dependencias: `npm audit` en CI; Dependabot/Renovate `[a aprobar]`; fijar versiones exactas en producción.
+- Revisión de dependencias: `npm audit` en CI y Dependabot configurado en Sprint 1; fijar versiones exactas en producción.
 - CI (GitHub Actions) con permisos mínimos de `GITHUB_TOKEN`; acciones fijadas por hash `[VERIFICAR]`.
 - Ramas protegidas, PR con revisión, sin secretos en el historial (el repositorio aún **no tiene commits**: bloqueo B-005; el primer commit debe revisarse en busca de secretos).
 - Separación de entornos: proyectos Supabase distintos, claves distintas, datos `is_demo` solo en staging.

@@ -31,7 +31,7 @@ Dejar el repositorio listo para construir el corte vertical **DGCP + Crédito P�
 - Ejecutar SQL o crear tablas.
 - Conectores, ingesta, IA y prompts.
 - Supabase CLI, Docker y psql (B-006).
-- Decisiones B-016…B-019.
+- Decisiones B-016…B-019 (resueltas 2026-11-15; su SQL no se ejecuta en este sprint).
 
 ## 3. Tareas
 
@@ -95,11 +95,11 @@ El Sprint 1 técnico se considera cerrado cuando:
 | B-011 — sin proveedor LLM | No hay agentes ni evals |
 | B-013 — equipo sin nombres | No hay velocidad real |
 | B-015 — sin anotadores | No hay golden sets |
-| B-016…B-019 | No se cierran migraciones definitivas |
+| B-016…B-019 | **Resueltas 2026-11-15**; el esquema sigue sin ejecutar (B-003/B-007) |
 
 ## 7. Siguiente incremento
 
-1. Resolver B-016…B-019: publicación, seudonimización, columnas staff-only y `superseded`.
+1. ~~Resolver B-016…B-019~~ (hecho 2026-11-15; B-017 sujeto a abogado). El SQL sigue sin ejecutar.
 2. Crear el proyecto Supabase nuevo y exclusivo; añadir `.env.local`.
 3. Partir `schema-propuesto.sql` en `0001_init`…`0004_views`.
 4. Ejecutar en rama y correr la suite RLS/P0.

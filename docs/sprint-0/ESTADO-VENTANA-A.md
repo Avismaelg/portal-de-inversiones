@@ -1,50 +1,39 @@
 # ESTADO — Ventana A
 
 > Actualizar al final de **cada** turno. Es la fuente que lee el orquestador.
-> No escribir aquí planes largos: solo estado. Los entregables van en sus archivos.
 
-**Última actualización:** 2026-11-15 (Ronda 4)
-**Sprint:** 0 cerrado por G0; Sprint 1 autorizado con condiciones abiertas.
-**Estado:** TRES CABOS CERRADOS EN DOCUMENTOS. Nada ejecutado: ni SQL, ni instalaciones, ni commit.
+**Última actualización:** 2026-11-15 (retoma tras la sesión anterior de A)
+**Estado:** B-016…B-019 resueltos en documentos y SQL por la sesión anterior; **sin commit y sin ejecutar** (B-007). Esperando respuesta de B y las condiciones abiertas de G0.
 
-## Hecho en este turno (Ronda 4)
+## Qué encontré al retomar (evidencia: `git status`, `git log`, diff, BANDEJA)
 
-1. **Crédito Público:** nota de conciliación G0 #5/#7 en `FUENTES-RD.md` y en `ARQUITECTURA-MVP.md` §14, presentada como conciliación (no decisión nueva): alcance de producto sí, conector no; entra por carga manual; único conector activable en Sprint 1 = DGCP tras T-SRC-01.
-2. **Backlog recalculado** (`backlog-tecnico.md` §10; filas marcadas en su sitio, sin borrar): T-AI-09 post-MVP; comparador fuera de T-WEB-06; T-ING-04/05/07 condicionadas; T-WEB-12 y T-SRC-09 Could; T-SRC-07/08 Should; T-ING-06 pasa a camino principal. **El total NO baja: 192,5 → 194,0 d (+0,8 %)**, porque los recortes retiran ≈ 5 d de este backlog y la carga manual principal + puerta P0 añaden ≈ 6,5 d. Base comprometible: 175 d (sin conectores condicionados ni Should/Could). Comparación con B (428 pts): el baseline 20–24 semanas solo es sostenible con 3 personas, o 2 personas a 24 semanas con ≈ 19 % de holgura; 2 personas × 20 semanas no cabe.
-3. **Guardia de publicación de eventos** (`schema-propuesto.sql`): columnas `reviewed_by/reviewed_at/review_notes/released_at`, CHECK `economic_events_p0_review` y `economic_events_released`, trigger `economic_events_publish_guard` (función `app.enforce_event_publication`), privilegios por columna sobre `economic_events` y pruebas de humo P0-01…P0-11 (comentadas al final del SQL; sumadas a T-INF-03). **Propuesto, no ejecutado (B-007).**
-4. **N provisional de DGCP = 5 años** `[PENDIENTE T-SRC-01]` con tabla de volumen (≈ 0,53 M filas de licitaciones+contratos, bajo un supuesto de reparto uniforme que es falso) y sugerencia de probar con ≈ 1,1 M filas.
-5. `MODELO-DATOS.md` §13 documenta la guardia y sus límites.
+- **Commiteado:** documentos hasta la Ronda 4 (`1c73d8b`), respuesta de B a la guardia (`fcdb6d6`) y habilitadores técnicos de Sprint 1: CI, Vitest, Playwright + axe, Dependabot, gitleaks (`afed0e0`, `86df0f2`, `c234cc2`).
+- **Sin commitear (10 archivos):** Ronda 5 de A — `schema-propuesto.sql` (v0.1.1, +311 líneas), `MODELO-DATOS.md` §14, `SEGURIDAD-Y-CUMPLIMIENTO.md` §6.3.1, `SISTEMA-IA.md`, `ARQUITECTURA-MVP.md`, `BLOQUEOS.md`, `BANDEJA.md`, `PLAN-SPRINT-1.md`, `README.md`, `AGENTS.md`.
+- **Contenido de la Ronda 5:** B-016 manager+ publica eventos no verificados, sin doble llave; B-017 `app.pseudonymize_user`, FK de revisión `ON DELETE RESTRICT`, PII fuera de `audit_logs`; B-018 `publisher_role`/`reviewer_role` públicos, `review_notes`/`reviewed_by`/`reviewer_id` solo staff vía vistas `staff_*` y GRANT por columna; B-019 estado `superseded`, redacción de notificaciones, republicación con nuevo `dedup_key`. Pruebas P0-12…P0-25 (comentadas, no ejecutadas).
+- La entrada de A de las 14:49 en la bandeja pide a B actualizar UX/QA; **B aún no ha respondido**.
+- `supabase/migrations/` solo tiene su README; su condición "resolver B-017/18/19 antes de partir el SQL" **ya se cumple**, pero partir sigue bloqueado por B-003 y B-007 (no hay dónde ejecutarlo).
+
+## Hecho en este turno
+
+- Revisión estática del SQL de la Ronda 5: `BEGIN`/`COMMIT` únicos, 54 `$$`, 810/810 paréntesis, sin duplicados de nombres, 23 entidades. Anotado en `MODELO-DATOS.md` §14.1 junto con 5 puntos abiertos (el principal: `pseudonymize_user` no limpia `watchlists`, preferencias ni notificaciones).
+- Reescrito este estado (estaba desactualizado: describía la Ronda 4).
 
 ## NO verificado
 
-- El SQL sigue sin ejecutarse (B-007). El trigger de eventos, las restricciones y los GRANT por columna están revisados solo a mano; un GRANT por columna mal puesto rompería la inserción de eventos desde la app.
-- Las cifras de N salen de la ficha de OCP y de un reparto uniforme por año; no hay medición.
-- Todo lo de Supabase, fuentes bloqueadas, normas legales y Next 16 sigue como antes.
-
-## Desviaciones respecto a la orden (explícitas)
-
-- La orden pedía `published_at` en la guardia; en este modelo `published_at` es la **fecha de la fuente** (RF-A-06). Usé una columna nueva `released_at` (publicación en la plataforma).
-- Añadí privilegios por columna sobre `economic_events` (no pedido): sin ellos un analista podía marcar `verified` y saltarse P0.
+- El SQL no se ha ejecutado nunca; la revisión de hoy es estática y no sustituye una ejecución. No existe `psql`, Docker ni Supabase en esta máquina.
+- No volví a ejecutar lint/tests/build del código de Sprint 1; los resultados del `PLAN-SPRINT-1.md` son del orquestador.
+- Qué modelo/sesión hizo la Ronda 5: no consta en el repo; solo lo que dice la bandeja.
 
 ## Bloqueos
 
-- Condiciones abiertas de G0 §3 (Supabase nuevo, proveedor LLM, abogado, equipo, anotadores, contacto del `User-Agent`, hosting) y B-007.
+- B-003 (Supabase), B-006/B-007 (sin Postgres), proveedor LLM, abogado, equipo, anotadores, `User-Agent`, hosting (ADR-0005).
 
-## Decisiones propuestas pendientes
+## Decisiones pendientes
 
-- ¿Quién publica eventos no verificados: `analyst` o `opportunity_manager`+ (hoy gestor)? ¿Doble llave en `human_review`? ¿Seudonimizar al revisor en lugar de borrar su cuenta?
-- DIS-02…DIS-08 (CONCILIACION §2) siguen abiertas.
-
-## Solicitudes a la Ventana B
-
-- Confirmar el conflicto AC-02-04 (evento `disputed` visible en lista) frente a CC-23 y la salida propuesta (un revisor puede publicar un `disputed`).
-- Usar N = 5 provisional para dimensionar RNF-02/03 y aceptar que T-ING-04 queda condicionada.
-
-## Solicitudes de cambio al contrato / alcance
-
-- Ninguna.
+- DIS-02…DIS-08. (`pseudonymize_user` ya borra también los datos privados: Ronda 6, no ejecutado.)
 
 ## Próximo paso
 
-1. Usuario: Supabase nuevo, abogado, equipo, proveedor LLM, anotadores, `User-Agent`.
-2. A: T-SRC-01 (fija N) y, con Supabase, T-INF-01/02/03 (ejecutar el SQL y las pruebas P0).
+1. Commit de la Ronda 5 y 6 hecho a petición del usuario.
+2. Crear el proyecto Supabase nuevo; ejecutar el SQL en rama y correr P0-01…P0-25 antes de partirlo en migraciones.
+3. Esperar la respuesta de B a la entrada de las 14:49.

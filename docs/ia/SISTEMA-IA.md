@@ -305,10 +305,14 @@ Nota: el ejemplo de `rate`/`as_of` es **ilustrativo del formato**, no un dato re
 | Naturaleza | **Reglas deterministas** (coincidencia con `user_alert_preferences`, ventanas de vencimiento) + prioridad calculada; sin LLM en el MVP |
 | Entradas | Cambios en eventos/proyectos/licitaciones/instrumentos publicados, preferencias, `watchlists` |
 | Herramientas | SQL; inserción en `notifications` (solo `service_role`) |
-| Salidas | `notifications` con `dedup_key`, estado de entrega y error |
+| Salidas | `notifications` con `dedup_key`, `status` (`pending`/`delivered`/`failed`/`read`/`superseded`) y error |
 | Límites | Tope de notificaciones por usuario/hora `[PENDIENTE]`; ventanas 7/3/1 días (propuesta B) |
-| Errores | Fallo de entrega ⇒ `failed` + reintento con backoff; tras 3 ⇒ visible en el panel admin |
-| Idempotencia | `UNIQUE (user_id, channel, dedup_key)` |
+| Errores | Fallo de entrega ⇒ `failed` + reintento con backoff; tras 3 ⇒ visible en el panel admin. `superseded` es terminal: no se reintenta |
+| Idempotencia | `UNIQUE (user_id, channel, dedup_key)`; la clave incluye `released_at` (eventos) o `published_at` (oportunidades) para que una republicación genere una alerta nueva |
+
+**Despublicación y republicación (B-019, 2026-11-15).** Si un evento o una oportunidad publicados dejan de estarlo, el trigger `app.supersede_notifications` marca las notificaciones existentes como `superseded`, les asigna `superseded_at` y redacta `title` (“Contenido no disponible”), `body` y `error`. La fila no se borra: el usuario ve que el contenido dejó de estar disponible. El `viewer` no puede cambiar `status`; solo `read_at`. Al republicar, el trigger limpia y vuelve a fijar `released_at` (eventos) o `published_at` (oportunidades), de modo que el Alert Agent calcula una `dedup_key` distinta y puede insertar una notificación nueva; la anterior permanece `superseded`. Un enlace directo al contenido despublicado devuelve 404 y la watchlist muestra “No disponible temporalmente (en revisión)” (UX/QA de B).
+
+**Carrera de entrega.** El worker debe revalidar que la entidad sigue `published` justo antes de entregar; el trigger de despublicación no puede impedir una entrega concurrente. Si la entidad ya no está publicada, la notificación se marca `superseded` y no se entrega.
 
 ## 5. Orquestación y estados
 
