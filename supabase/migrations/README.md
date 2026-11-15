@@ -35,3 +35,19 @@ Ninguna migración se ejecuta contra un proyecto real sin:
 2. Rama o proyecto de pruebas.
 3. Suite RLS y P0 en verde.
 4. Copia de seguridad y plan de reversión.
+
+## Aplicado el 2026-11-15 (actualiza lo anterior)
+
+Las 7 migraciones de esta carpeta se aplicaron al proyecto Supabase `PORTAL DE INVERSIONES` (`xzlwrlgjsdymcidlmqew`) con la herramienta MCP, en orden. **Los archivos son la copia del SQL aplicado** (sin comentarios ni blancos, para reducir tamaño); la versión comentada y de referencia sigue en `docs/datos/schema-propuesto.sql`. El orden real **no** sigue la lista "prevista" de arriba: se partió el SQL en bloques contiguos y se añadió `07` para fijar `search_path` en 5 funciones. Las condiciones B-017/B-018/B-019 de arriba ya estaban resueltas.
+
+| Versión | Contenido |
+|---|---|
+| 20261115194248 | Extensión `pg_trgm` (en `extensions`), esquema `app`, tipos, funciones base, referencia, `users` y `users_auth_fk` |
+| 20261115194320 | Fuentes, jobs, documentos, trazabilidad de IA, eventos y su guardia P0 |
+| 20261115194411 | Proyectos, permisos, licitaciones, contratos, instrumentos, subastas, oportunidades, evidencia, relaciones, verificaciones |
+| 20261115194457 | Funciones de visibilidad, watchlist, alertas, notificaciones, auditoría particionada, `set_user_role`, `pseudonymize_user` |
+| 20261115194526 | Vistas `staff_*` y privilegios |
+| 20261115194527 | RLS y políticas |
+| 20261115194548 | `search_path` fijo en 5 funciones (aviso del *advisor*) |
+
+Sin datos de negocio: solo los 11 sectores. Pruebas P0 ejecutadas en una transacción revertida: ver `docs/datos/MODELO-DATOS.md` §16.

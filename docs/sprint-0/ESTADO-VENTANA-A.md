@@ -3,7 +3,8 @@
 > Actualizar al final de **cada** turno. Es la fuente que lee el orquestador.
 
 **Última actualización:** 2026-11-15 (retoma tras la sesión anterior de A)
-**Estado:** B-016…B-019 resueltos en documentos y SQL por la sesión anterior; **sin commit y sin ejecutar** (B-007). Esperando respuesta de B y las condiciones abiertas de G0.
+**Supabase nuevo localizado:** `PORTAL DE INVERSIONES` (`xzlwrlgjsdymcidlmqew`), vacío y sano; comprobaciones de solo lectura en `MODELO-DATOS.md` §15.
+**Estado:** SQL APLICADO EN SUPABASE (7 migraciones) y probado en parte, ver `MODELO-DATOS.md` §16. Sin commit.
 
 ## Qué encontré al retomar (evidencia: `git status`, `git log`, diff, BANDEJA)
 
@@ -20,7 +21,7 @@
 
 ## NO verificado
 
-- El SQL no se ha ejecutado nunca; la revisión de hoy es estática y no sustituye una ejecución. No existe `psql`, Docker ni Supabase en esta máquina.
+- El SQL YA se aplicó (Supabase `xzlwrlgjsdymcidlmqew`); falta la suite completa de P0 y probar con un JWT real. El script de pruebas se ejecutó y se revirtió.
 - No volví a ejecutar lint/tests/build del código de Sprint 1; los resultados del `PLAN-SPRINT-1.md` son del orquestador.
 - Qué modelo/sesión hizo la Ronda 5: no consta en el repo; solo lo que dice la bandeja.
 

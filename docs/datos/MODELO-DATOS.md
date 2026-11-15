@@ -335,3 +335,41 @@ Puntos que conviene tener presentes antes de partir en migraciones:
 3. **Permisos por columna:** con `SELECT` restringido en `economic_events`, `investment_opportunities` y `verification_records`, la aplicación **nunca** puede usar `SELECT *` ni `RETURNING *` como `authenticated` (el personal usa las vistas). Está previsto en P0-22; debe vigilarlo el código de acceso a datos (T-WEB-01).
 4. **Auditoría:** la redacción de PII de `users` en `audit_logs` rige hacia delante; `audit_logs` es inmutable, así que no se puede limpiar lo anterior. No hay filas previas (nada se ha ejecutado), pero es una limitación para cualquier carga futura.
 5. La guardia de oportunidades exige rol de gestión también para **editar** una oportunidad ya publicada; un proceso de servidor no puede tocarla (las versiones nuevas se insertan como filas nuevas, RF-F-14).
+
+## 15. Comprobaciones en el proyecto Supabase nuevo (2026-11-15) — T-INF-01 parcial
+
+Proyecto `PORTAL DE INVERSIONES` (`xzlwrlgjsdymcidlmqew`), consultado con **solo lectura** (sin DDL, sin migraciones). Está vacío: 0 relaciones en `public` y `app`; el esquema `app` aún no existe.
+
+| Punto del SQL marcado `[VERIFICAR Sprint 1]` | Resultado observado |
+|---|---|
+| Versión | PostgreSQL 17.11 (el SQL apunta a 15+) |
+| `service_role` con `BYPASSRLS` | **Sí** (`rolbypassrls = true`); `postgres` también; `anon` y `authenticated` **no** |
+| `auth.users` existe (FK obligatoria `users_auth_fk`) | **Sí** |
+| Privilegios por defecto en `public` | **Confirmado:** las tablas, funciones y secuencias nuevas se conceden por defecto a `anon`, `authenticated` y `service_role`. Por eso el `REVOKE ALL … FROM PUBLIC, anon, authenticated` explícito del SQL es necesario |
+| Extensiones disponibles (no instaladas) | `pg_trgm`, `pg_cron`, `vector`, `unaccent`, `pgmq`, `pg_partman`. Instaladas hoy: `pgcrypto`, `uuid-ossp`, `pg_stat_statements`, `supabase_vault`. El SQL hace `CREATE EXTENSION pg_trgm` (en el esquema por defecto; puede querer `extensions`, ver el comentario de la cabecera) |
+| Nombre de las variables de sesión del JWT | **No comprobado** (requiere una petición autenticada real) |
+| Extensiones `pg_cron`/`pgmq` | Disponibles, **no probadas**. `pgmq` es una alternativa a la cola de ADR-0003 (no se adopta) |
+
+Sigue pendiente: ejecutar el SQL (en rama o en este proyecto vacío tras tu confirmación), las pruebas P0-01…P0-25 y los *advisors* de seguridad después del DDL. **Ninguna de estas comprobaciones valida el SQL.**
+
+## 16. Ejecución en Supabase (2026-11-15) — T-INF-02 y parte de T-INF-03
+
+El esquema se aplicó al proyecto `PORTAL DE INVERSIONES` (`xzlwrlgjsdymcidlmqew`, PostgreSQL 17.11) en 7 migraciones (`supabase/migrations/`). **Primera ejecución real del SQL**: todas se aplicaron sin error de sintaxis ni de dependencias.
+
+**Estructura verificada con consultas:** 23 tablas en `public`, las 23 con RLS; 3 particiones de auditoría con RLS y sin privilegios directos para `anon`/`authenticated`; 48 políticas; 24 funciones en `app`; `users_auth_fk` creada; vistas `staff_*` sin `security_invoker`; 11 sectores sembrados; `anon` sin ningún privilegio en tablas.
+
+**Pruebas de comportamiento** (script `DO` ejecutado con `SET LOCAL ROLE` y JWT simulado en `request.jwt.claims`, **transacción revertida a propósito**; se comprobó después que no quedó ningún dato): cubren P0-01…P0-10, P0-12, P0-13, P0-16, P0-18, P0-20, anon sin acceso y la guardia de oportunidades. **Todas dieron el resultado esperado**: el worker no publica eventos no verificados; `pending` nunca; el analista no publica ni fija `verified`; el gestor publica con `reviewed_by` propio y se registran `reviewed_at`, `released_at` y `publisher_role`; una verificación que empeora devuelve el evento a la cola con `released_at` nulo; la notificación pasa a `superseded` y se redacta; el `viewer` solo ve lo publicado y no puede leer `review_notes`; las vistas `staff_*` dan 0 filas al `viewer`; `pseudonymize_user` anonimiza el perfil, borra los datos privados y no deja `email` en `audit_logs`; `DELETE` del revisor falla por `RESTRICT`; los workers no publican oportunidades.
+
+**No cubierto todavía (siguen pendientes):** P0-11, P0-14, P0-15, P0-17, P0-19, P0-21…P0-25 y la suite completa rol × tabla × operación (T-INF-03); pruebas con un JWT real de Supabase Auth (el nombre de las variables de sesión se probó con `request.jwt.claims`, no con una petición por PostgREST); rendimiento de las políticas; el flujo de alta de usuarios (un trigger que cree la fila de `users` al registrarse no existe: ahora `users` solo se puede llenar desde el servidor).
+
+**Avisos de los *advisors* de seguridad tras aplicar:**
+- `security_definer_view` (ERROR, 4 vistas `staff_*`): **es el diseño** (§14.1.2); la vista debe omitir los permisos por columna para que el personal lea `review_notes`. Se acepta; alternativa: sustituir las vistas por funciones.
+- `function_search_path_mutable` (5 funciones): **corregido** en la migración 07.
+- `rls_enabled_no_policy` (INFO, 3 particiones): intencionado, sin políticas = sin acceso directo.
+- `public.rls_auto_enable()` ejecutable por `anon` y `authenticated` (WARN): función **preexistente de Supabase**, no del esquema; revocar `EXECUTE` a esos roles es lo que recomienda el aviso y no se aplicó porque no es parte de este esquema.
+
+### 16.1 Segunda tanda de pruebas y migración 08 (2026-11-15)
+
+- **Migración `init_08_revoke_rls_auto_enable`:** se revocó `EXECUTE` de `public.rls_auto_enable()` (función preexistente de Supabase) a `PUBLIC`, `anon` y `authenticated`, por el aviso del *advisor*. La versión exacta registrada por Supabase puede diferir del nombre de archivo en el repo; el contenido es el mismo.
+- **Pruebas ejecutadas (revertidas) y resultado esperado en todas:** P0-14, P0-15 (el rol guardado sale del servidor, no del cliente: un analista que declara `platform_admin` queda como `analyst`), P0-15b (sin JWT, `human_review` se rechaza por CHECK; una primera lectura engañosa fue un artefacto del script: la variable de sesión del JWT seguía fijada), P0-19, P0-20 (`read_at` → `status = read`), P0-21 (viewer 0, analista 4 de su organización, platform_admin 5; sin `email`), P0-22, P0-23, P0-25, publicación de oportunidad por gestor con evidencia literal, rechazo sin evidencia, `extracted_text` oculto al `viewer`, `platform_admin` sin acceso a watchlists ajenas, `audit_logs` (analista 0, platform_admin ve, append-only), un `viewer` no cambia su rol ni llama a `set_user_role`, un analista sin rol de administración tampoco, y `ingestion_jobs` sin filas para analistas.
+- **Aún sin probar:** P0-11 (alertas, es lógica del Alert Agent), P0-17 (republicación con `dedup_key` nuevo, también del Alert Agent), P0-24 (comprobado indirectamente: `reloptions` nulo), y los casos negativos con el trigger desactivado.

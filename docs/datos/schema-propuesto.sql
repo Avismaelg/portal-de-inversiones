@@ -1,3 +1,4 @@
+-- Ronda 6 (2026-11-15): APLICADO en Supabase `xzlwrlgjsdymcidlmqew` en 7 migraciones (supabase/migrations/). Este archivo sigue siendo la referencia comentada.
 -- G0 #10 (2026-11-15): opportunity_evidence renombrada a evidence. No ejecutar el esquema anterior.
 -- =============================================================================
 -- AviTech Investment Intelligence — ESQUEMA PROPUESTO (Sprint 0)
@@ -125,7 +126,7 @@ CREATE TYPE actor_kind AS ENUM ('user', 'service', 'system');
 -- -----------------------------------------------------------------------------
 -- Actualiza updated_at.
 CREATE FUNCTION app.touch_updated_at() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path = '' AS $$
 BEGIN
   NEW.updated_at := now();
   RETURN NEW;
@@ -135,7 +136,7 @@ END $$;
 -- Devuelve NULL si no hay JWT (p. ej. service_role sin usuario o un worker).
 -- [VERIFICAR Sprint 1] que el nombre de la variable de sesión sea el vigente.
 CREATE FUNCTION app.current_user_id() RETURNS uuid
-LANGUAGE sql STABLE AS $$
+LANGUAGE sql STABLE SET search_path = '' AS $$
   SELECT COALESCE(
     NULLIF(current_setting('request.jwt.claim.sub', true), ''),
     NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'
@@ -271,9 +272,9 @@ END $$;
 
 -- El usuario debe pertenecer a una organización de tipo 'tenant'.
 CREATE FUNCTION app.users_org_must_be_tenant() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path = '' AS $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM organizations o WHERE o.id = NEW.organization_id AND o.org_type = 'tenant') THEN
+  IF NOT EXISTS (SELECT 1 FROM public.organizations o WHERE o.id = NEW.organization_id AND o.org_type = 'tenant') THEN
     RAISE EXCEPTION 'users.organization_id must reference an organization of type tenant';
   END IF;
   RETURN NEW;
@@ -434,7 +435,7 @@ ALTER TABLE ingestion_jobs
 
 -- Los originales no se modifican: solo se permite completar extracción/parse.
 CREATE FUNCTION app.source_documents_immutable() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path = '' AS $$
 BEGIN
   IF NEW.content_hash IS DISTINCT FROM OLD.content_hash
      OR NEW.source_id IS DISTINCT FROM OLD.source_id
@@ -1328,7 +1329,7 @@ CREATE INDEX audit_logs_org_idx       ON audit_logs (actor_org_id, occurred_at D
 
 -- Inmutable: nadie modifica ni borra filas (la retención elimina particiones completas).
 CREATE FUNCTION app.audit_logs_block_mutation() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql SET search_path = '' AS $$
 BEGIN
   RAISE EXCEPTION 'audit_logs is append-only';
 END $$;
