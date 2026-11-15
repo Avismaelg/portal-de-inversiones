@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Documento | `docs/qa/ESTRATEGIA-PRUEBAS.md` |
-| Versión | 0.2.0 (Sprint 0, Ronda 3 — alineada con G0) |
+| Versión | 0.3.0 (Sprint 0, Ronda 5 — política P0 reconciliada) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana B |
 | Estado | **BORRADOR PARA APROBACIÓN** |
@@ -172,7 +172,8 @@ El mapa completo (86 RF) está en `REQUISITOS-Y-TRAZABILIDAD.md` **Anexo B** (ID
 | CC-20 | Borrado de cuenta elimina datos personales y notas privadas | E2E + datos | RF-G-09, RNF-28 | Tras borrar, consultas por usuario = 0 (salvo auditoría anonimizada) | Privacidad |
 | CC-21 | Sin secretos en repo; escaneo bloqueante en CI | CI | RNF-26 | 0 hallazgos | Seguridad |
 | CC-22 | Restauración de backup dentro de RPO/RTO | Operación | RNF-09 | Acta con tiempos | Despliegue/operación |
-| CC-23 | **Puerta P0 (G0 #11):** todo evento no verificado al 100 % (`pending`, `partially_verified`, `disputed`, `unverifiable`) entra en la cola de revisión humana y **no** es visible para `viewer`; ningún worker lo publica | Integración + seguridad (RLS) | RF-A-11, RF-F-11, RN-07 | Dado un evento `partially_verified`, cuando termina la verificación, entonces queda en cola, no aparece en el radar ni genera alertas hasta que un revisor lo publica | IA/seguridad |
+| CC-23 | **Puerta P0 — cola (G0 #11):** un evento `pending`, `partially_verified`, `disputed` o `unverifiable` entra en cola de revisión humana y **no es visible para `viewer` mientras está en cola** ni genera alertas. Un worker o `service_role` **nunca** publica un evento no verificado; `pending` **nunca** se publica; si un evento publicado empeora su verificación, **vuelve a la cola** y deja de ser visible | Integración + seguridad (RLS) | RF-A-11, RF-F-11, RN-07 | Dado un evento `partially_verified` recién verificado, cuando se consulta como `viewer`, entonces no aparece en radar, búsqueda ni alertas; dado un evento publicado `verified` cuya verificación pasa a `disputed`, entonces vuelve a `in_review` y desaparece para `viewer` | IA/seguridad |
+| CC-24 | **Puerta P0 — publicación deliberada (G0 #11):** solo `opportunity_manager+` puede publicar un evento no verificado, y queda como `reviewed_by`. Una vez publicado **es visible** para `viewer` con su etiqueta de estado y las fuentes en conflicto | Integración + E2E + seguridad | RF-A-11, RF-F-11, RN-07, AC-02-04 | **Paso 1:** un evento `disputed` está en cola → invisible para `viewer`. **Paso 2:** un `opportunity_manager` lo publica → `viewer` lo ve con la etiqueta “En disputa” y las fuentes en conflicto; `reviewed_by` = ese usuario. **Paso 3:** un worker/`service_role` intenta publicar un evento no verificado → **error**; un `analyst` intenta lo mismo → 403; publicar un `pending` → error para cualquier rol | IA/seguridad |
 
 **Criterio común:** el caso pasa si todos sus pasos pasan **y** su caso negativo (§1 principio 3) falla como se espera.
 
@@ -316,7 +317,7 @@ Suite GS-INJ (≥ 30 casos, crece con incidentes): instrucciones en el cuerpo de
 
 - Cola de revisión con muestreo ciego (rúbrica de 6 criterios: fidelidad, cita, cifras, capa, riesgos, lenguaje).
 - Cada rechazo registra etiqueta de error → alimenta GS y análisis de causas.
-- **Puerta P0 aprobada (G0 #11):** todo evento no verificado al 100 % pasa por la cola de revisión humana (CC-23). **Anotadores y revisores: `[PENDIENTE USUARIO]`**; sin ellos, la cola no tiene operadores y G-09 queda `NO CONCLUYENTE`.
+- **Puerta P0 aprobada (G0 #11):** todo evento no verificado al 100 % pasa por la cola de revisión humana y no es visible para `viewer` mientras está en cola; solo `opportunity_manager+` puede publicarlo deliberadamente, y entonces sí es visible con su etiqueta (CC-23, CC-24). **Anotadores y revisores: `[PENDIENTE USUARIO]`**; sin ellos, la cola no tiene operadores y G-09 queda `NO CONCLUYENTE`.
 - **Relajar** la revisión humana (C-09) exige ≥ 3 meses consecutivos con RNF-19 concluyente y aprobación explícita del usuario.
 
 ---
@@ -444,7 +445,7 @@ El MVP **no** se declara terminado por sensación ni por porcentaje de tareas. S
 | G-19 | Datos demo etiquetados y excluidos de métricas (CC-16) | Informe |
 | G-20 | Aviso legal y revisión legal de RD completados para lo que se muestre (RNF-27) | Acta legal `[PENDIENTE LEGAL]` |
 | G-21 | Costo IA medido y dentro del tope aprobado (RNF-21) | Informe de costos |
-| G-22 | Todos los casos críticos CC-01…CC-23 en `PASA` en la **misma versión de código** que se lanzará | Informe de cierre |
+| G-22 | Todos los casos críticos CC-01…CC-24 en `PASA` en la **misma versión de código** que se lanzará | Informe de cierre |
 
 ### 13.2 Condiciones de bloqueo (cualquiera impide declarar “terminado”)
 
@@ -510,5 +511,6 @@ El MVP **no** se declara terminado por sensación ni por porcentaje de tareas. S
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
+| 0.3.0 | 2026-11-15 | Ronda 5: CC-23 reescrito con la política P0 aprobada (en cola = invisible; solo `opportunity_manager+` publica deliberadamente; worker nunca; empeorar = vuelve a cola) y nuevo CC-24 (invisible → publicado con etiqueta y fuentes → worker falla). 24 casos críticos. | Ventana B |
 | 0.2.0 | 2026-11-15 | Ronda 3 (G0): herramientas aprobadas (G0 #12); CC-23 (puerta P0 de eventos); RF-C-06, RF-C-07, RF-G-05 y RF-G-16 post-MVP (sus T-RF no se ejecutan); QA-D1/D2/D5 actualizadas; anotadores y revisores `[PENDIENTE USUARIO]`. | Ventana B |
 | 0.1.0 | 2026-11-15 | Creación: pirámide, herramientas (con estado real), entornos, 22 casos críticos, calidad de datos, evals de IA con análisis de tamaños de muestra, seguridad, carga, A11Y, control de trazabilidad y definición de MVP terminado. | Ventana B |

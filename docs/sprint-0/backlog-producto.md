@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Documento | `docs/sprint-0/backlog-producto.md` |
-| Versión | 0.3.0 (Sprint 0, Ronda 3 — alineado con G0-ACTA) |
+| Versión | 0.3.1 (Sprint 0, Ronda 5 — alineado con G0-ACTA y política P0) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana B |
 | Estado | **ALINEADO CON `G0-ACTA.md` (2026-11-15)**: alcance recortado y baseline de 20–24 semanas aprobados |
@@ -64,7 +64,7 @@ Subtotal: **13 historias · 73 pts**.
 | US-A-08 | RF-A-08 | Must | Como usuario quiero buscar y filtrar eventos por sector, organización, lugar, fecha, fuente y verificación, para encontrar lo relevante. | 8 | S2 | T-WEB-02 | Dados 3 filtros, cuando recargo, entonces se conservan en la URL y los resultados coinciden. |
 | US-A-09 | RF-A-09 | Must | Como usuario quiero recibir una alerta por evento relevante sin duplicados, para no perder novedades. | 8 | S6 | T-AI-10, T-WEB-08 | Dada una preferencia coincidente, cuando se publica un evento, entonces recibo 1 alerta y no se duplica al recargar. |
 | US-A-10 | RF-A-10 | Must | Como usuario quiero un detalle de evento con resumen, hechos, evidencia y cronología, para decidir si profundizar. | 5 | S2 | T-WEB-03 | Dado un evento, cuando lo abro, entonces veo resumen, hechos con cita, documentos y organizaciones (ver FICHAS-CLAVE §1). |
-| US-A-11 | RF-A-11 | Must | Como analista quiero un estado de verificación con motivo y fecha, para distinguir lo confirmado de lo dudoso. | 5 | S4 | T-AI-06 | Dado un evento, cuando se verifica, entonces tiene estado, motivo y fecha; `disputed` muestra ambas fuentes. |
+| US-A-11 | RF-A-11 | Must | Como analista quiero un estado de verificación con motivo y fecha, para distinguir lo confirmado de lo dudoso. | 5 | S4 | T-AI-06 | Dado un evento, cuando se verifica, entonces tiene estado, motivo y fecha; `disputed` muestra ambas fuentes. Un evento no verificado al 100 % queda en cola y solo es visible tras publicación humana deliberada (CC-23/24). |
 | US-A-12 | RF-A-12 | Should | Como analista quiero el historial de cambios de un evento, para auditar correcciones. | 3 | S8 | **BRECHA**: vista de lectura del historial (el trigger de auditoría ya existe en el SQL) | Dado un cambio, cuando lo consulto, entonces veo quién, cuándo, campo, antes y después. |
 | US-A-13 | RF-A-13 | Must | Como usuario quiero ver una etiqueta DEMO en todo contenido de demostración, para no confundirlo con datos reales. | 3 | S1 | T-INF-02, T-INF-08, EN-03 | Dado un registro `is_demo`, cuando se muestra, entonces lleva “DEMO” y no cuenta en KPIs. |
 
@@ -411,7 +411,7 @@ Un gate **no se supera por calendario**: se supera cuando el usuario revisa la *
 | **G1 — Primera fuente** | Fin S2 (sem. 4) | Un conector verificado funciona; CC-04/05 y DQ-04/05/09/10 `PASA` en staging; auditoría activa; CI ejecutando pruebas. | Informes CC-04/05 y DQ; log de ingesta de ≥ 7 días `[PROPUESTO]` | Usuario |
 | **G2 — Vertical slice** | Fin S4 (sem. 8) | Radar con evidencia, proyectos, licitaciones e instrumentos visibles con datos reales de ≥ 1 fuente por módulo; CC-04/06/07/08/15; primer eval de extracción con IC; primer test de comprensión de capas (USA-01). | Informes E2E y evals; capturas; informe USA-01 | Usuario |
 | **G3 — Núcleo de IA fundamentada** | Fin S6 (sem. 12) | Oportunidades con evidencia obligatoria, bloqueo por cifra sin cita, flujo de revisión humana y panel de administración; CC-10/11/12 `PASA`; evals sobre retención ciega con IC (o `NO CONCLUYENTE` con plan); GS-INJ sin fallos (CC-18). | Informes CC-10/11/12/18 y evals | Usuario |
-| **G4 — Must completo** | Fin S7 (sem. 14) | Las 65 historias Must `hechas` según DoD; CC-01…CC-17 y CC-23 `PASA`; ninguna pantalla sin estados vacío/carga/error/permisos (AC-UX-01). | Matriz de trazabilidad actualizada; informe parcial de cierre | Usuario |
+| **G4 — Must completo** | Fin S7 (sem. 14) | Las 65 historias Must `hechas` según DoD; CC-01…CC-17, CC-23 y CC-24 `PASA`; ninguna pantalla sin estados vacío/carga/error/permisos (AC-UX-01). | Matriz de trazabilidad actualizada; informe parcial de cierre | Usuario |
 | **G5 — Cierre del MVP y go/no-go del piloto** | Fin S10 (sem. 20; escenario de 16 semanas: fin S8) | Informe de cierre (ESTRATEGIA §13) con G-01…G-22 en estado explícito; 0 hallazgos críticos/altos de seguridad; revisión legal de RD completada para lo que se muestre (RNF-27); tope de costo IA aprobado; runbooks y rollback ensayados; backup restaurado. | Informe de cierre revisado por persona distinta a quien escribió las pruebas | Usuario |
 | **G6 — Ampliación del piloto** | Después de G5 (semanas 21–24 del baseline y posteriores) | ≥ 4 semanas de piloto con métricas M-01…M-12 medidas; RNF-19 concluyente (acumulado ≥ 200) o plan; decisión sobre relajar revisión humana (C-09). | Métricas reales de piloto | Usuario |
 | **G7 — Lanzamiento controlado** | Después de G6 `[PENDIENTE]` | Todos los Must cerrados, sin pendientes legales, modelo de negocio definido (C-06). | Acta de lanzamiento | Usuario |
@@ -492,6 +492,7 @@ Las 14 decisiones de `G0-DECISIONES.md` están **aprobadas** (2026-11-15). Queda
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
+| 0.3.1 | 2026-11-15 | Ronda 5: US-A-11 incorpora la política P0 reconciliada (CC-23/24); G4 exige CC-24. | Ventana B |
 | 0.3.0 | 2026-11-15 | Ronda 3 (G0): Post-MVP (comparador, calculadora, vistas guardadas, capa `Cálculo`; también exportación CSV) fuera de totales y sprints; alcance aprobado explícito; baseline de 20–24 semanas con S1–S10 y escenario de 16 semanas; cobertura manual para B, C-03 y E; histórico DGCP de N años; §7 convertido en estado de condiciones. | Ventana B |
 | 0.2.0 | 2026-11-15 | Ronda 2: dependencias con IDs `T-*` de A; rangos para EN-01…EN-08; camino crítico calculado (43,5 d); reconciliación de calendario (§4.4); verificación de dependencias (§4.5); US-A-11 pasa a S4 (suelo de `T-AI-06`); US-G-02/13 sin dependencia de `T-WEB-09`. | Ventana B |
 | 0.1.0 | 2026-11-15 | Creación: 86 historias con estimación relativa, dependencias con A y criterios de aceptación; habilitadores; roadmap de 16 semanas con 8 sprints y 8 gates; riesgos y decisiones pendientes. | Ventana B |

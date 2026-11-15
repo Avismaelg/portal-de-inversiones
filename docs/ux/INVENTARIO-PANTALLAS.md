@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Documento | `docs/ux/INVENTARIO-PANTALLAS.md` |
-| Versión | 0.2.0 (Sprint 0, revisada) |
+| Versión | 0.3.0 (Sprint 0, Ronda 5) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana B |
 | Estado | **BORRADOR PARA APROBACIÓN** |
@@ -203,7 +203,8 @@ Todo contenido debe declarar una de estas capas (detalle en `docs/ux/SISTEMA-DIS
 - **AC-02-01** Dado un evento publicado, cuando el usuario lo abre, entonces la evidencia está a un clic y el documento original se abre en pestaña nueva.
 - **AC-02-02** Dado un evento sin evidencia almacenada, cuando se abre, entonces muestra “Sin evidencia verificable” y no permite generar oportunidad desde él.
 - **AC-02-03** Dados tres filtros aplicados, cuando el usuario recarga la página, entonces los filtros se conservan en la URL y los resultados coinciden.
-- **AC-02-04** Dado un evento `disputed`, cuando se muestra en la lista, entonces lleva la etiqueta “En disputa” y un tooltip con las fuentes en conflicto.
+- **AC-02-04** Dado un evento `disputed` **publicado deliberadamente por una persona con rol `opportunity_manager+`** (política P0), cuando se muestra en la lista a un `viewer`, entonces lleva la etiqueta “En disputa” y un tooltip con las fuentes en conflicto. Mientras el evento está en cola de revisión **no aparece** en la lista, la búsqueda ni las alertas.
+- **AC-02-05** Dado un evento publicado cuya verificación empeora (p. ej. de `verified` a `disputed`), cuando el sistema lo detecta, entonces vuelve a la cola, desaparece del radar para `viewer` y solo reaparece tras una nueva publicación humana. Un evento `pending` nunca se muestra.
 
 **Dependencias Ventana A.** Esquema de `economic_events`, deduplicación, contrato de evidencia, taxonomía sectorial. `[PENDIENTE A]`
 
@@ -980,5 +981,6 @@ Todo contenido debe declarar una de estas capas (detalle en `docs/ux/SISTEMA-DIS
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
+| 0.3.0 | 2026-11-15 | Ronda 5: AC-02-04 reconciliado con la puerta P0 (evento `disputed` visible solo tras publicación humana deliberada); nuevo AC-02-05 (vuelta a cola). | Ventana B |
 | 0.2.0 | 2026-11-15 | Revisión D-002: errata “titilar”; referencia del mapa corregida a C-10 (coherente con REQUISITOS §8); `closing_soon` ≤ 72 h. | Ventana B |
 | 0.1.0 | 2026-11-15 | Creación: 14 pantallas + AUX-01, estados, responsive, criterios de aceptación y dependencias. | Ventana B |

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Documento | `docs/ux/FICHAS-CLAVE.md` |
-| Versión | 0.3.0 (Sprint 0, Ronda 3) |
+| Versión | 0.4.0 (Sprint 0, Ronda 5) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana B |
 | Estado | **BORRADOR PARA APROBACIÓN** |
@@ -21,7 +21,7 @@
 | FC-01 | **Cifra con fuente.** Toda cifra (monto, tasa, plazo, capital, fecha límite) se muestra con `MetricValue`: valor, unidad/moneda, fuente (enlace) y fecha. Si falta cualquiera, se muestra **“No disponible”** y el motivo. Nunca `0`, `—` ni estimaciones silenciosas. | RN-01, RN-06 |
 | FC-02 | **Capa visible.** Cada bloque lleva `TrustLayerBadge`: `Confirmado`, `Análisis IA` o `Inferencia` (SISTEMA-DISENO §6). Un bloque no mezcla capas. | RN-02 |
 | FC-03 | **Fuente original a un clic.** Cada ficha tiene un bloque “Fuente original” con institución, título del documento, URL oficial, `published_at`, `captured_at` y hash corto. Abre en pestaña nueva con `rel="noopener noreferrer"`. | RF-A-05 |
-| FC-04 | **Tres fechas.** `published_at` (la fuente), `detected_at` (el sistema), `updated_at` (última modificación). UTC almacenado; visualización `America/Santo_Domingo`. | RF-A-06, RN-09 |
+| FC-04 | **Fechas.** `published_at` (la fuente), `detected_at` (el sistema), `updated_at` (última modificación) y, en eventos, `released_at` (“Publicado en la plataforma”, fijado al publicar; propuesto por A en `economic_events`). UTC almacenado; visualización `America/Santo_Domingo`. | RF-A-06, RN-09 |
 | FC-05 | **Estado de verificación explícito** (`verified`, `partially_verified`, `disputed`, `unverifiable`) con motivo y fecha. | RF-A-11 |
 | FC-06 | **Historial visible** (cuándo/qué cambió, con enlace a la versión anterior). El **actor** solo se muestra a `analyst`+; el `viewer` ve el historial público sanitizado (PERSONAS §3.3). | RF-A-12, RF-B-06 |
 | FC-07 | **Demo etiquetado.** `is_demo` → `DemoRibbon`; excluido de KPIs. | RN-08 |
@@ -103,7 +103,7 @@
 - **Verificación:**
   - `verified`: documento oficial auténtico (la ausencia de segunda fuente **no** invalida, PM §5).
   - `partially_verified`: parte de los hechos con respaldo.
-  - `disputed`: fuentes en conflicto; se muestran lado a lado.
+  - `disputed`: fuentes en conflicto; se muestran lado a lado **solo si un `opportunity_manager+` lo publicó deliberadamente** (P0); mientras está en cola es invisible para `viewer`.
   - `unverifiable`: sin documento comprobable; **no puede originar oportunidades** (RF-F-01).
   - `pending` (valor inicial definido por A, `verification_status`): aún no verificado; se muestra “Pendiente de verificación” y **no** puede publicarse (A impone `CHECK`).
 
@@ -133,7 +133,8 @@
 
 - **AC-FC-E-01** Dado un evento `published`, cuando se abre la ficha, entonces muestra ≥ 1 cita, el documento original, las tres fechas y el estado de verificación.
 - **AC-FC-E-02** Dado un hecho clave sin cita, cuando se renderiza, entonces no lleva la etiqueta `Confirmado`.
-- **AC-FC-E-03** Dado un evento `disputed`, cuando se abre, entonces se muestran las fuentes en conflicto y no se genera un único resumen que las mezcle.
+- **AC-FC-E-03** Dado un evento `disputed` **publicado deliberadamente** (P0), cuando un `viewer` lo abre, entonces se muestran la etiqueta “En disputa” y las fuentes en conflicto, y no se genera un único resumen que las mezcle.
+- **AC-FC-E-05** Dado un evento `disputed` o `partially_verified` **en cola**, cuando un `viewer` solicita su URL, entonces recibe 404/403 sin filtrar contenido; si su verificación empeora tras publicarse, vuelve a la cola y deja de ser visible hasta nueva publicación humana.
 - **AC-FC-E-04** Dado un `viewer`, cuando solicita un evento en borrador por URL, entonces recibe 403/404 sin filtrar contenido.
 
 **Dependencias A:** contrato de evidencia, estados de verificación, política de conservación del documento original (licencia).
@@ -589,6 +590,7 @@
 
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
+| 0.4.0 | 2026-11-15 | Ronda 5: política P0 en la ficha de evento (visibilidad de `disputed`/`partially_verified`, AC-FC-E-05); `released_at` en FC-04. | Ventana B |
 | 0.3.0 | 2026-11-15 | Ronda 3 (G0): `opportunity_evidence` → `evidence` (G0 #10); comparador, calculadora y capa `Cálculo` marcados post-MVP en la ficha de instrumento (G0 #9). | Ventana B |
 | 0.2.0 | 2026-11-15 | Ronda 2: FC-06 historial por rol; FC-13 sin contenido íntegro de fuentes (de MODELO-DATOS §7.1). | Ventana B |
 | 0.1.0 | 2026-11-15 | Creación: 5 fichas (evento, oportunidad, proyecto/permiso, licitación, instrumento) con campos, jerarquía, fuente, evidencia, historial, verificación, CTA, estados vacíos y criterios de aceptación. | Ventana B |

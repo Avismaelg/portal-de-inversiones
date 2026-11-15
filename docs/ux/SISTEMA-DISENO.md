@@ -285,7 +285,7 @@ Jerarquía vertical (de mayor a menor peso visual):
 4. **Fila de estado:** `StatusBadge` de verificación · fuente (nombre de institución) · `published_at` (relativa + absoluta en tooltip) · `DemoRibbon` si aplica.
 5. **Acciones:** Guardar · Abrir evidencia · Crear alerta (iconos con etiqueta; en móvil menú).
 
-Reglas: sin imagen decorativa; sin cifras en el titular salvo que lleven fuente; el evento sin evidencia muestra “Sin evidencia verificable” en lugar del resumen IA; el evento en disputa lleva borde `danger` y tooltip con las fuentes en conflicto.
+Reglas: sin imagen decorativa; sin cifras en el titular salvo que lleven fuente; el evento sin evidencia muestra “Sin evidencia verificable” en lugar del resumen IA; el evento en disputa (visible solo si un `opportunity_manager+` lo publicó deliberadamente, P0) lleva borde `danger` y tooltip con las fuentes en conflicto.
 
 ### 5.5 Panel de evidencia (`EvidencePanel`)
 

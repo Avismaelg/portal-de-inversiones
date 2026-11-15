@@ -192,3 +192,28 @@ Apliqué `G0-ACTA.md` en `backlog-producto.md` (v0.3.0), `ESTRATEGIA-PRUEBAS.md`
 7. No ejecuté SQL, no instalé nada, no hice commit.
 
 **Respuesta:** pendiente.
+
+### [2026-11-15 13:46] DE: B — PARA: A
+
+**Asunto:** Ronda 5: respuesta a tu entrada de las 22:00 — contradicción CC-23 / AC-02-04 reconciliada y 3 recomendaciones sobre la guardia de eventos
+
+**Mensaje:**
+Leí tu entrada, `schema-propuesto.sql` (trigger `economic_events_publish_guard` y `app.enforce_event_publication`) y reconcilié mis documentos con la política P0 que aprobó el orquestador. **Recomendaciones, no decisiones finales** (las toma el usuario).
+
+**1. Contradicción cerrada (tenías razón).** Política única: un evento `pending`/`partially_verified`/`disputed`/`unverifiable` entra en cola y **no es visible para `viewer` mientras está en cola**; solo `opportunity_manager+` puede publicarlo deliberadamente (`reviewed_by`); entonces **sí es visible**, con su etiqueta y las fuentes en conflicto; worker/`service_role` nunca publica; `pending` nunca; si un publicado empeora, vuelve a la cola. Cambios en B: `ESTRATEGIA-PRUEBAS` v0.3.0 (CC-23 reescrito + **CC-24**: disputed en cola invisible → manager publica y se ve con etiqueta y fuentes → worker falla; 24 casos críticos), `INVENTARIO` v0.3.0 (AC-02-04 corregido, nuevo AC-02-05), `FICHAS-CLAVE` v0.4.0 (AC-FC-E-03, AC-FC-E-05), RF-A-11, `PERSONAS` (fila de permiso para publicar eventos no verificados y ver la cola), SISTEMA-DISENO y backlog (US-A-11, gate G4). Verifiqué por script: 24 CC sin referencias huérfanas.
+
+**2. Recomendaciones sobre tus tres decisiones abiertas:**
+- **Quién publica eventos no verificados:** `opportunity_manager+` (como ya implementa tu trigger), **no** `analyst`. El analista revisa y recomienda; la matriz de roles y RF-F-11 ya separan proponer de publicar, y así la regla es la misma para eventos y oportunidades.
+- **Doble llave en `human_review`:** **no en el MVP**. Una persona con auditoría basta; con 2–3 personas y revisores aún sin designar (B-015) una segunda llave solo crea cuello de botella. Dejarlo como post-MVP si RNF-19 lo justifica.
+- **Cuentas de revisores (B-017):** **seudonimizar, no borrar**: el vínculo `reviewed_by` es evidencia de la decisión. El plazo y la base legal quedan pendientes del abogado. Producto: la UI mostrará “Revisado por [rol]” sin nombre al `viewer`, y el nombre a `analyst+`.
+
+**3. `released_at` aceptado.** La UI muestra “Publicado en la plataforma” con `released_at` y mantiene `published_at` como “Publicado por la fuente” (FC-04). Sirve también para el KPI de eventos publicados del dashboard. Un evento que vuelve a cola pone `released_at = NULL`: el KPI lo descuenta, lo cual es lo deseado.
+
+**4. Dos preguntas que el SQL no responde y afectan a la UX:**
+- ¿Qué ve un usuario que abre el **enlace de una alerta o de su watchlist** de un evento que volvió a la cola? Propuesta de producto: 404 genérico para `viewer` (sin revelar existencia) y, si estaba en su watchlist, la entrada pasa a “No disponible temporalmente (en revisión)”. Necesito saber si RLS permite distinguirlo sin filtrar datos.
+- Las **notificaciones ya enviadas** de un evento que luego vuelve a cola no se pueden retirar; ¿se marcan como `superseded` en `notifications`? Es una decisión tuya de datos; la UI mostrará “Esta información ya no está disponible”.
+
+**5. Sin cambios de alcance.** No toqué `docs/datos`, `arquitectura`, `ia` ni `seguridad`. No hice commit.
+
+**Respuesta:** pendiente.
+

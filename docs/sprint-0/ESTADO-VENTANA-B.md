@@ -3,49 +3,47 @@
 > Actualizar al final de **cada** turno. Es la fuente que lee el orquestador.
 > No escribir aquí planes largos: solo estado. Los entregables van en sus archivos.
 
-**Última actualización:** 2026-11-15 (Ronda 3)
-**Sprint:** 0 cerrado por `G0-ACTA.md` (APROBADO CON RECORTES Y CONDICIONES); Sprint 1 autorizado.
-**Estado:** RONDA 3 COMPLETA. Documentos de B alineados con el acta. Ninguna prueba ejecutada; ningún código escrito.
+**Última actualización:** 2026-11-15 (Ronda 5)
+**Sprint:** 0 cerrado por `G0-ACTA.md`; Sprint 1 autorizado.
+**Estado:** RONDA 5 COMPLETA. Política P0 reconciliada en todos los documentos de B. Ninguna prueba ejecutada; ningún código escrito.
 
-## Hecho en este turno (Ronda 3)
+## Hecho en este turno (Ronda 5)
 
-- Leída `G0-ACTA.md` (decisiones 1, 6, 7, 8, 9, 11 y 13 son las que me afectan).
-- **Backlog (`backlog-producto.md` v0.3.0):**
-  - Sección `## Post-MVP (aprobado en G0 #9)` con comparador de instrumentos (US-C-06, 8 pts), calculadora (US-C-07, 8), vistas guardadas (US-G-05, 3), exportación CSV (US-G-16, 3) y capa `Cálculo` (D-08, sin historia). Retirados 22 pts.
-  - Totales y carga por sprint recalculados sin ellos: MVP = 82 historias, 428 pts (Must 353, Should 65, Could 10).
-  - Alcance aprobado explícito: corte vertical DGCP + Crédito Público; exclusiones listadas (correo, facturación, multi-tenant, CSV).
-  - Baseline **20–24 semanas con 2–3 personas** (S1–S10 + reserva S11–S12); 16 semanas como escenario (§5.5). Equipo: `[PENDIENTE USUARIO]`.
-  - Cobertura manual / “cobertura pendiente” marcada en B, C-03 y E; histórico DGCP de N años (N en `T-SRC-01`); §7 convertido en estado de condiciones abiertas.
-- **ESTRATEGIA-PRUEBAS v0.2.0:** puerta P0 (nuevo CC-23: evento no verificado → cola de revisión, 23 casos críticos); herramientas aprobadas (G0 #12); T-RF post-MVP no se ejecutan; anotadores y revisores `[PENDIENTE USUARIO]`.
-- **Renombrado DM-03** `opportunity_evidence` → `evidence` en FICHAS-CLAVE (solo mis carpetas; sin tocar A, el Prompt Maestro ni documentos históricos).
-- REQUISITOS v0.4.0 (§2.4 efecto de G0), PERSONAS (UC-08/09/15 post-MVP), INVENTARIO y SISTEMA-DISENO (post-MVP marcado).
-- `G0-DECISIONES.md`: añadida la cabecera de cierre.
-- Comprobaciones por script: 82 historias en tablas MVP + 4 post-MVP = 86; 23 CC definidos y sin referencias huérfanas; ningún `opportunity_evidence` fuera del registro de cambios.
+- Leí la entrada de A de las 22:00, `schema-propuesto.sql` (`economic_events_publish_guard` y `app.enforce_event_publication`), CC-23 y AC-02-04. **La contradicción era real** y estaba en mis documentos.
+- **Política P0 aplicada** (en cola = invisible para `viewer`; solo `opportunity_manager+` publica deliberadamente; entonces es visible con etiqueta y fuentes; worker nunca; `pending` nunca; si empeora, vuelve a cola):
+  - `ESTRATEGIA-PRUEBAS` v0.3.0: CC-23 reescrito y nuevo **CC-24** (disputed en cola invisible → manager publica y se ve con etiqueta y fuentes → worker falla). 24 casos críticos; G-22 exige CC-01…CC-24.
+  - `INVENTARIO-PANTALLAS` v0.3.0: AC-02-04 corregido y nuevo AC-02-05 (vuelta a cola).
+  - `FICHAS-CLAVE` v0.4.0: `disputed` visible solo tras publicación deliberada, AC-FC-E-03/05, `released_at` en FC-04.
+  - Alineados: RF-A-11 (REQUISITOS v0.4.1), PERSONAS (permiso de publicar eventos no verificados y ver la cola; UC-03), SISTEMA-DISENO, backlog v0.3.1 (US-A-11, gate G4).
+- Revisadas todas las referencias a `disputed` en mis documentos: las demás (RF-F-01, CC-11, AC-FC-O-03, SISTEMA-DISENO §6.4) ya eran compatibles.
+- Verificado por script: 24 CC sin referencias huérfanas; 82 historias MVP; AC-02-01…05.
+- Respuesta a A en `BANDEJA.md` con las 3 recomendaciones pedidas.
 
 ## En progreso
 
 - Nada.
 
-## Bloqueos (condiciones abiertas de la acta §3, todas `[PENDIENTE USUARIO]`)
+## Bloqueos
 
-- Proyecto Supabase nuevo y credenciales (B-003 sigue abierto hasta crearlo); proveedor LLM, clave y tope; abogado; nombres y dedicación del equipo (B-013); anotadores y revisores (B-015); contacto del `User-Agent` (SG-05); hosting (ADR-0005).
-- B-014 (herramientas) queda resuelto en decisión (G0 #12); falta instalarlas en Sprint 1.
-- B-001/002 (SRS y Plan Maestro) permanecen como vacíos `[PENDIENTE SRS]` (G0 #1).
+- Condiciones abiertas de la acta §3 (todas `[PENDIENTE USUARIO]`): proyecto Supabase nuevo, proveedor LLM, abogado, nombres y dedicación del equipo, anotadores y revisores, contacto del `User-Agent`, hosting.
+- **B-016** (política de publicación de eventos): B-lado resuelto con esta ronda; queda la decisión del usuario sobre las 3 recomendaciones.
+- **B-017** (`reviewed_by` sin `ON DELETE`) y **B-018** (un `viewer` puede leer `review_notes` y `reviewed_by` por `GRANT` de tabla): abiertos en A/abogado. **B-018 afecta a mi UX:** mi recomendación es que el `viewer` vea “Revisado por [rol]” sin nombre ni notas internas; con el `GRANT` actual eso no está garantizado.
 
 ## Decisiones tomadas (con justificación)
 
-- Ninguna de alcance: solo apliqué el acta.
-- Interpretación señalada (no resuelta): el acta pide “comparador de oportunidades”, pero RF-C-06 es el comparador de **instrumentos**; moví ese requisito.
+- Ninguna de alcance. Apliqué la reconciliación aprobada por el orquestador.
+- Recomendaciones a A (decide el usuario): publica `opportunity_manager+`, no `analyst`; sin doble llave en el MVP; seudonimizar cuentas de revisores, no borrarlas (pendiente del abogado, B-017).
 
 ## Solicitudes a la Ventana A
 
-- Reflejar el renombrado `evidence` (G0 #10) en el SQL antes de ejecutarlo.
-- Aclarar si `T-WEB-03…09` incluyen la interfaz y añadir tareas para historial público, ajustes/borrado de cuenta y consentimiento (de la Ronda 2).
+- Responder las dos preguntas de la bandeja: qué ve un `viewer` al abrir el enlace de un evento que volvió a cola, y si las notificaciones ya enviadas se marcan `superseded`.
+- Resolver B-018 antes de que la UI muestre “Revisado por”.
+- Reflejar `evidence` (G0 #10) en el SQL y confirmar `released_at` para el KPI del dashboard.
 
 ## Solicitudes de cambio al contrato / alcance
 
-- Ninguna. **Una aclaración para el usuario/orquestador:** el acta incluye Crédito Público en el corte vertical, pero la decisión #5 limita la automatización a DGCP hasta contratar abogado. B lo trata como carga manual de Crédito Público hasta esa opinión (backlog §7).
+- Ninguna.
 
 ## Próximo paso
 
-- Sprint 1 puede empezar con lo que no depende de las condiciones abiertas; B arranca EN-01/EN-03 y las entrevistas de personas (PERSONAS §7.3) cuando haya equipo.
+- El usuario decide sobre B-016, B-017 y B-018; B ajusta la UX de “Revisado por” y de enlaces a eventos en cola según la respuesta de A.

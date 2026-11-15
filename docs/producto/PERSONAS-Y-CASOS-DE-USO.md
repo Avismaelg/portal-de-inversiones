@@ -215,6 +215,8 @@ Leyenda: ✓ permitido · — denegado · **P** solo sobre recursos propios · *
 | Ver oportunidades en revisión | — | — | ✓ | ✓ | ✓ | ✓ |
 | Proponer oportunidad | — | — | ✓ | ✓ | ✓ | ✓ |
 | Publicar / rechazar oportunidad | — | — | — | ✓ | ✓ | ✓ |
+| Publicar deliberadamente un evento no verificado al 100 % (P0; queda como `reviewed_by`) | — | — | — | ✓ | ✓ | ✓ |
+| Ver eventos en cola de revisión | — | — | ✓ | ✓ | ✓ | ✓ |
 | Editar ficha de proyecto/empresa | — | — | ✓ | ✓ | ✓ | ✓ |
 | Fusionar duplicados | — | — | — | — | — | ✓ |
 | Ver estado de fuentes e ingesta | — | — | — | — | **O** | ✓ |
@@ -283,7 +285,7 @@ Consecuencia técnica (no existe tarea en A): una vista o función de servidor q
 - **Actor:** `viewer`, `analyst`.
 - **Objetivo:** Comprobar que el hecho está respaldado por un documento.
 - **Flujo:** 1) Abre detalle. 2) Lee resumen y hechos. 3) Abre panel de evidencia. 4) Revisa cita, fecha y hash. 5) Abre el original en una pestaña nueva.
-- **Alternativas:** documento no accesible → se muestra URL y fecha de captura, sin fingir que se leyó; evidencia contradictoria → estado `disputed` y ambas fuentes.
+- **Alternativas:** documento no accesible → se muestra URL y fecha de captura, sin fingir que se leyó; evidencia contradictoria → estado `disputed` y ambas fuentes, **visible solo si un `opportunity_manager+` lo publicó deliberadamente** (P0); en cola es invisible para `viewer`.
 - **Postcondición:** Usuario puede citar la fuente; no se altera el dato.
 - **Requisitos:** RF-A-05, RF-A-10, RF-A-11. **Pantalla:** SCR-02.
 

@@ -3,7 +3,7 @@
 | Campo | Valor |
 |---|---|
 | Documento | `docs/producto/REQUISITOS-Y-TRAZABILIDAD.md` |
-| Versión | 0.4.0 (Sprint 0, Ronda 3) |
+| Versión | 0.4.1 (Sprint 0, Ronda 5) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana B — Producto, UX, Requisitos y QA |
 | Estado | **BORRADOR PARA APROBACIÓN** — no sustituye a la SRS |
@@ -110,7 +110,7 @@ La matriz de §3 y el Anexo B **no se renumeran**: conservan los 86 RF provision
 | RF-B-* (todos), RF-C-03, RF-E-* | **Cobertura manual / “cobertura pendiente”** visible en la UI; solo se automatiza lo que verifiquen `T-SRC-04…06` | G0 #7 |
 | RF-C-01 (BCRD) y RF-C-02 (Crédito Público) | BCRD fuera del corte vertical; automatizar Crédito Público exige opinión legal (G0 #5); mientras, carga manual | G0 #5, #7 |
 | RF-D-01 (histórico) | Últimos **N** años, N definido en `T-SRC-01` | G0 #8 |
-| RF-A-11, RF-F-11 | Puerta P0: todo evento no verificado al 100 % pasa por cola de revisión (caso crítico CC-23) | G0 #11 |
+| RF-A-11, RF-F-11 | Puerta P0: todo evento no verificado al 100 % pasa por cola, invisible para `viewer` hasta publicación humana deliberada de `opportunity_manager+` (casos críticos CC-23 y CC-24) | G0 #11 |
 | RF-G-03, RF-G-08 | Una sola organización; alertas solo in-app; sin facturación | G0 #13 |
 
 Recuento del MVP tras G0: 82 historias (Must 65, Should 15, Could 2). El Anexo A se mantiene como recuento **antes de G0**.
@@ -135,7 +135,7 @@ Objetivo: convertir publicaciones oficiales dispersas en acontecimientos verific
 | RF-A-08 | Búsqueda de texto completo y filtros combinables por sector, organización, ubicación, rango de fechas, fuente y estado de verificación. | PM §4-A, §9 | Must | US-A-08 | SCR-02, SCR-10 | T-RF-A-08 | Derivado PM |
 | RF-A-09 | Alertas de eventos relevantes según preferencias del usuario; una misma combinación evento–usuario no genera más de una alerta. | PM §4-A, §5 | Must | US-A-09 | SCR-12 | T-RF-A-09 | Derivado PM |
 | RF-A-10 | Detalle de evento con resumen, hechos clave, evidencia, documentos vinculados, organizaciones y cronología. | PM §9 | Must | US-A-10 | SCR-02 | T-RF-A-10 | Derivado PM |
-| RF-A-11 | Estado de verificación explícito por evento: `verified`, `partially_verified`, `disputed`, `unverifiable`, con motivo y fecha. | PM §5 | Must | US-A-11 | SCR-02 | T-RF-A-11 | Derivado PM |
+| RF-A-11 | Estado de verificación explícito por evento: `verified`, `partially_verified`, `disputed`, `unverifiable`, con motivo y fecha (más `pending` inicial, que nunca se publica). Un evento no verificado al 100 % entra en cola y no es visible para `viewer` hasta que un `opportunity_manager+` lo publique deliberadamente (puerta P0, G0 #11); si empeora tras publicarse, vuelve a la cola. | PM §5 | Must | US-A-11 | SCR-02 | T-RF-A-11 | Derivado PM |
 | RF-A-12 | Historial de cambios del evento: quién, cuándo, campo, valor anterior y valor nuevo; incluye correcciones humanas. | PM §4-B, §5 | Should | US-A-12 | SCR-02 | T-RF-A-12 | Derivado PM |
 | RF-A-13 | Todo contenido de demostración se marca `is_demo = true` y se muestra con la etiqueta visible “DEMO”. | PM §9 | Must | US-A-13 | Todas | T-RF-A-13 | Derivado PM |
 
@@ -465,6 +465,7 @@ La Ventana B puede registrar ADRs de producto/UX (Contrato §2). Estas decisione
 | Versión | Fecha | Cambio | Autor |
 |---|---|---|---|
 | 0.1.0 | 2026-11-15 | Creación: 86 requisitos funcionales, 37 RNF, 12 reglas de negocio, 15 criterios de MVP, 15 contradicciones y 12 vacíos. | Ventana B |
+| 0.4.1 | 2026-11-15 | Ronda 5: RF-A-11 incorpora la política P0 reconciliada (visibilidad de eventos no verificados). | Ventana B |
 | 0.4.0 | 2026-11-15 | Ronda 3 (G0): §2.4 con el efecto del acta (Post-MVP, cobertura manual, histórico de N años, puerta P0); sin renumerar requisitos. | Ventana B |
 | 0.3.0 | 2026-11-15 | Ronda 2: RNF-02/03 aclaran que 100 000 eventos es dataset de prueba y que el histórico de DGCP puede multiplicarlo; sin otros cambios de alcance. | Ventana B |
 | 0.2.0 | 2026-11-15 | Revisión D-002: RF-B-04 pasa a US-B-04 (antes duplicaba US-B-03); AC-MVP-06 alineado con la matriz de roles (publica el gestor, no el analista); `closing_soon` definido (≤ 72 h, propuesto); C-15 cerrada. AC-MVP-07 desacoplado de RF-G-05 (Should). Conteos de Anexo A verificados por script (86 RF; 65/18/3). RNF-16 y RNF-19 reformulados con intervalo de confianza y tamaño de muestra (ver `docs/qa/ESTRATEGIA-PRUEBAS.md` §8.3). | Ventana B |
