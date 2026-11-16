@@ -6,6 +6,7 @@ import { signOut } from "../login/actions";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", ready: true },
   { href: "/instrumentos", label: "Instrumentos", ready: true },
+  { href: "/revision", label: "Revisión", ready: true },
   { href: "#", label: "Radar", ready: false },
   { href: "#", label: "Proyectos y permisos", ready: false },
   { href: "#", label: "Licitaciones", ready: false },
