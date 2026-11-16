@@ -51,10 +51,16 @@ export async function publishInstrument(_p: ReviewResult | null, formData: FormD
   if (blockers.length) return { ok: false, message: `No se puede publicar. ${blockers.join("; ")}.` };
 
   // Primero el instrumento: sin él, las subastas publicadas quedarían huérfanas para el lector.
-  const u1 = await supabase.from("financial_instruments").update({ publication_status: "published" }).eq("id", auth.id);
+  const u1 = await supabase
+    .from("financial_instruments")
+    .update({ publication_status: "published", unpublished_at: null, unpublish_reason: null })
+    .eq("id", auth.id);
   if (u1.error) return { ok: false, message: "No se pudo publicar el instrumento." };
   if (ids.length) {
-    const u2 = await supabase.from("instrument_auctions").update({ publication_status: "published" }).in("id", ids);
+    const u2 = await supabase
+      .from("instrument_auctions")
+      .update({ publication_status: "published", unpublished_at: null, unpublish_reason: null })
+      .in("id", ids);
     if (u2.error) return { ok: false, message: "Instrumento publicado, pero fallaron las subastas. Reintenta." };
   }
   revalidatePath("/revision");
@@ -80,4 +86,31 @@ export async function rejectInstrument(_p: ReviewResult | null, formData: FormDa
   await supabase.from("instrument_auctions").update({ publication_status: "rejected" }).eq("instrument_id", auth.id);
   revalidatePath("/revision");
   return { ok: true, message: "Rechazado." };
+}
+
+/** Despublica (vuelve a borrador) con motivo obligatorio. Queda en la auditoría. */
+export async function unpublishInstrument(_p: ReviewResult | null, formData: FormData): Promise<ReviewResult> {
+  const auth = await authorize(formData);
+  if (!("id" in auth)) return auth;
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (reason.length < 10) return { ok: false, message: "Escribe un motivo de al menos 10 caracteres." };
+  const supabase = await createClient();
+  const { data: inst } = await supabase
+    .from("financial_instruments")
+    .select("publication_status")
+    .eq("id", auth.id)
+    .maybeSingle();
+  if (!inst || inst.publication_status !== "published") {
+    return { ok: false, message: "Solo se despublican registros publicados." };
+  }
+  const patch = { publication_status: "draft" as const, unpublished_at: new Date().toISOString(), unpublish_reason: reason };
+  // Primero las subastas: así el lector nunca ve una subasta publicada sin su instrumento.
+  const a = await supabase.from("instrument_auctions").update(patch).eq("instrument_id", auth.id).eq("publication_status", "published");
+  if (a.error) return { ok: false, message: "No se pudieron despublicar las subastas." };
+  const i = await supabase.from("financial_instruments").update(patch).eq("id", auth.id);
+  if (i.error) return { ok: false, message: "No se pudo despublicar el instrumento. Reintenta." };
+  revalidatePath("/revision");
+  revalidatePath("/instrumentos");
+  revalidatePath(`/instrumentos/${auth.id}`);
+  return { ok: true, message: "Despublicado y devuelto a borrador." };
 }

@@ -117,3 +117,14 @@ El Sprint 1 técnico se considera cerrado cuando:
 | Cliente HTTP educado (`src/lib/ingest/polite-client.ts`) | HECHO, **sin usar ni activar** | `src/__tests__/polite-client.test.ts` (5 pruebas): lista cerrada de hosts, sin redirección a otros hosts, 1 solicitud activa, tope por minuto, backoff |
 
 Nota: el conector DGCP sigue inactivo (`is_active = false`). El cliente no consulta ninguna fuente por sí solo.
+
+## 9. Interfaz del portal (2026-11-16)
+
+| Hito | Estado | Evidencia |
+|---|---|---|
+| Login, dashboard, instrumentos (lista y ficha con evidencia) | HECHO | `src/app/` |
+| Revisión y publicación (exige evidencia verificada literalmente; solo roles de gestión publican) | HECHO, **sin probar con sesión** | `src/app/(app)/revision/` |
+| Despublicar con motivo | HECHO, **sin probar con sesión** | migración 11 |
+| Registro, recuperación y restablecimiento de contraseña | HECHO, **sin probar con correo real** | `src/app/registro`, `recuperar`, `restablecer`, `auth/callback` |
+
+Pendiente: textos legales (términos y privacidad) para la casilla de registro; confirmar en Supabase Auth que la verificación de correo está activa y que las URL de redirección incluyen `/auth/callback`; E2E con sesión.

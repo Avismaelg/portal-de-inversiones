@@ -4,7 +4,10 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { StatusBadge, TrustBadge } from "@/components/trust-badge";
 import { INSTRUMENT_TYPES, PUBLICATION, formatDate, formatMoney, formatPercent } from "@/lib/format";
+import { getCurrentRole } from "@/lib/auth";
+import { canPublishRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
+import { UnpublishForm } from "./unpublish-form";
 
 export const metadata: Metadata = { title: "Detalle de instrumento" };
 
@@ -112,6 +115,7 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
           </ul>
         )}
       </section>
+      {i.publication_status === "published" && canPublishRole(await getCurrentRole()) && <UnpublishForm id={i.id} />}
     </>
   );
 }

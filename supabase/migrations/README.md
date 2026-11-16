@@ -59,3 +59,7 @@ Sin datos de negocio: solo los 11 sectores. Pruebas P0 ejecutadas en una transac
 
 **Suite de pruebas:** `supabase/tests/p0_suite.sql` (3 bloques, se revierten solos).
 | 20261115201000 | `rate_kind` gana el valor `coupon` (migración 10; un valor de enum no se puede quitar) |
+
+## Aplicado el 2026-11-16
+
+- `20261116120000_init_11_unpublish_reason.sql`: `unpublished_at` y `unpublish_reason` en `financial_instruments` e `instrument_auctions` (despublicar con motivo). Aplicada en el proyecto «PORTAL DE INVERSIONES».

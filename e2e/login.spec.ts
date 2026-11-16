@@ -15,3 +15,18 @@ test("login se ve bien, es accesible y rechaza datos vacíos", async ({ page }) 
   const serious = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
   expect(serious, JSON.stringify(serious, null, 2)).toEqual([]);
 });
+
+for (const path of ["/registro", "/recuperar"]) {
+  test(`${path} es accesible y público`, async ({ page }) => {
+    await page.goto(path);
+    await expect(page).toHaveURL(new RegExp(`${path}$`));
+    const results = await new AxeBuilder({ page }).analyze();
+    const serious = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
+    expect(serious, JSON.stringify(serious, null, 2)).toEqual([]);
+  });
+}
+
+test("/restablecer exige sesión", async ({ page }) => {
+  await page.goto("/restablecer");
+  await expect(page).toHaveURL(/\/login$/);
+});
