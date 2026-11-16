@@ -282,3 +282,21 @@ Fuente: el archivo público `https://datosabiertos.dgcp.gob.do/assets/api-dgcp-s
 **Sin verificar todavía:** la forma exacta de la respuesta (`models.ApiResponse` no está en el archivo leído), si hay límite efectivo distinto del declarado, y el comportamiento real ante 429. Se verifica con una primera llamada única, ya con el contacto en el `User-Agent`.
 
 **Propuesta (no decidida):** carga inicial por `/tablas/*` CSV (histórico desde 2018) e incremental diario con `/procesos?startdate=…&enddate=…` en una sola ventana corta, usando `PoliteClient`. Siguen abiertos: el contacto institucional del `User-Agent` (SG-05), fijar N con conteos reales y la opinión del abogado sobre la licencia.
+
+## T-SRC-01 — primera llamada real a la API DGCP (2026-11-16)
+
+Una sola solicitud `GET /procesos?limit=5` con `User-Agent` genérico `AviTech-Ingest/0.1` (sin contacto: el correo del propietario no se envía hasta que él lo configure en `INGEST_CONTACT`).
+
+| Aspecto | Resultado |
+|---|---|
+| Estado | HTTP 200, `application/json`, **sin autenticación** |
+| Límite | Cabeceras `x-ratelimit-limit: 60`, `x-ratelimit-remaining: 59`, `x-ratelimit-reset: 60` (coincide con los términos) |
+| Envelope | `{ code, hasError, payload: { content[] }, page, limit, totalResults, pages }` |
+| Volumen | **`totalResults` = 645 276 procesos** (todo el histórico disponible); a 1000 por página son 646 páginas |
+| Campos por proceso | `codigo_proceso`, `codigo_unidad_compra`, `unidad_compra`, `modalidad`, `titulo`, `descripcion`, `estado_proceso`, `divisa`, `monto_estimado`, `fecha_publicacion`, `fecha_enmienda`, `fecha_fin_recepcion_ofertas`, `fecha_apertura_ofertas`, `url`, indicadores MIPYME/SNIP y otros |
+| Fechas | ISO 8601 con `Z` (UTC) |
+| Estados vistos | Solo «Proceso publicado» (**la lista completa de estados es desconocida**); modalidades vistas: «Contratación Menor», «Comparación de Precios» |
+
+**Implementado (inactivo):** `src/lib/ingest/dgcp.ts` valida la respuesta con zod, mapea a la forma de `public_tenders`, **no inventa estados** (lo no visto queda `unknown` con bandera), cuenta los elementos inválidos, y recorre páginas por ventana de fechas a través de `PoliteClient`. **No escribe en la base** y `sources.is_active` sigue en `false`.
+
+**Siguen abiertos:** (a) lista real de `estado_proceso`; (b) contratos (`/contratos`) y proveedores aún sin mapear; (c) fijar N con el reparto real por año; (d) abogado sobre la licencia; (e) un worker con credenciales de servidor que persista los datos, solo cuando se active la fuente.
