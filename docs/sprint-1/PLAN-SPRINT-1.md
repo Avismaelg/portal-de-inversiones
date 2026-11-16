@@ -6,7 +6,7 @@
 | Versión | 0.1.0 |
 | Fecha | 2026-11-15 |
 | Autor | Orquestador |
-| Estado | **HABILITADORES COMPLETADOS EN LOCAL** — CI remoto pendiente |
+| Estado | Habilitadores completos; esquema aplicado en Supabase; T-SRC-01 parcial; CI remoto sin confirmar (ver §8) |
 | Base | `G0-ACTA.md` (aprobado 2026-11-15) |
 
 ## 1. Objetivo
@@ -105,3 +105,15 @@ El Sprint 1 técnico se considera cerrado cuando:
 4. Ejecutar en rama y correr la suite RLS/P0.
 5. Conectar una única fuente: DGCP, tras `T-SRC-01`.
 6. Primer vertical slice con datos reales y revisión humana.
+
+## 8. Actualización de estado (2026-11-16)
+
+| Hito | Estado | Evidencia |
+|---|---|---|
+| Proyecto Supabase y migraciones 01–10 | HECHO | `supabase/migrations/`, `supabase/tests/p0_suite.sql` |
+| Carga manual de Crédito Público (MH2-2041, cupón) | HECHO | `supabase/seed/`, commits `57236fe`, `559947b` |
+| T-SRC-01 (DGCP) | PARCIAL | Portal y términos leídos; falta OpenAPI, N, contacto del `User-Agent` y abogado (`FUENTES-RD.md`) |
+| Arreglo del CI (Linux, gitleaks) | PUSHEADO, **sin confirmar verde** | commit `05645e9` |
+| Cliente HTTP educado (`src/lib/ingest/polite-client.ts`) | HECHO, **sin usar ni activar** | `src/__tests__/polite-client.test.ts` (5 pruebas): lista cerrada de hosts, sin redirección a otros hosts, 1 solicitud activa, tope por minuto, backoff |
+
+Nota: el conector DGCP sigue inactivo (`is_active = false`). El cliente no consulta ninguna fuente por sí solo.
