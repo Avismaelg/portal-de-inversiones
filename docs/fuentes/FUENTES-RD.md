@@ -264,3 +264,21 @@ Leído con Chrome del propietario (solo lectura; sin formularios, sin descargas 
 4. **`REQUIERE ABOGADO`:** coexisten tres textos (Apache 2.0 en la página de la API, restricción de uso comercial directo en los términos y el descargo en las políticas), y la Ley 340-06 deja la veracidad en cada institución. Hay que confirmar que un producto SaaS comercial que **almacena** y **redistribuye** datos derivados encaja en «uso con atribución».
 
 **Pendiente para cerrar T-SRC-01:** (a) leer la documentación OpenAPI (autenticación, endpoints, paginación); (b) fijar N con los conteos reales; (c) contacto institucional del `User-Agent` (SG-05); (d) opinión del abogado sobre la licencia. **El conector sigue inactivo** (`dgcp_ocds`, `is_active = false`, `legal_status = pending_review`): no se cambió nada en la base.
+
+## T-SRC-01 — esquema OpenAPI de la API DGCP leído (2026-11-16)
+
+Fuente: el archivo público `https://datosabiertos.dgcp.gob.do/assets/api-dgcp-schema-CDm5hHhK.js` que carga la página `/datos-abiertos/apidgcp/docs` (leído desde Chrome del propietario; descarga de solo lectura de un archivo estático, **sin consultar la API**). Base: `datosabiertos.dgcp.gob.do/api-dgcp/v1`. Contacto declarado: `cienciadedatos@dgcp.gob.do`.
+
+| Aspecto | Hallazgo |
+|---|---|
+| Autenticación | **El esquema no declara ninguna** (sin `securityDefinitions`, sin cabecera de clave). Sin verificar con una llamada real. |
+| Endpoints GET | `/catalogo`, `/contratos`, `/contratos/articulos`, `/ocds/releases`, `/ocds/releases/all`, `/ofertas`, `/pacc`, `/pacc/adquisiciones`, `/pacc/articulos`, `/procesos`, `/procesos/agrupados`, `/procesos/articulos`, `/procesos/documentos`, `/procesos/mipymes/*`, `/proveedores`, `/proveedores/estadisticas-mujeres`, `/proveedores/rubro`, `/unidades_compra`, y `/tablas/*` (archivos CSV/XLSX) |
+| Paginación | `page` y `limit`; por defecto 100 registros, **máximo 1000** en `/procesos` |
+| Incremental | `/procesos` admite `startdate` y `enddate` (`YYYY-MM-DD`, fecha de publicación), además de `modalidad`, `estado`, `unidad_compra`, `proceso`, `mipyme`, `mipyme_mujer`. `/contratos` admite `rpe`, `proceso`, `unidad_compra`, `contrato` |
+| Descargas | `/tablas/procesos`, `/tablas/contratos`, `/tablas/proveedores` con `Type=csv|xlsx`; las de artículos exigen `semestre` y `año` |
+| Actualización | El *data warehouse* se refresca a las 00:00, 07:00, 14:00 y 21:00 (hora de RD): cuatro veces al día |
+| Formato OCDS | Existen `/ocds/releases` y `/ocds/releases/all` (OCDS nativo) |
+
+**Sin verificar todavía:** la forma exacta de la respuesta (`models.ApiResponse` no está en el archivo leído), si hay límite efectivo distinto del declarado, y el comportamiento real ante 429. Se verifica con una primera llamada única, ya con el contacto en el `User-Agent`.
+
+**Propuesta (no decidida):** carga inicial por `/tablas/*` CSV (histórico desde 2018) e incremental diario con `/procesos?startdate=…&enddate=…` en una sola ventana corta, usando `PoliteClient`. Siguen abiertos: el contacto institucional del `User-Agent` (SG-05), fijar N con conteos reales y la opinión del abogado sobre la licencia.
