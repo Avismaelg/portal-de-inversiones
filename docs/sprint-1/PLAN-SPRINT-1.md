@@ -128,3 +128,15 @@ Nota: el conector DGCP sigue inactivo (`is_active = false`). El cliente no consu
 | Registro, recuperación y restablecimiento de contraseña | HECHO, **sin probar con correo real** | `src/app/registro`, `recuperar`, `restablecer`, `auth/callback` |
 
 Pendiente: textos legales (términos y privacidad) para la casilla de registro; confirmar en Supabase Auth que la verificación de correo está activa y que las URL de redirección incluyen `/auth/callback`; E2E con sesión.
+
+## 10. Versión demo (2026-11-16)
+
+| Hito | Estado | Evidencia |
+|---|---|---|
+| Licitaciones con búsqueda, filtros y paginación | HECHO, **sin probar con datos ni sesión** | `src/app/(app)/licitaciones/` |
+| Mi lista (seguir licitaciones e instrumentos) | HECHO, sin probar con sesión | `src/app/(app)/watchlist/` |
+| Carga manual asistida de DGCP (≤ 300 procesos, solo rol de gestión) | HECHO, **sin ejecutar** | `src/app/(app)/admin/ingesta/` |
+
+**Decisión sobre la fuente DGCP:** no se activó. La base tiene la restricción `sources_no_active_without_legal`: una fuente automática activa exige `legal_status = verified_ok`, que solo puede dar el abogado (G0 #5). No se falseó ese estado. `dgcp_ocds` sigue `is_active = false` y `pending_review`; la carga la dispara una persona y la UI lo declara.
+
+Sin hacer en la demo: IA, radar, proyectos y permisos, oportunidades y alertas (cobertura pendiente); despliegue.

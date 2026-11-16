@@ -20,7 +20,7 @@ async function Summary() {
   const supabase = await createClient();
   const today = todayInRD();
   const in30 = todayInRD(30);
-  const [inst, auctions, due, sources, last] = await Promise.all([
+  const [inst, auctions, due, sources, last, tenders, closing] = await Promise.all([
     supabase.from("financial_instruments").select("id", { count: "exact", head: true }),
     supabase.from("instrument_auctions").select("id", { count: "exact", head: true }),
     supabase
@@ -35,8 +35,15 @@ async function Summary() {
       .order("auction_date", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase.from("public_tenders").select("id", { count: "exact", head: true }),
+    supabase
+      .from("public_tenders")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open")
+      .gte("deadline_at", new Date(todayInRD() + "T00:00:00-04:00").toISOString())
+      .lte("deadline_at", new Date(todayInRD(7) + "T23:59:59-04:00").toISOString()),
   ]);
-  if ([inst, auctions, due, sources, last].some((r) => r.error)) {
+  if ([inst, auctions, due, sources, last, tenders, closing].some((r) => r.error)) {
     return (
       <p role="alert" className="text-danger">
         No se pudieron cargar los datos. Reintenta en unos minutos.
@@ -45,7 +52,7 @@ async function Summary() {
   }
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Kpi
           label="Instrumentos"
           value={String(inst.count ?? 0)}
@@ -56,6 +63,8 @@ async function Summary() {
           value={String(auctions.count ?? 0)}
           hint={`Última: ${formatDate(last.data?.auction_date)}`}
         />
+        <Kpi label="Licitaciones cargadas" value={String(tenders.count ?? 0)} hint="Fuente DGCP (carga manual)" />
+        <Kpi label="Licitaciones que cierran en 7 días" value={String(closing.count ?? 0)} hint={`Corte: ${formatDate(today)}`} />
         <Kpi label="Vencen en 30 días" value={String(due.count ?? 0)} hint={`Corte: ${formatDate(today)}`} />
       </div>
       <section className="mt-8" aria-labelledby="fuentes">

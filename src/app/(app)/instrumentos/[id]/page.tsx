@@ -7,6 +7,7 @@ import { INSTRUMENT_TYPES, PUBLICATION, formatDate, formatMoney, formatPercent }
 import { getCurrentRole } from "@/lib/auth";
 import { canPublishRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
+import { WatchButton } from "@/components/watch-button";
 import { UnpublishForm } from "./unpublish-form";
 
 export const metadata: Metadata = { title: "Detalle de instrumento" };
@@ -40,6 +41,8 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
     ? await supabase.from("evidence").select(EVIDENCE_COLS).in("auction_id", auctionIds)
     : { data: [] };
   const evidence = [...(instEvidence ?? []), ...(auctionEvidence ?? [])];
+  const { data: watchRow } = await supabase
+    .from("watchlists").select("id").eq("entity_type", "instrument").eq("entity_id", id).maybeSingle();
   const tone = i.publication_status === "published" ? "success" : "warning";
 
   return (
@@ -55,6 +58,7 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
         <TrustBadge layer={i.trust_layer} />
         <StatusBadge label={PUBLICATION[i.publication_status] ?? i.publication_status} tone={tone} />
         {i.is_demo && <StatusBadge label="DEMO" tone="warning" />}
+        <WatchButton type="instrument" id={i.id} watching={!!watchRow} />
       </div>
       {i.publication_status !== "published" && (
         <p className="mb-4 rounded border border-dashed border-warning p-3 text-sm text-warning">

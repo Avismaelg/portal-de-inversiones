@@ -7,9 +7,11 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", ready: true },
   { href: "/instrumentos", label: "Instrumentos", ready: true },
   { href: "/revision", label: "Revisión", ready: true },
+  { href: "/admin/ingesta", label: "Carga de datos", ready: true },
   { href: "#", label: "Radar", ready: false },
   { href: "#", label: "Proyectos y permisos", ready: false },
-  { href: "#", label: "Licitaciones", ready: false },
+  { href: "/licitaciones", label: "Licitaciones", ready: true },
+  { href: "/watchlist", label: "Mi lista", ready: true },
   { href: "#", label: "Oportunidades", ready: false },
 ];
 
