@@ -91,11 +91,11 @@ D-07 viewer ve borrador (esperado 0): 0                               (RLS)
 | P1-08 | P1 | Subir cobertura de unitarias en `src/lib` a ≥70 % | — | `src/__tests__` | Informe de cobertura |
 | P2-01 | P2 | Correlación de acontecimientos y resolución de entidades | P1-05, P1-01 | — | Relaciones con naturaleza confirmada/inferida |
 | P2-02 | P2 | Búsqueda unificada con Full Text Search de PostgreSQL | — | — | Busca en noticias, licitaciones, instrumentos |
-| P2-03 | P2 | Rediseño «Investment Hub» (sidebar, azul marino/turquesa/ámbar) | — | `globals.css`, layout | Contraste AA verificado con axe |
+| P2-03 | P2 | Investment Hub: verificar con axe las pantallas con sesión (requiere B-020) y crear pantallas pendientes (Permisos, Empresas, Mapa, Reportes, Configuración) | B-020 | — | 0 violaciones axe en pantallas autenticadas |
 | P2-04 | P2 | Revisar aviso de desarrollo («1 Issue») observado en `/admin/ingesta` | — | — | Sin avisos en `next dev` |
 | P3-01 | P3 | Mapa (MapLibre), comparador de instrumentos, expansión internacional | Control de cambios | — | — |
 
-**Contradicción a decidir:** el Prompt Maestro v2.0 (§15) pide un sidebar «Investment Hub» azul marino/turquesa; la interfaz actual, aprobada por el usuario el 2026-11-17, usa barra superior estilo red profesional en azul. Se registra como P2-03 y no se cambia sin decisión del usuario.
+**Decisión (2026-11-17):** el usuario eligió el diseño «Investment Hub» del Prompt Maestro v2.0 (§15). Implementado en la rama `feat/investment-hub`: sidebar azul marino con secciones del §15 (las que no tienen pantalla aparecen deshabilitadas como «pronto», sin datos inventados), turquesa para acciones, ámbar para atención, header con buscador, estado de actualización de datos (detección/extracción real), campana de alertas (coincidencias en 24 h) y cuenta. Contraste AA calculado: turquesa/blanco 4,91; ámbar/blanco 5,02; texto atenuado/fondo 5,82; texto del sidebar 7,49–14,01.
 
 ## 7. Bloqueos
 

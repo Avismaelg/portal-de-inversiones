@@ -48,3 +48,8 @@ export function todayInRD(days = 0): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+/** Instante ISO de hace `hours` horas (fuera de componentes para respetar la regla de pureza). */
+export function hoursAgoIso(hours: number): string {
+  return new Date(Date.now() - hours * 3600 * 1000).toISOString();
+}

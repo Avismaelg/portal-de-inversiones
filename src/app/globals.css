@@ -2,20 +2,25 @@
 
 :root {
   color-scheme: light;
-  --color-bg: #f4f2ee;
+  --color-bg: #f4f6f9;
   --color-bg-subtle: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-2: #eef3f8;
-  --color-text: #191919;
-  --color-text-muted: #5e5e5e;
-  --color-border-ui: #8a8a8a;
-  --color-divider: #e0dfdc;
-  --color-focus: #0a66c2;
-  --color-primary: #0a66c2;
+  --color-surface-2: #eef2f6;
+  --color-text: #0f1b2d;
+  --color-text-muted: #536175;
+  --color-border-ui: #8593a6;
+  --color-divider: #dfe5ec;
+  --color-focus: #0b7e7a;
+  --color-primary: #0b7e7a;
   --color-on-primary: #ffffff;
-  --color-success: #057642;
-  --color-warning: #915907;
-  --color-danger: #cc1016;
+  --color-success: #15803d;
+  --color-warning: #b45309;
+  --color-danger: #b42318;
+  /* Investment Hub: azul marino estructural */
+  --color-navy: #0b1f3a;
+  --color-navy-2: #13305a;
+  --color-on-navy: #e6edf6;
+  --color-navy-muted: #9fb0c8;
 }
 
 @theme inline {
@@ -32,6 +37,10 @@
   --color-success: var(--color-success);
   --color-warning: var(--color-warning);
   --color-danger: var(--color-danger);
+  --color-navy: var(--color-navy);
+  --color-navy-2: var(--color-navy-2);
+  --color-on-navy: var(--color-on-navy);
+  --color-navy-muted: var(--color-navy-muted);
   --font-sans: var(--font-geist-sans);
   --font-serif: var(--font-source-serif);
   --font-mono: var(--font-geist-mono);
@@ -67,10 +76,10 @@ body {
     border-color: var(--color-primary);
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-on-primary transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-1.5 text-sm font-semibold text-on-primary transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center rounded-full border border-primary px-3 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary/10;
+    @apply inline-flex items-center justify-center rounded-md border border-primary px-3 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary/10;
   }
   .eyebrow {
     @apply text-xs font-semibold text-primary;
