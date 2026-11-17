@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { formatMoney } from "@/lib/format";
 import { matchesAlert } from "@/lib/radar";
 import { createClient } from "@/lib/supabase/server";
 import { AlertForm } from "./alert-form";
@@ -16,15 +18,22 @@ const fmt = (v: string | null) =>
 async function Alerts() {
   await connection();
   const supabase = await createClient();
-  const [prefs, news] = await Promise.all([
+  const [prefs, news, tenders] = await Promise.all([
     supabase.from("user_alert_preferences").select("id,name,keywords,is_paused").order("created_at", { ascending: false }),
     supabase
       .from("news_items")
       .select("id,source_name,title,url,excerpt,published_at,media_source,media_url")
       .order("published_at", { ascending: false, nullsFirst: false })
       .limit(300),
+    supabase
+      .from("public_tenders")
+      .select("id,title,description,deadline_at,budget_amount,budget_currency,process_code")
+      .eq("status", "open")
+      .gte("deadline_at", new Date().toISOString())
+      .order("deadline_at", { ascending: true })
+      .limit(500),
   ]);
-  if (prefs.error || news.error) return <p role="alert" className="text-danger">No se pudieron cargar las alertas.</p>;
+  if (prefs.error || news.error || tenders.error) return <p role="alert" className="text-danger">No se pudieron cargar las alertas.</p>;
   const active = (prefs.data ?? []).filter((p) => !p.is_paused);
   const hits = (news.data ?? [])
     .map((n) => ({
@@ -33,6 +42,13 @@ async function Alerts() {
     }))
     .filter((h) => h.why.length)
     .slice(0, 30);
+  const tenderHits = (tenders.data ?? [])
+    .map((t) => ({
+      t,
+      why: active.filter((p) => matchesAlert(t.title, t.description, (p.keywords ?? []) as string[]).length > 0).map((p) => p.name),
+    }))
+    .filter((h) => h.why.length)
+    .slice(0, 20);
   return (
     <>
       <AlertForm />
@@ -79,6 +95,24 @@ async function Alerts() {
           )}
         </section>
       </div>
+      <section aria-labelledby="lic" className="mt-6">
+        <h2 id="lic" className="mb-3 text-lg font-semibold">Licitaciones vigentes que coinciden</h2>
+        {tenderHits.length ? (
+          <ul className="space-y-3">
+            {tenderHits.map(({ t, why }) => (
+              <li key={t.id} className="card">
+                <p className="text-xs text-muted">{t.process_code} · alerta: {why.join(", ")}</p>
+                <Link href="/licitaciones" className="font-semibold text-primary hover:underline">{t.title}</Link>
+                <p className="mt-1 text-xs text-muted">
+                  Cierra {fmt(t.deadline_at)} · Monto: {t.budget_currency ? formatMoney(t.budget_amount, t.budget_currency) : "No disponible"}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="empty-state">{active.length ? "Ninguna licitación vigente coincide todavía." : "Crea una alerta para ver licitaciones que coincidan."}</p>
+        )}
+      </section>
     </>
   );
 }
@@ -89,7 +123,7 @@ export default function AlertasPage() {
       <p className="eyebrow">Alertas tempranas</p>
       <h1 className="page-title">Vigila lo que te importa</h1>
       <p className="page-lead">
-        Define palabras clave y verás aquí las noticias de fuentes primarias que coinciden. Alertas solo dentro de la aplicación (sin correo todavía).
+        Define palabras clave y verás aquí las noticias de fuentes primarias y las licitaciones vigentes que coinciden. Alertas solo dentro de la aplicación (sin correo todavía).
       </p>
       <Suspense fallback={<p className="text-muted">Cargando…</p>}>
         <Alerts />

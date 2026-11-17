@@ -3,11 +3,14 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, todayInRD } from "@/lib/format";
+import { formatDate, formatMoney, todayInRD } from "@/lib/format";
 import { NewsCard } from "@/components/news-card";
 import { scoreNews } from "@/lib/priority";
 
 export const metadata: Metadata = { title: "Dashboard" };
+
+const closeFmt = (v: string | null) =>
+  v ? new Intl.DateTimeFormat("es-DO", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Santo_Domingo" }).format(new Date(v)) : "No disponible";
 
 function Kpi({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
@@ -24,7 +27,7 @@ async function Summary() {
   const supabase = await createClient();
   const today = todayInRD();
   const in30 = todayInRD(30);
-  const [inst, auctions, due, sources, last, tenders, closing, signals, prefs] = await Promise.all([
+  const [inst, auctions, due, sources, last, tenders, closing, signals, prefs, soon] = await Promise.all([
     supabase.from("financial_instruments").select("id", { count: "exact", head: true }),
     supabase.from("instrument_auctions").select("id", { count: "exact", head: true }),
     supabase
@@ -52,8 +55,16 @@ async function Summary() {
       .order("published_at", { ascending: false, nullsFirst: false })
       .limit(120),
     supabase.from("user_alert_preferences").select("name,keywords").eq("is_paused", false),
+    supabase
+      .from("public_tenders")
+      .select("id,title,deadline_at,budget_amount,budget_currency,procurement_method")
+      .eq("status", "open")
+      .gte("deadline_at", new Date().toISOString())
+      .lte("deadline_at", new Date(todayInRD(7) + "T23:59:59-04:00").toISOString())
+      .order("budget_amount", { ascending: false, nullsFirst: false })
+      .limit(5),
   ]);
-  if ([inst, auctions, due, sources, last, tenders, closing, signals, prefs].some((r) => r.error)) {
+  if ([inst, auctions, due, sources, last, tenders, closing, signals, prefs, soon].some((r) => r.error)) {
     return (
       <p role="alert" className="text-danger">
         No se pudieron cargar los datos. Reintenta en unos minutos.
@@ -92,6 +103,28 @@ async function Summary() {
         ) : (
           <p className="empty-state">No hay señales de los últimos 7 días. Carga noticias desde la sección Noticias.</p>
         )}
+      </section>
+      <section aria-labelledby="pronto" className="card mb-4">
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <h2 id="pronto" className="text-base font-semibold">Licitaciones que cierran en 7 días (mayor monto)</h2>
+          <Link href="/licitaciones" className="text-sm font-semibold text-primary hover:underline">Ver todas →</Link>
+        </div>
+        {soon.data?.length ? (
+          <ul className="divide-y divide-divider">
+            {soon.data.map((t) => (
+              <li key={t.id} className="flex flex-wrap items-start justify-between gap-2 py-2 text-sm">
+                <div className="min-w-0">
+                  <Link href={`/licitaciones?q=${encodeURIComponent(t.title.slice(0, 60))}`} className="font-semibold hover:text-primary hover:underline">{t.title}</Link>
+                  <p className="text-xs text-muted">{t.procurement_method ?? "Modalidad no disponible"} · cierra {closeFmt(t.deadline_at)}</p>
+                </div>
+                <span className="num font-semibold">{t.budget_currency ? formatMoney(t.budget_amount, t.budget_currency) : "No disponible"}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted">No hay licitaciones abiertas que cierren en los próximos 7 días.</p>
+        )}
+        <p className="mt-2 text-xs text-muted">Los montos se muestran tal como los publica la DGCP, sin convertir monedas.</p>
       </section>
       <div className="grid gap-3 sm:grid-cols-2">
         <Kpi
