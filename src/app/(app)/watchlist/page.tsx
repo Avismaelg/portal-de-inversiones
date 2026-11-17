@@ -15,7 +15,7 @@ async function Items() {
   if (error) return <p role="alert" className="text-danger">No se pudo cargar tu lista.</p>;
   if (!rows?.length) {
     return (
-      <p className="rounded border border-line p-6 text-muted">
+      <p className="empty-state">
         Aún no sigues nada. Usa «Seguir» en una licitación o un instrumento.
       </p>
     );
@@ -29,13 +29,13 @@ async function Items() {
   return (
     <ul className="space-y-3">
       {(tenders.data ?? []).map((t) => (
-        <li key={t.id} className="flex items-center justify-between gap-3 rounded border border-line p-4">
+        <li key={t.id} className="flex items-center justify-between gap-3 card">
           <span><span className="text-xs text-muted">Licitación · </span>{t.title}</span>
           <WatchButton type="tender" id={t.id} watching />
         </li>
       ))}
       {(insts.data ?? []).map((i) => (
-        <li key={i.id} className="flex items-center justify-between gap-3 rounded border border-line p-4">
+        <li key={i.id} className="flex items-center justify-between gap-3 card">
           <span>
             <span className="text-xs text-muted">Instrumento · </span>
             <Link href={`/instrumentos/${i.id}`} className="text-primary underline">{i.name}</Link>
@@ -50,7 +50,7 @@ async function Items() {
 export default function WatchlistPage() {
   return (
     <>
-      <h1 className="mb-6 text-2xl font-semibold">Mi lista</h1>
+      <h1 className="page-title mb-6">Mi lista</h1>
       <Suspense fallback={<p className="text-muted">Cargando…</p>}>
         <Items />
       </Suspense>

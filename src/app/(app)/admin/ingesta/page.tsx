@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Carga de datos" };
 
 async function Content() {
   if (!canPublishRole(await getCurrentRole())) {
-    return <p className="rounded border border-line p-6 text-muted">No tienes permisos para ver esta sección.</p>;
+    return <p className="empty-state">No tienes permisos para ver esta sección.</p>;
   }
   return (
     <>
@@ -24,7 +24,7 @@ async function Content() {
 export default function IngestaPage() {
   return (
     <>
-      <h1 className="mb-2 text-2xl font-semibold">Carga de datos — DGCP</h1>
+      <h1 className="page-title mb-2">Carga de datos — DGCP</h1>
       <p className="mb-6 text-sm text-muted">
         Fuente: API de datos abiertos de la DGCP. Los datos son de las instituciones; la DGCP no responde por su
         veracidad (Ley 340-06, art. 34).

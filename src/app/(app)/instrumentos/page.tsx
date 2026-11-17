@@ -16,7 +16,7 @@ async function List() {
   if (error) return <p role="alert" className="text-danger">No se pudieron cargar los instrumentos.</p>;
   if (!data?.length) {
     return (
-      <p className="rounded border border-line p-6 text-muted">
+      <p className="empty-state">
         Aún no hay instrumentos visibles. Los datos entran por carga manual o por conectores verificados, y se
         publican tras revisión humana.
       </p>
@@ -67,7 +67,7 @@ async function List() {
 export default function InstrumentosPage() {
   return (
     <>
-      <h1 className="mb-2 text-2xl font-semibold">Instrumentos financieros</h1>
+      <h1 className="page-title mb-2">Instrumentos financieros</h1>
       <p className="mb-6 text-sm text-muted">
         Información con fines informativos; no constituye asesoría de inversión. La disponibilidad de compra no está
         confirmada salvo que la fuente lo indique.

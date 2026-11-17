@@ -10,7 +10,7 @@ export type Field = {
   autoComplete: string;
 };
 
-const input = "w-full rounded border border-line bg-surface px-3 py-2 text-base";
+const input = "w-full field text-base";
 
 /** Formulario de autenticación genérico: campos, casilla de términos opcional y mensajes anunciados. */
 export function AuthForm({
@@ -59,7 +59,7 @@ export function AuthForm({
           {state.message}
         </p>
       )}
-      <button disabled={pending} className="w-full rounded bg-primary px-3 py-2 font-medium text-on-primary disabled:opacity-60">
+      <button disabled={pending} className="w-full btn">
         {pending ? pendingLabel : submit}
       </button>
     </form>

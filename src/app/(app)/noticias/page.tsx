@@ -51,20 +51,20 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
       <form method="get" role="search" className="mb-6 flex flex-wrap items-end gap-3">
         <div>
           <label htmlFor="q" className="mb-1 block text-sm font-medium">Buscar en titulares</label>
-          <input id="q" name="q" defaultValue={q} className="w-64 rounded border border-line bg-surface px-3 py-2" />
+          <input id="q" name="q" defaultValue={q} className="w-64 field" />
         </div>
         <div>
           <label htmlFor="fuente" className="mb-1 block text-sm font-medium">Fuente</label>
-          <select id="fuente" name="fuente" defaultValue={source} className="rounded border border-line bg-surface px-3 py-2">
+          <select id="fuente" name="fuente" defaultValue={source} className="field">
             <option value="">Todas</option>
             {NEWS_FEEDS.map((f) => <option key={f.key} value={f.key}>{f.name}</option>)}
           </select>
         </div>
-        <button className="rounded bg-primary px-4 py-2 font-medium text-on-primary">Filtrar</button>
+        <button className="btn">Filtrar</button>
         {(q || source) && <Link href="/noticias" className="py-2 text-sm text-primary underline">Quitar filtros</Link>}
       </form>
       {!data?.length ? (
-        <p className="rounded border border-line p-6 text-muted">
+        <p className="empty-state">
           {q || source
             ? "No hay resultados con estos filtros."
             : "Aún no hay noticias. Un usuario con rol de gestión puede pulsar «Buscar noticias nuevas»."}
@@ -102,7 +102,7 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
 export default function NoticiasPage(props: PageProps<"/noticias">) {
   return (
     <>
-      <h1 className="mb-2 text-2xl font-semibold">Noticias de fuentes primarias</h1>
+      <h1 className="page-title mb-2">Noticias de fuentes primarias</h1>
       <p className="mb-6 text-sm text-muted">
         Comunicados de instituciones y reguladores. Son <strong>señales</strong>, no hechos verificados: léelas en su
         fuente. Se muestra solo titular, extracto breve y enlace. Estado legal de las fuentes pendiente de revisión;

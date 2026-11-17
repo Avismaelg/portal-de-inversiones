@@ -14,7 +14,7 @@ export function ReviewButtons({ id, blocked }: { id: string; blocked: boolean })
           <input type="hidden" name="id" value={id} />
           <button
             disabled={blocked || pubPending}
-            className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-on-primary disabled:opacity-50"
+            className="btn"
           >
             {pubPending ? "Publicando…" : "Publicar"}
           </button>

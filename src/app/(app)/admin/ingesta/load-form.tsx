@@ -18,10 +18,10 @@ export function LoadForm() {
           min={1}
           max={14}
           defaultValue={3}
-          className="w-24 rounded border border-line bg-surface px-3 py-2"
+          className="w-24 field"
         />
       </div>
-      <button disabled={pending} className="rounded bg-primary px-4 py-2 font-medium text-on-primary disabled:opacity-60">
+      <button disabled={pending} className="btn">
         {pending ? "Cargando…" : "Cargar muestra de DGCP"}
       </button>
       {state && (

@@ -18,7 +18,7 @@ async function ExpiredNotice({ searchParams }: { searchParams: PageProps<"/recup
 export default function RecuperarPage(props: PageProps<"/recuperar">) {
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center p-6">
-      <h1 className="mb-1 text-2xl font-semibold">Recuperar contraseña</h1>
+      <h1 className="page-title mb-1">Recuperar contraseña</h1>
       <Suspense>
         <ExpiredNotice searchParams={props.searchParams} />
       </Suspense>

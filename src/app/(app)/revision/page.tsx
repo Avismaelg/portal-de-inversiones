@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Revisión" };
 async function Queue() {
   const role = await getCurrentRole();
   if (!isStaffRole(role)) {
-    return <p className="rounded border border-line p-6 text-muted">No tienes permisos para ver esta sección.</p>;
+    return <p className="empty-state">No tienes permisos para ver esta sección.</p>;
   }
   const supabase = await createClient();
   const { data: items, error } = await supabase
@@ -23,7 +23,7 @@ async function Queue() {
     .order("created_at");
   if (error) return <p role="alert" className="text-danger">No se pudo cargar la cola.</p>;
   if (!items?.length) {
-    return <p className="rounded border border-line p-6 text-muted">No hay registros pendientes de revisión.</p>;
+    return <p className="empty-state">No hay registros pendientes de revisión.</p>;
   }
 
   const mayPublish = canPublishRole(role);
@@ -56,7 +56,7 @@ async function Queue() {
       )}
       <ul className="space-y-4">
         {cards.map(({ i, auctions, blockers }) => (
-          <li key={i.id} className="rounded border border-line p-4">
+          <li key={i.id} className="card">
             <div className="flex flex-wrap items-center gap-2">
               <Link href={`/instrumentos/${i.id}`} className="font-semibold text-primary underline">
                 {i.name}
@@ -90,7 +90,7 @@ async function Queue() {
 export default function RevisionPage() {
   return (
     <>
-      <h1 className="mb-2 text-2xl font-semibold">Revisión y publicación</h1>
+      <h1 className="page-title mb-2">Revisión y publicación</h1>
       <p className="mb-6 text-sm text-muted">
         Publicar es una decisión humana y queda en la auditoría. Solo se puede publicar con toda la evidencia verificada.
       </p>

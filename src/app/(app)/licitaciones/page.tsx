@@ -70,28 +70,28 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
       <form method="get" className="mb-6 flex flex-wrap items-end gap-3" role="search">
         <div>
           <label htmlFor="q" className="mb-1 block text-sm font-medium">Buscar</label>
-          <input id="q" name="q" defaultValue={q} className="w-64 rounded border border-line bg-surface px-3 py-2" />
+          <input id="q" name="q" defaultValue={q} className="w-64 field" />
         </div>
         <div>
           <label htmlFor="metodo" className="mb-1 block text-sm font-medium">Modalidad</label>
-          <select id="metodo" name="metodo" defaultValue={method} className="rounded border border-line bg-surface px-3 py-2">
+          <select id="metodo" name="metodo" defaultValue={method} className="field">
             <option value="">Todas</option>
             {methodList.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
         <div>
           <label htmlFor="estado" className="mb-1 block text-sm font-medium">Estado</label>
-          <select id="estado" name="estado" defaultValue={status} className="rounded border border-line bg-surface px-3 py-2">
+          <select id="estado" name="estado" defaultValue={status} className="field">
             <option value="">Todos</option>
             {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
-        <button className="rounded bg-primary px-4 py-2 font-medium text-on-primary">Filtrar</button>
+        <button className="btn">Filtrar</button>
         {(q || method || status) && <Link href="/licitaciones" className="py-2 text-sm text-primary underline">Quitar filtros</Link>}
       </form>
 
       {!data?.length ? (
-        <p className="rounded border border-line p-6 text-muted">
+        <p className="empty-state">
           {q || method || status
             ? "No hay resultados con estos filtros."
             : "Aún no hay licitaciones cargadas. Un usuario con rol de gestión puede cargar una muestra en Carga de datos."}
@@ -101,7 +101,7 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
           <p className="mb-2 text-sm text-muted" aria-live="polite">{count} resultado(s) · página {page} de {pages}</p>
           <ul className="space-y-3">
             {data.map((t) => (
-              <li key={t.id} className="rounded border border-line p-4">
+              <li key={t.id} className="card">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <h2 className="font-semibold">{t.title}</h2>
                   <WatchButton type="tender" id={t.id} watching={watchedIds.has(t.id)} />
@@ -136,7 +136,7 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
 export default function LicitacionesPage(props: PageProps<"/licitaciones">) {
   return (
     <>
-      <h1 className="mb-2 text-2xl font-semibold">Licitaciones</h1>
+      <h1 className="page-title mb-2">Licitaciones</h1>
       <p className="mb-6 text-sm text-muted">
         Fuente: DGCP (datos abiertos), con estado legal pendiente de revisión. Dato confirmado según la fuente; la
         veracidad es de cada institución. Información sin carácter de asesoría.

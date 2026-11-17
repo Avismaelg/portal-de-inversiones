@@ -8,9 +8,9 @@ export const metadata: Metadata = { title: "Dashboard" };
 
 function Kpi({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="rounded border border-line bg-surface p-4">
-      <p className="text-sm text-muted">{label}</p>
-      <p className="mt-1 text-3xl font-semibold">{value}</p>
+    <div className="card">
+      <p className="text-sm font-medium text-muted">{label}</p>
+      <p className="mt-2 text-4xl font-semibold tracking-tight text-primary">{value}</p>
       <p className="mt-1 text-xs text-muted">{hint}</p>
     </div>
   );
@@ -71,7 +71,7 @@ async function Summary() {
         <h2 id="fuentes" className="mb-3 text-lg font-semibold">
           Estado de fuentes
         </h2>
-        <ul className="divide-y divide-divider rounded border border-line">
+        <ul className="divide-y divide-divider overflow-hidden rounded-xl border border-divider bg-surface">
           {(sources.data ?? []).map((s) => (
             <li key={s.code} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
               <span>{s.name}</span>
@@ -93,7 +93,7 @@ async function Summary() {
 export default function DashboardPage() {
   return (
     <>
-      <h1 className="mb-6 text-2xl font-semibold">Dashboard</h1>
+      <h1 className="page-title mb-6">Dashboard</h1>
       <Suspense fallback={<p className="text-muted">Cargando…</p>}>
         <Summary />
       </Suspense>

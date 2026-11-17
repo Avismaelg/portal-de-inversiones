@@ -6,7 +6,7 @@ import { unpublishInstrument, type ReviewResult } from "../../revision/actions";
 export function UnpublishForm({ id }: { id: string }) {
   const [state, action, pending] = useActionState<ReviewResult | null, FormData>(unpublishInstrument, null);
   return (
-    <form action={action} className="mt-6 rounded border border-line p-4">
+    <form action={action} className="mt-6 card">
       <h2 className="mb-2 font-semibold">Despublicar</h2>
       <p className="mb-2 text-sm text-muted">
         Devuelve el instrumento y sus subastas a borrador. El motivo queda registrado.
@@ -21,7 +21,7 @@ export function UnpublishForm({ id }: { id: string }) {
         required
         minLength={10}
         rows={2}
-        className="w-full rounded border border-line bg-surface px-3 py-2 text-sm"
+        className="w-full field"
       />
       {state && (
         <p role={state.ok ? "status" : "alert"} className={`mt-2 text-sm ${state.ok ? "text-success" : "text-danger"}`}>

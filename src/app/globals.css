@@ -68,3 +68,34 @@ body {
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ---- Componentes base (interfaz) ---- */
+@layer components {
+  .card {
+    @apply rounded-xl border border-divider bg-surface p-4 shadow-sm;
+  }
+  .empty-state {
+    @apply rounded-xl border border-dashed border-line bg-bg-subtle p-8 text-center text-muted;
+  }
+  .field {
+    @apply rounded-lg border border-line bg-surface px-3 py-2 text-sm shadow-sm transition-colors;
+  }
+  .field:hover {
+    border-color: var(--color-primary);
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-lg border border-line px-3 py-1.5 text-sm transition-colors hover:bg-surface-2;
+  }
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+  .page-lead {
+    @apply mt-1 mb-6 max-w-3xl text-sm text-muted;
+  }
+}
+
+html { scroll-behavior: smooth; }
+body { -webkit-font-smoothing: antialiased; line-height: 1.55; }

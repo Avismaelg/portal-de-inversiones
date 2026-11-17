@@ -66,7 +66,7 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
         </p>
       )}
       <div className="grid gap-6 lg:grid-cols-2">
-        <section aria-labelledby="ficha" className="rounded border border-line p-4">
+        <section aria-labelledby="ficha" className="card">
           <h2 id="ficha" className="mb-2 font-semibold">Ficha</h2>
           <dl className="divide-y divide-divider">
             <Row k="ISIN" v={<span className="font-mono">{i.isin ?? "No disponible"}</span>} />
@@ -81,7 +81,7 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
             />
           </dl>
         </section>
-        <section aria-labelledby="subastas" className="rounded border border-line p-4">
+        <section aria-labelledby="subastas" className="card">
           <h2 id="subastas" className="mb-2 font-semibold">Subastas</h2>
           {!auctions?.length ? (
             <p className="text-sm text-muted">Sin subastas registradas.</p>
@@ -99,7 +99,7 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
           )}
         </section>
       </div>
-      <section aria-labelledby="evidencia" className="mt-6 rounded border border-line p-4">
+      <section aria-labelledby="evidencia" className="mt-6 card">
         <h2 id="evidencia" className="mb-2 font-semibold">Evidencia</h2>
         {!evidence.length ? (
           <p className="text-sm text-muted">Sin evidencia vinculada.</p>

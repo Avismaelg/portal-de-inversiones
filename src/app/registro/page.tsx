@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Crear cuenta" };
 export default function RegistroPage() {
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center p-6">
-      <h1 className="mb-1 text-2xl font-semibold">Crear cuenta</h1>
+      <h1 className="page-title mb-1">Crear cuenta</h1>
       <p className="mb-6 text-sm text-muted">Verificaremos tu correo antes de dejarte entrar.</p>
       <AuthForm
         action={signUp}
