@@ -321,3 +321,23 @@ Una sola solicitud de lectura por feed, con `User-Agent` genérico. **Términos 
 2. **Una noticia no es un hecho verificado:** debe entrar como señal (capa «Inferencia») hasta tener evidencia. El modelo `economic_events` exige fuente documental y revisión humana antes de publicar (cláusula P0), así que **no sirve tal cual** para un flujo masivo de titulares.
 3. **Relevancia:** los feeds mezclan temas; hace falta un filtro (palabras clave y, más adelante, IA — B-011 sin proveedor).
 4. **Regla G0 #5:** ningún conector se activa sin licencia verificada o abogado; la lectura de feeds seguiría el mismo régimen que DGCP (carga disparada por una persona).
+
+## Noticias — fuentes primarias con feed RSS (2026-11-16)
+
+Sondeo de ~29 sitios institucionales (una solicitud de lectura cada uno, `User-Agent` genérico). Feeds que responden RSS con ítems recientes. **Términos y licencias NO leídos; `robots.txt` revisado solo por coincidencias de texto, sin concluir por host** (`DESCONOCIDO — verificar` por fuente).
+
+| Fuente | Feed | Estado del feed | Valor para inversión |
+|---|---|---|---|
+| Indotel (telecomunicaciones) | `indotel.gob.do/feed/` | Activo (hoy), texto completo | Concesiones y regulación: alto |
+| SIMV (regulador del mercado de valores) | `simv.gob.do/feed/` | Activo (nov-2026), texto completo | Mercado de capitales: alto; contenido hasta ahora más institucional que de hechos relevantes |
+| Hacienda y Economía | `hacienda.gob.do/feed/` (= `economia.gob.do`) | Activo, texto completo | Finanzas públicas, presupuesto: alto |
+| Cámara de Diputados | `camaradediputados.gob.do/feed/` | Activo, texto completo | Proyectos de ley y Presupuesto 2027: alto |
+| Senado | `senadord.gob.do/feed/` | Activo (hoy), texto completo | Legislación: alto |
+| Proindustria | `proindustria.gob.do/feed/` | Activo (nov-2026), texto completo | Zonas francas e industria: medio |
+| Procompetencia | `procompetencia.gob.do/feed/` | Activo (nov-2026), texto completo | Competencia, fusiones: medio |
+| DGCP (institucional) | `dgcp.gob.do/feed/` | **Casi inactivo** (3 ítems, el último de feb-2026) | Bajo |
+| MEPyD | `mepyd.gob.do/feed/` | **Desactualizado** (último ítem jul-2025) | Descartado por ahora |
+
+**Sin feed hallado:** Banco Central, DGII, Presidencia (decretos), Superintendencia de Bancos, BVRD, Aduanas, CNE, MITUR, MIEM/Energía y Minas, Crédito Público, MOPC. Para estos habría que leer sus páginas de noticias (HTML), lo que exige revisar términos y `robots.txt` uno por uno.
+
+**¿Las fuentes primarias llegan antes que los medios?** Evidencia puntual, **no concluyente**: el 16-nov-2026 Indotel publicó la concesión a Claro y Viettel a las 17:26 UTC; El Dinero la publicó a las 18:00 y Dominican Today a las 19:55. Pero en otra nota (RD electa al Consejo de la UIT) El Dinero (19:57) salió antes que Indotel (20:22). La ventaja existe a veces, no siempre; solo se puede afirmar midiendo con muchas noticias.
