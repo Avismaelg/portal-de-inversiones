@@ -9,6 +9,7 @@ import { NEWS_FEEDS, leadMinutes } from "@/lib/ingest/news";
 import { DIRECTION } from "@/lib/news-format";
 import { scoreNews } from "@/lib/priority";
 import { canPublishRole } from "@/lib/review-rules";
+import { ilikeAny, ilikePattern } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 import { LoadNewsButton } from "./load-button";
 
@@ -42,7 +43,8 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
     .order("published_at", { ascending: false, nullsFirst: false })
     .limit(300);
   if (NEWS_FEEDS.some((f) => f.key === source)) query = query.eq("source_key", source);
-  if (q) query = query.ilike("title", `%${q.replace(/[%_]/g, "")}%`);
+  const pattern = ilikePattern(q);
+  if (pattern) query = query.or(ilikeAny(["title", "excerpt"], pattern));
   const [{ data: all, error }, cmp, prefs] = await Promise.all([
     query,
     supabase.from("news_items").select("published_at,media_published_at").not("media_url", "is", null).not("published_at", "is", null),
@@ -100,7 +102,7 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
       </section>
       <form method="get" role="search" className="mb-6 flex flex-wrap items-end gap-3">
         <div>
-          <label htmlFor="q" className="mb-1 block text-sm font-medium">Buscar en titulares</label>
+          <label htmlFor="q" className="mb-1 block text-sm font-medium">Buscar en titular o extracto</label>
           <input id="q" name="q" defaultValue={q} className="w-64 field" />
         </div>
         <div>

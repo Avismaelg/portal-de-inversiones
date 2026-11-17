@@ -197,12 +197,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </nav>
             </div>
           </details>
-          <form action="/noticias" method="get" role="search" className="min-w-0 flex-1 md:max-w-md">
-            <label htmlFor="busqueda" className="sr-only">Buscar en noticias</label>
+          <form action="/buscar" method="get" role="search" className="min-w-0 flex-1 md:max-w-md">
+            <label htmlFor="busqueda" className="sr-only">Buscar en noticias, licitaciones, oportunidades y proyectos</label>
             <input
               id="busqueda"
               name="q"
-              placeholder="Buscar en noticias…"
+              type="search"
+              minLength={2}
+              maxLength={100}
+              placeholder="Buscar noticias, licitaciones, oportunidades…"
               className="w-full rounded-md border border-divider bg-bg px-3 py-1.5 text-sm placeholder:text-muted"
             />
           </form>
