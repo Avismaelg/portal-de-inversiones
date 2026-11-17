@@ -19,6 +19,10 @@ export default defineConfig({
         "src/test/**",
         "src/app/layout.tsx",
       ],
+      // P1-08: la lógica de dominio (src/lib, en conjunto) no puede bajar de estos mínimos.
+      thresholds: {
+        "src/lib/**": { lines: 85, statements: 85, functions: 80, branches: 75 },
+      },
     },
   },
 });
