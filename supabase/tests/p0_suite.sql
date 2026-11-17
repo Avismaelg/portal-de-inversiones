@@ -607,3 +607,47 @@ BEGIN
 
   RAISE EXCEPTION E'RESULTADOS G (revertido):\n%', res;
 END $$;
+
+-- ------------- BLOQUE H: historial de cambios de licitaciones (migración 21) -------------
+-- Agregado 2026-11-17. Usa una licitación en revisión y otra publicada existentes; se revierte al final.
+DO $$
+DECLARE
+  res text := ''; tn uuid := gen_random_uuid(); m uuid := gen_random_uuid(); v uuid := gen_random_uuid();
+  t1 uuid; t2 uuid; st text; n int;
+BEGIN
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn,'tenant','Tenant H');
+  INSERT INTO auth.users (id, email) VALUES (m,'mh@test.invalid'),(v,'vh@test.invalid');
+  UPDATE users SET role='opportunity_manager' WHERE id=m;
+  SELECT id INTO t1 FROM public_tenders WHERE publication_status='in_review' AND deadline_at IS NOT NULL LIMIT 1;
+  SELECT id INTO t2 FROM public_tenders WHERE publication_status='published' AND deadline_at IS NOT NULL LIMIT 1;
+
+  UPDATE public_tenders SET title = title, extracted_at = now() WHERE id = t1;
+  SELECT count(*) INTO n FROM tender_changes WHERE tender_id = t1;
+  res := res || 'H-01 recarga sin cambios no registra (esperado 0): ' || n || E'\n';
+
+  UPDATE public_tenders SET deadline_at = deadline_at + interval '2 days', budget_amount = coalesce(budget_amount, 0) + 1, extracted_at = now() + interval '1 second' WHERE id = t1;
+  SELECT origin || '/' || coalesce(actor_role::text, 'sistema') || '/' || (SELECT string_agg(k, ',' ORDER BY k) FROM jsonb_object_keys(changes) k)
+    INTO st FROM tender_changes WHERE tender_id = t1;
+  res := res || 'H-02 (esperado ingest/sistema/budget_amount,deadline_at): ' || st || E'\n';
+
+  UPDATE public_tenders SET deadline_at = deadline_at + interval '1 day', extracted_at = now() + interval '2 seconds' WHERE id = t2;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM tender_changes WHERE tender_id = t1;
+  res := res || 'H-03 lector no ve historial de no publicada (esperado 0): ' || n || E'\n';
+  SELECT count(*) INTO n FROM tender_changes WHERE tender_id = t2;
+  res := res || 'H-04 lector ve historial de publicada (esperado 1): ' || n || E'\n';
+  BEGIN INSERT INTO tender_changes (tender_id, origin, changes) VALUES (t2, 'edit', '{"x":1}'); res := res || E'H-05 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'H-05 OK (no se escribe desde la API): ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+  SET LOCAL ROLE authenticated;
+  UPDATE public_tenders SET publication_status = 'published', review_notes = 'Revisado en bloque H' WHERE id = t1;
+  RESET ROLE;
+  SELECT string_agg(origin || ':' || coalesce(actor_role::text,'sistema'), ' ') INTO st FROM tender_changes WHERE tender_id = t1 AND changes ? 'publication_status';
+  res := res || 'H-06 (esperado review:opportunity_manager): ' || st || E'\n';
+
+  RAISE EXCEPTION E'RESULTADOS H (revertido):\n%', res;
+END $$;

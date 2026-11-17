@@ -7,6 +7,7 @@ import { StatusBadge, TrustBadge } from "@/components/trust-badge";
 import { WatchButton } from "@/components/watch-button";
 import { PUBLICATION, deadlineLabel, formatMoney } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { describeChanges, ORIGIN_LABELS } from "@/lib/tender-changes";
 
 export const metadata: Metadata = { title: "Licitación" };
 
@@ -29,13 +30,14 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const supabase = await createClient();
-  const [{ data: t }, watched] = await Promise.all([
+  const [{ data: t }, watched, { data: history }] = await Promise.all([
     supabase
       .from("public_tenders")
       .select("id,title,description,process_code,procurement_method,status,published_at,deadline_at,timezone_assumed,budget_amount,budget_currency,data_quality_flags,trust_layer,publication_status,source_url,extracted_at,reviewed_at,review_notes,validation,created_at,sources(name,legal_status)")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("watchlists").select("id").eq("entity_type", "tender").eq("entity_id", id).maybeSingle(),
+    supabase.from("tender_changes").select("id,changed_at,origin,changes").eq("tender_id", id).order("changed_at", { ascending: false }).limit(30),
   ]);
   if (!t) notFound();
   const src = (Array.isArray(t.sources) ? t.sources[0] : t.sources) as { name: string; legal_status: string } | null;
@@ -90,6 +92,28 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
         <p className="mt-2 text-xs text-muted">
           Dato confirmado según la fuente: la veracidad del contenido es de la institución compradora (Ley 340-06). Sin carácter de asesoría.
         </p>
+      </section>
+
+      <section aria-labelledby="historial" className="card">
+        <h2 id="historial" className="text-base font-semibold">Historial de cambios</h2>
+        {history?.length ? (
+          <ol className="mt-2 divide-y divide-divider">
+            {history.map((h) => (
+              <li key={h.id} className="py-2 text-sm">
+                <p className="text-xs text-muted">{dt(h.changed_at)} · {ORIGIN_LABELS[h.origin] ?? h.origin}</p>
+                <ul className="mt-1 space-y-0.5">
+                  {describeChanges(h.changes).map((c) => (
+                    <li key={c.field}>
+                      <span className="font-medium">{c.label}:</span> <span className="text-muted line-through">{c.from}</span> → {c.to}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="mt-1 text-sm text-muted">Sin cambios registrados desde que se activó el historial (17 nov 2026). Cada nueva carga o revisión que modifique un dato quedará aquí.</p>
+        )}
       </section>
     </div>
   );
