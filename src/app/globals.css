@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #f6f7f9;
-  --color-bg-subtle: #ffffff;
-  --color-surface: #ffffff;
-  --color-surface-2: #eef2f5;
-  --color-text: #0f172a;
-  --color-text-muted: #526071;
-  --color-border-ui: #8a97a8;
-  --color-divider: #e2e8ef;
+  --color-bg: #faf8f4;
+  --color-bg-subtle: #f3f0e9;
+  --color-surface: #fffefb;
+  --color-surface-2: #ece8de;
+  --color-text: #1b1a17;
+  --color-text-muted: #5a564d;
+  --color-border-ui: #8c877b;
+  --color-divider: #ddd7c9;
   --color-focus: #0f766e;
   --color-primary: #0f766e;
   --color-on-primary: #ffffff;
@@ -51,6 +51,7 @@
   --color-warning: var(--color-warning);
   --color-danger: var(--color-danger);
   --font-sans: var(--font-geist-sans);
+  --font-serif: var(--font-source-serif);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -96,10 +97,21 @@ body {
     font-variant-numeric: tabular-nums;
   }
   .page-title {
-    @apply text-2xl font-semibold tracking-tight;
+    font-family: var(--font-serif), Georgia, serif;
+    @apply text-3xl font-bold tracking-tight md:text-4xl;
+  }
+  .headline {
+    font-family: var(--font-serif), Georgia, serif;
+    @apply text-xl font-semibold leading-snug tracking-tight;
+  }
+  .kicker {
+    @apply text-xs font-semibold uppercase tracking-wider text-muted;
+  }
+  .rule {
+    @apply border-t-2 border-text;
   }
   .page-lead {
-    @apply mt-1 mb-6 max-w-3xl text-sm text-muted;
+    @apply mt-2 mb-8 max-w-2xl text-base text-muted;
   }
 }
 

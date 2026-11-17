@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { TrustBadge } from "@/components/trust-badge";
 import { createClient } from "@/lib/supabase/server";
@@ -6,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "Oportunidades" };
 
 async function List() {
+  await connection();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("investment_opportunities")

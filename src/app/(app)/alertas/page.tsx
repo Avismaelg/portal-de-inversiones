@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { matchesAlert } from "@/lib/radar";
 import { createClient } from "@/lib/supabase/server";
@@ -13,6 +14,7 @@ const fmt = (v: string | null) =>
     : "Sin fecha";
 
 async function Alerts() {
+  await connection();
   const supabase = await createClient();
   const [prefs, news] = await Promise.all([
     supabase.from("user_alert_preferences").select("id,name,keywords,is_paused").order("created_at", { ascending: false }),

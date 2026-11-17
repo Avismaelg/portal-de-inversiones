@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, todayInRD } from "@/lib/format";
@@ -18,6 +19,7 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint: strin
 }
 
 async function Summary() {
+  await connection();
   const supabase = await createClient();
   const today = todayInRD();
   const in30 = todayInRD(30);
@@ -58,9 +60,9 @@ async function Summary() {
   }
   return (
     <>
-      <section aria-labelledby="senales" className="card mb-8">
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 id="senales" className="text-lg font-semibold">Señales recientes</h2>
+      <section aria-labelledby="senales" className="mb-10">
+        <div className="rule mb-1 flex items-baseline justify-between gap-3 pt-2">
+          <h2 id="senales" className="kicker">Señales recientes</h2>
           <Link href="/noticias" className="text-sm font-medium text-primary hover:underline">
             Ver las {signals.count ?? 0} noticias →
           </Link>
@@ -71,12 +73,12 @@ async function Summary() {
               const lead =
                 n.published_at && n.media_published_at ? leadMinutes(n.published_at, n.media_published_at) : null;
               return (
-                <li key={n.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                <li key={n.id} className="flex flex-wrap items-start justify-between gap-3 py-4">
                   <div className="min-w-0">
-                    <a href={n.url} target="_blank" rel="noopener noreferrer" className="font-medium hover:text-primary hover:underline">
+                    <a href={n.url} target="_blank" rel="noopener noreferrer" className="headline hover:text-primary hover:underline">
                       {n.title}
                     </a>
-                    <p className="text-xs text-muted">{n.source_name}</p>
+                    <p className="kicker mt-1">{n.source_name}</p>
                   </div>
                   {lead !== null && lead > 0 ? (
                     <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
@@ -111,7 +113,7 @@ async function Summary() {
         <Kpi label="Vencen en 30 días" value={String(due.count ?? 0)} hint={`Corte: ${formatDate(today)}`} />
       </div>
       <section className="mt-8" aria-labelledby="fuentes">
-        <h2 id="fuentes" className="mb-3 text-lg font-semibold">
+        <h2 id="fuentes" className="kicker mb-3">
           Estado de fuentes
         </h2>
         <ul className="divide-y divide-divider overflow-hidden rounded-xl border border-divider bg-surface">

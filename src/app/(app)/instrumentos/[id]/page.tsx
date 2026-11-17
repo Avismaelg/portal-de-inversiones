@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { StatusBadge, TrustBadge } from "@/components/trust-badge";
 import { INSTRUMENT_TYPES, PUBLICATION, formatDate, formatMoney, formatPercent } from "@/lib/format";
@@ -25,6 +26,7 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
 }
 
 async function Detail({ params }: { params: Promise<{ id: string }> }) {
+  await connection();
   const { id } = await params;
   if (!UUID.test(id)) notFound();
   const supabase = await createClient();

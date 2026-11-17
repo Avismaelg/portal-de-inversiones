@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { StatusBadge, TrustBadge } from "@/components/trust-badge";
 import { INSTRUMENT_TYPES, PUBLICATION, formatDate, formatPercent } from "@/lib/format";
@@ -8,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "Instrumentos" };
 
 async function List() {
+  await connection();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("financial_instruments")

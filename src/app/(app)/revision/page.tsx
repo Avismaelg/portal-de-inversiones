@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { StatusBadge } from "@/components/trust-badge";
 import { getCurrentRole } from "@/lib/auth";
@@ -11,6 +12,7 @@ import { ReviewButtons } from "./review-buttons";
 export const metadata: Metadata = { title: "Revisión" };
 
 async function Queue() {
+  await connection();
   const role = await getCurrentRole();
   if (!isStaffRole(role)) {
     return <p className="empty-state">No tienes permisos para ver esta sección.</p>;

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { TrustBadge } from "@/components/trust-badge";
 import { getCurrentRole } from "@/lib/auth";
@@ -29,6 +30,7 @@ const fmt = (v: string | null) =>
     : "Sin fecha";
 
 async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
+  await connection();
   const sp = await searchParams;
   const source = one(sp.fuente);
   const q = one(sp.q).trim().slice(0, 80);
@@ -113,9 +115,9 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
       ) : (
         <>
           <p className="mb-2 text-sm text-muted" aria-live="polite">{count} noticia(s) · página {page} de {pages}</p>
-          <ul className="space-y-3">
+          <ul className="divide-y divide-divider border-t-2 border-text">
             {data.map((n) => (
-              <li key={n.id} className="rounded border border-dashed border-warning p-4">
+              <li key={n.id} className="py-6">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                   <TrustBadge layer={n.trust_layer} />
                   <span>{n.source_name}</span>
@@ -141,8 +143,8 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
                     <span className="text-muted">Sin cobertura de prensa localizada</span>
                   )}
                 </p>
-                <h2 className="mt-1 font-semibold">
-                  <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-primary underline">{n.title}</a>
+                <h2 className="headline mt-1">
+                  <a href={n.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline">{n.title}</a>
                 </h2>
                 {n.excerpt && <p className="mt-1 text-sm">{n.excerpt}</p>}
                 {(() => {
@@ -190,8 +192,9 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
 export default function NoticiasPage(props: PageProps<"/noticias">) {
   return (
     <>
-      <h1 className="page-title mb-2">Noticias de fuentes primarias</h1>
-      <p className="mb-6 text-sm text-muted">
+      <p className="eyebrow">Fuentes primarias</p>
+      <h1 className="page-title">Noticias antes de que sean noticia</h1>
+      <p className="page-lead">
         Comunicados de instituciones y reguladores. Son <strong>señales</strong>, no hechos verificados: léelas en su
         fuente. Se muestra solo titular, extracto breve y enlace. Estado legal de las fuentes pendiente de revisión;
         sin carácter de asesoría de inversión.

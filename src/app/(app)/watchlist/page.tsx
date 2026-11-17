@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { WatchButton } from "@/components/watch-button";
 import { createClient } from "@/lib/supabase/server";
@@ -7,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "Mi lista" };
 
 async function Items() {
+  await connection();
   const supabase = await createClient();
   const { data: rows, error } = await supabase
     .from("watchlists")

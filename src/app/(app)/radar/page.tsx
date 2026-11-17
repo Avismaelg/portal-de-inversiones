@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { TrustBadge } from "@/components/trust-badge";
 import { trendingKeywords } from "@/lib/radar";
@@ -8,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "Radar" };
 
 async function Trends() {
+  await connection();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("news_items")

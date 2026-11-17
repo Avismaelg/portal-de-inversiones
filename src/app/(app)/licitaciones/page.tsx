@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { StatusBadge } from "@/components/trust-badge";
 import { WatchButton } from "@/components/watch-button";
@@ -29,6 +30,7 @@ const dateTime = (v: string | null) =>
     : "No disponible";
 
 async function Results({ searchParams }: { searchParams: Promise<Params> }) {
+  await connection();
   const sp = await searchParams;
   const q = one(sp.q).trim().slice(0, 100);
   const method = one(sp.metodo).trim().slice(0, 80);

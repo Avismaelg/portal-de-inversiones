@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { NavLinks, NavList, type NavGroup } from "@/components/nav-links";
 import { createClient } from "@/lib/supabase/server";
@@ -33,6 +34,7 @@ const GROUPS: NavGroup[] = [
 ];
 
 async function UserMenu() {
+  await connection();
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const email = String(data?.claims?.email ?? "");
@@ -65,9 +67,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           >
             AV
           </span>
-          <p className="text-sm font-semibold leading-tight">
+          <p className="headline leading-none">
             AviTech
-            <span className="block text-xs font-normal text-muted">Investment Intelligence</span>
+            <span className="kicker mt-1 block font-sans">Investment Intelligence</span>
           </p>
         </div>
         <Suspense fallback={<NavList groups={GROUPS} pathname="" />}>
