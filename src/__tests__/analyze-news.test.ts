@@ -14,6 +14,10 @@ const parsed = {
   horizon: "medium",
   sectors: ["telecomunicaciones"],
   risks: ["Plazos de despliegue"],
+  scenarios: [{ horizon: "medium", description: "Inicio de despliegue de red.", signals_to_watch: "Permisos de obra." }],
+  value_chain: [{ segment: "Proveedores de cable y fibra óptica", kind: "supplier", why: "Demanda de despliegue." }],
+  opportunities: [{ idea: "Contratistas de obra civil de telecomunicaciones", rationale: "Más obra.", risks: "Plazos.", what_to_verify: "Calendario de obras." }],
+  watch_next: ["Publicación del cronograma"],
   confidence: 55,
   confidence_explanation: "Solo hay titular y extracto.",
   evidence_quote: "firmaron la concesión de espectro",
@@ -27,6 +31,15 @@ describe("analyze-news", () => {
     expect(verifyQuote("anuncian inversión de US$500 millones", news)).toBe(false);
     expect(verifyQuote("firma", news)).toBe(false);
     expect(verifyQuote(null, news)).toBe(false);
+  });
+
+  it("incluye el texto de la fuente en la cita verificable y lo marca como usado", async () => {
+    const withBody = { ...news, body: "Se prevé el despliegue de 5G en 2027 con inversión privada." };
+    expect(verifyQuote("despliegue de 5G en 2027", withBody)).toBe(true);
+    expect(verifyQuote("despliegue de 5G en 2027", news)).toBe(false);
+    const r = await analyzeNews(fake({}) as never, withBody);
+    expect(r.ok && r.result.used_full_text).toBe(true);
+    expect(r.ok && r.result.analysis.value_chain[0].segment).toMatch(/fibra/);
   });
 
   it("el texto de la noticia va como dato dentro de <noticia>", () => {

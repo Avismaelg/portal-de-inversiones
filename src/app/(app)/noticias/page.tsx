@@ -2,20 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { NewsCard } from "@/components/news-card";
 import { TrustBadge } from "@/components/trust-badge";
 import { getCurrentRole } from "@/lib/auth";
 import { NEWS_FEEDS, leadMinutes } from "@/lib/ingest/news";
-import { priorityLabel, scoreNews } from "@/lib/priority";
-import { canPublishRole, isStaffRole } from "@/lib/review-rules";
+import { DIRECTION } from "@/lib/news-format";
+import { scoreNews } from "@/lib/priority";
+import { canPublishRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
-import { AnalyzeButton } from "./analyze-button";
 import { LoadNewsButton } from "./load-button";
 
 export const metadata: Metadata = { title: "Noticias" };
 
 const PAGE_SIZE = 25;
-const DIRECTION: Record<string, string> = { positive: "positivo", negative: "negativo", neutral: "neutral", mixed: "mixto", unclear: "poco claro" };
-const HORIZON: Record<string, string> = { short: "corto", medium: "medio", long: "largo", unclear: "poco claro" };
 type Params = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
@@ -25,10 +24,6 @@ function fmtLead(min: number) {
   return t;
 }
 
-const fmt = (v: string | null) =>
-  v
-    ? new Intl.DateTimeFormat("es-DO", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Santo_Domingo" }).format(new Date(v))
-    : "Sin fecha";
 
 async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
   await connection();
@@ -39,7 +34,6 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
   const order = one(sp.orden) === "recientes" ? "recientes" : "prioridad";
   const role = await getCurrentRole();
   const mayLoad = canPublishRole(role);
-  const mayAnalyze = isStaffRole(role);
 
   const supabase = await createClient();
   let query = supabase
@@ -71,7 +65,7 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
   const { data: analyses } = data?.length
     ? await supabase
         .from("news_analyses")
-        .select("news_id,summary,impact_direction,horizon,sectors,risks,confidence,confidence_explanation,evidence_quote,quote_verified,model")
+        .select("news_id,summary,impact_direction,confidence")
         .in("news_id", data.map((n) => n.id))
     : { data: [] };
   const byNews = new Map((analyses ?? []).map((a) => [a.news_id, a]));
@@ -137,83 +131,20 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
           <p className="mb-2 text-sm text-muted" aria-live="polite">{count} noticia(s) · página {page} de {pages}</p>
           <ul className="space-y-3">
             {data.map((n) => (
-              <li key={n.id} className="card">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-semibold ${
-                      priorityLabel(n.pr.score) === "Alta"
-                        ? "bg-success/15 text-success"
-                        : priorityLabel(n.pr.score) === "Media"
-                          ? "bg-warning/15 text-warning"
-                          : "bg-surface-2 text-muted"
-                    }`}
-                  >
-                    Prioridad {priorityLabel(n.pr.score)}
-                  </span>
-                  <TrustBadge layer={n.trust_layer} />
-                  <span>{n.source_name}</span>
-                  <span>· publicada {fmt(n.published_at)}</span>
-                  <span>· detectada {fmt(n.detected_at)}</span>
-                </div>
-                <p className="mt-2 text-xs">
-                  {n.media_url && n.published_at && n.media_published_at ? (
-                    <>
-                      {(() => {
-                        const l = leadMinutes(n.published_at, n.media_published_at);
-                        return (
-                          <span className={l > 0 ? "font-medium text-success" : "text-muted"}>
-                            {l > 0 ? `Llegó ${fmtLead(l)} antes que` : `Salió ${fmtLead(l)} después de`}{" "}
-                          </span>
-                        );
-                      })()}
-                      <a href={n.media_url} target="_blank" rel="noopener noreferrer" className="text-primary underline">
-                        {n.media_source}
-                      </a>
-                    </>
-                  ) : (
-                    <span className="text-muted">Sin cobertura de prensa localizada</span>
+              <li key={n.id}>
+                <NewsCard n={n} pr={n.pr} now={now} analyzed={byNews.has(n.id)}>
+                  {byNews.get(n.id) && (
+                    <div className="mt-3 rounded-lg border-l-4 border-primary bg-primary/5 p-3 text-sm">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <TrustBadge layer="ai_analysis" />
+                        <span className="text-muted">
+                          Impacto {DIRECTION[byNews.get(n.id)!.impact_direction]} · confianza {byNews.get(n.id)!.confidence} %
+                        </span>
+                      </div>
+                      <p className="mt-1">{byNews.get(n.id)!.summary}</p>
+                    </div>
                   )}
-                </p>
-                {n.pr.reasons.length > 0 && (
-                  <ul className="mt-1 flex flex-wrap gap-1.5 text-xs">
-                    {n.pr.reasons.map((r) => (
-                      <li key={r} className="rounded-full border border-divider bg-bg px-2 py-0.5 text-muted">{r}</li>
-                    ))}
-                  </ul>
-                )}
-                <h2 className="headline mt-1">
-                  <a href={n.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline">{n.title}</a>
-                </h2>
-                {n.excerpt && <p className="mt-1 text-sm">{n.excerpt}</p>}
-                {(() => {
-                  const a = byNews.get(n.id);
-                  return (
-                    <>
-                      {a && (
-                        <div className="mt-3 rounded-xl border-l-4 border-primary bg-primary/5 p-3 text-sm">
-                          <div className="flex flex-wrap items-center gap-2 text-xs">
-                            <TrustBadge layer="ai_analysis" />
-                            <span className="text-muted">
-                              Impacto {DIRECTION[a.impact_direction] ?? a.impact_direction} · horizonte {HORIZON[a.horizon] ?? a.horizon} · confianza {a.confidence} %
-                            </span>
-                          </div>
-                          <p className="mt-1">{a.summary}</p>
-                          {a.sectors.length > 0 && <p className="mt-1 text-xs text-muted">Sectores: {a.sectors.join(", ")}</p>}
-                          {a.risks.length > 0 && <p className="text-xs text-muted">Riesgos: {a.risks.join("; ")}</p>}
-                          <p className="mt-1 text-xs text-muted">{a.confidence_explanation}</p>
-                          <p className="mt-1 text-xs text-muted">
-                            {a.evidence_quote && a.quote_verified
-                              ? `Cita verificada en el texto: «${a.evidence_quote}»`
-                              : "Sin cita verificable en el texto: tómalo como orientación."}{" "}
-                            · Generado por IA ({a.model}); inferencia, no hecho verificado.
-                          </p>
-                        </div>
-                      )}
-                      {mayAnalyze && <AnalyzeButton id={n.id} again={!!a} />}
-                    </>
-                  );
-                })()}
-                <p className="mt-2 text-xs text-muted">Coincidencias: {(n.matched_keywords as string[]).slice(0, 6).join(", ")}</p>
+                </NewsCard>
               </li>
             ))}
           </ul>

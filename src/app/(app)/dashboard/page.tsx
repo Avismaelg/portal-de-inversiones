@@ -4,8 +4,8 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, todayInRD } from "@/lib/format";
-import { leadMinutes } from "@/lib/ingest/news";
-import { priorityLabel, scoreNews } from "@/lib/priority";
+import { NewsCard } from "@/components/news-card";
+import { scoreNews } from "@/lib/priority";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -67,46 +67,30 @@ async function Summary() {
     .map((n) => ({ ...n, pr: scoreNews({ ...n, matched_keywords: (n.matched_keywords ?? []) as string[] }, alerts, nowDate) }))
     .sort((a, b) => b.pr.score - a.pr.score)
     .slice(0, 5);
+  const { data: done } = top.length
+    ? await supabase.from("news_analyses").select("news_id").in("news_id", top.map((n) => n.id))
+    : { data: [] };
+  const analyzedIds = new Set((done ?? []).map((d) => d.news_id));
   return (
     <>
-      <section aria-labelledby="senales" className="card mb-4">
-        <div className="mb-1 flex items-baseline justify-between gap-3">
-          <h2 id="senales" className="text-base font-semibold">Tu resumen: lo más importante de los últimos 7 días</h2>
-          <Link href="/noticias" className="text-sm font-medium text-primary hover:underline">
+      <section aria-labelledby="senales" className="mb-4">
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <h2 id="senales" className="text-lg font-semibold">Noticias relevantes para ti</h2>
+          <Link href="/noticias" className="text-sm font-semibold text-primary hover:underline">
             Ver las {signals.count ?? 0} noticias →
           </Link>
         </div>
+        <p className="mb-3 text-sm text-muted">Lo más importante de los últimos 7 días, ordenado por prioridad para un inversionista.</p>
         {top.length ? (
-          <ul className="divide-y divide-divider">
-            {top.map((n) => {
-              const lead =
-                n.published_at && n.media_published_at ? leadMinutes(n.published_at, n.media_published_at) : null;
-              return (
-                <li key={n.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <a href={n.url} target="_blank" rel="noopener noreferrer" className="headline hover:text-primary hover:underline">
-                      {n.title}
-                    </a>
-                    <p className="kicker mt-1">{n.source_name} · Prioridad {priorityLabel(n.pr.score)}</p>
-                    {n.pr.reasons.length > 0 && (
-                      <ul className="mt-1.5 flex flex-wrap gap-1.5 text-xs">
-                        {n.pr.reasons.map((r) => (
-                          <li key={r} className="rounded-full border border-divider bg-bg px-2 py-0.5 text-muted">{r}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                  {lead !== null && lead > 0 ? (
-                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                      {lead >= 60 ? `${Math.floor(lead / 60)} h ${lead % 60} min` : `${lead} min`} antes que {n.media_source}
-                    </span>
-                                    ) : null}
-                </li>
-              );
-            })}
+          <ul className="space-y-3">
+            {top.map((n) => (
+              <li key={n.id}>
+                <NewsCard n={n} pr={n.pr} now={nowDate} analyzed={analyzedIds.has(n.id)} />
+              </li>
+            ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted">No hay señales de los últimos 7 días. Carga noticias desde la sección Noticias.</p>
+          <p className="empty-state">No hay señales de los últimos 7 días. Carga noticias desde la sección Noticias.</p>
         )}
       </section>
       <div className="grid gap-3 sm:grid-cols-2">
