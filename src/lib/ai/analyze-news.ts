@@ -8,7 +8,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { fold } from "@/lib/ingest/news";
 
-export const DEFAULT_MODEL = "claude-haiku-5-5";
+export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 const Scenario = z.object({
   horizon: z.enum(["short", "medium", "long"]),
