@@ -11,6 +11,7 @@ const GROUPS: NavGroup[] = [
       { href: "/instrumentos", label: "Instrumentos", icon: "chart", ready: true },
       { href: "/licitaciones", label: "Licitaciones", icon: "doc", ready: true },
       { href: "/noticias", label: "Noticias", icon: "news", ready: true },
+      { href: "/alertas", label: "Alertas", icon: "bell", ready: true },
       { href: "/watchlist", label: "Mi lista", icon: "star", ready: true },
     ],
   },
@@ -22,11 +23,11 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: "Próximamente",
+    title: "Análisis",
     items: [
-      { href: "#", label: "Radar", icon: "radar", ready: false },
-      { href: "#", label: "Proyectos y permisos", icon: "map", ready: false },
-      { href: "#", label: "Oportunidades", icon: "spark", ready: false },
+      { href: "/radar", label: "Radar", icon: "radar", ready: true },
+      { href: "/proyectos", label: "Proyectos y permisos", icon: "map", ready: true },
+      { href: "/oportunidades", label: "Oportunidades", icon: "spark", ready: true },
     ],
   },
 ];

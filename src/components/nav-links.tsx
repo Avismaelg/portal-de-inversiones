@@ -25,6 +25,7 @@ const ICONS = {
   upload: "M12 16V4m0 0l-4 4m4-4l4 4M4 16v4h16v-4",
   radar: "M12 12l6-6M12 3a9 9 0 109 9M12 7a5 5 0 105 5",
   map: "M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14m6-12v14",
+  bell: "M6 16V11a6 6 0 0112 0v5l2 2H4zM10 21h4",
   spark: "M12 3v4m0 10v4M3 12h4m10 0h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18",
 } as const;
 

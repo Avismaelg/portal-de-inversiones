@@ -88,7 +88,7 @@ export function parseRss(xml: string): NewsItem[] {
   return out;
 }
 
-const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+export const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /** Palabras clave fuertes: una sola basta para considerar la noticia relevante para inversión. */
 export const STRONG_KEYWORDS: readonly string[] = [
