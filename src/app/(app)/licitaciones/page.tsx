@@ -29,6 +29,13 @@ const dateTime = (v: string | null) =>
       )
     : "No disponible";
 
+function timeLeft(deadline: string, now: Date): string {
+  const ms = new Date(deadline).getTime() - now.getTime();
+  if (ms <= 0) return "Cerrada";
+  const h = Math.floor(ms / 3600000);
+  return h < 24 ? `Cierra en ${h} h` : `Cierra en ${Math.floor(h / 24)} día(s)`;
+}
+
 async function Results({ searchParams }: { searchParams: Promise<Params> }) {
   await connection();
   const sp = await searchParams;
@@ -36,6 +43,10 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
   const method = one(sp.metodo).trim().slice(0, 80);
   const status = one(sp.estado);
   const page = Math.max(1, Number(one(sp.pagina)) || 1);
+  const orderRaw = one(sp.orden);
+  const order = ["cierre", "monto", "recientes"].includes(orderRaw) ? orderRaw : "cierre";
+  const onlyOpen = one(sp.vigentes) === "1" || Object.keys(sp).length === 0;
+  const now = new Date();
 
   const supabase = await createClient();
   let query = supabase
@@ -43,11 +54,17 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
     .select("id,title,description,procurement_method,status,published_at,deadline_at,budget_amount,budget_currency,process_code", {
       count: "exact",
     })
-    .order("published_at", { ascending: false, nullsFirst: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
   if (q) query = query.textSearch("search_vector", q, { type: "websearch", config: "spanish" });
   if (method) query = query.eq("procurement_method", method);
   if (status && STATUS[status]) query = query.eq("status", status as "open");
+  if (onlyOpen) query = query.eq("status", "open").gte("deadline_at", now.toISOString());
+  query =
+    order === "monto"
+      ? query.order("budget_amount", { ascending: false, nullsFirst: false })
+      : order === "recientes"
+        ? query.order("published_at", { ascending: false, nullsFirst: false })
+        : query.order("deadline_at", { ascending: true, nullsFirst: false });
 
   const [{ data, count, error }, methods, watched] = await Promise.all([
     query,
@@ -63,6 +80,8 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
     if (q) u.set("q", q);
     if (method) u.set("metodo", method);
     if (status) u.set("estado", status);
+    u.set("orden", order);
+    if (onlyOpen) u.set("vigentes", "1");
     u.set("pagina", String(p));
     return `/licitaciones?${u}`;
   };
@@ -88,8 +107,20 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
             {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </div>
+        <div>
+          <label htmlFor="orden" className="mb-1 block text-sm font-medium">Ordenar por</label>
+          <select id="orden" name="orden" defaultValue={order} className="field">
+            <option value="cierre">Cierre más próximo</option>
+            <option value="monto">Mayor monto</option>
+            <option value="recientes">Más recientes</option>
+          </select>
+        </div>
+        <label className="flex items-center gap-2 py-2 text-sm">
+          <input type="checkbox" name="vigentes" value="1" defaultChecked={onlyOpen} />
+          Solo vigentes
+        </label>
         <button className="btn">Filtrar</button>
-        {(q || method || status) && <Link href="/licitaciones" className="py-2 text-sm text-primary underline">Quitar filtros</Link>}
+        {(q || method || status || !onlyOpen || order !== "cierre") && <Link href="/licitaciones" className="py-2 text-sm text-primary underline">Quitar filtros</Link>}
       </form>
 
       {!data?.length ? (
@@ -100,12 +131,15 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
         </p>
       ) : (
         <>
-          <p className="mb-2 text-sm text-muted" aria-live="polite">{count} resultado(s) · página {page} de {pages}</p>
+          <p className="mb-2 text-sm text-muted" aria-live="polite">
+            {count} resultado(s) · página {page} de {pages}
+            {order === "monto" && " · el orden por monto compara cifras sin convertir monedas"}
+          </p>
           <ul className="space-y-3">
             {data.map((t) => (
               <li key={t.id} className="card">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h2 className="font-semibold">{t.title}</h2>
+                  <h2 className="headline">{t.title}</h2>
                   <WatchButton type="tender" id={t.id} watching={watchedIds.has(t.id)} />
                 </div>
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
@@ -116,7 +150,17 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
                 {t.description && <p className="mt-2 text-sm">{t.description}</p>}
                 <dl className="mt-2 grid gap-1 text-sm sm:grid-cols-3">
                   <div><dt className="text-muted">Publicada</dt><dd>{dateTime(t.published_at)}</dd></div>
-                  <div><dt className="text-muted">Cierre de ofertas</dt><dd>{dateTime(t.deadline_at)}</dd></div>
+                  <div>
+                    <dt className="text-muted">Cierre de ofertas</dt>
+                    <dd>
+                      {dateTime(t.deadline_at)}
+                      {t.status === "open" && t.deadline_at && (
+                        <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                          {timeLeft(t.deadline_at, now)}
+                        </span>
+                      )}
+                    </dd>
+                  </div>
                   <div>
                     <dt className="text-muted">Monto estimado</dt>
                     <dd>{t.budget_currency ? formatMoney(t.budget_amount, t.budget_currency) : "No disponible"}</dd>
