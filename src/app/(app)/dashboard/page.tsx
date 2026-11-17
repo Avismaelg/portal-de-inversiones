@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, todayInRD } from "@/lib/format";
 import { leadMinutes } from "@/lib/ingest/news";
+import { priorityLabel, scoreNews } from "@/lib/priority";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -23,7 +24,7 @@ async function Summary() {
   const supabase = await createClient();
   const today = todayInRD();
   const in30 = todayInRD(30);
-  const [inst, auctions, due, sources, last, tenders, closing, signals] = await Promise.all([
+  const [inst, auctions, due, sources, last, tenders, closing, signals, prefs] = await Promise.all([
     supabase.from("financial_instruments").select("id", { count: "exact", head: true }),
     supabase.from("instrument_auctions").select("id", { count: "exact", head: true }),
     supabase
@@ -47,29 +48,37 @@ async function Summary() {
       .lte("deadline_at", new Date(todayInRD(7) + "T23:59:59-04:00").toISOString()),
     supabase
       .from("news_items")
-      .select("id,source_name,title,url,published_at,media_source,media_published_at", { count: "exact" })
+      .select("id,source_name,title,url,excerpt,matched_keywords,published_at,media_url,media_source,media_published_at", { count: "exact" })
       .order("published_at", { ascending: false, nullsFirst: false })
-      .limit(5),
+      .limit(120),
+    supabase.from("user_alert_preferences").select("name,keywords").eq("is_paused", false),
   ]);
-  if ([inst, auctions, due, sources, last, tenders, closing, signals].some((r) => r.error)) {
+  if ([inst, auctions, due, sources, last, tenders, closing, signals, prefs].some((r) => r.error)) {
     return (
       <p role="alert" className="text-danger">
         No se pudieron cargar los datos. Reintenta en unos minutos.
       </p>
     );
   }
+  const nowDate = new Date();
+  const alerts = (prefs.data ?? []).map((a) => ({ name: a.name, keywords: (a.keywords ?? []) as string[] }));
+  const top = (signals.data ?? [])
+    .filter((n) => n.published_at && nowDate.getTime() - new Date(n.published_at).getTime() < 7 * 86400000)
+    .map((n) => ({ ...n, pr: scoreNews({ ...n, matched_keywords: (n.matched_keywords ?? []) as string[] }, alerts, nowDate) }))
+    .sort((a, b) => b.pr.score - a.pr.score)
+    .slice(0, 5);
   return (
     <>
       <section aria-labelledby="senales" className="card mb-4">
         <div className="mb-1 flex items-baseline justify-between gap-3">
-          <h2 id="senales" className="text-base font-semibold">Señales recientes</h2>
+          <h2 id="senales" className="text-base font-semibold">Tu resumen: lo más importante de los últimos 7 días</h2>
           <Link href="/noticias" className="text-sm font-medium text-primary hover:underline">
             Ver las {signals.count ?? 0} noticias →
           </Link>
         </div>
-        {signals.data?.length ? (
+        {top.length ? (
           <ul className="divide-y divide-divider">
-            {signals.data.map((n) => {
+            {top.map((n) => {
               const lead =
                 n.published_at && n.media_published_at ? leadMinutes(n.published_at, n.media_published_at) : null;
               return (
@@ -78,23 +87,26 @@ async function Summary() {
                     <a href={n.url} target="_blank" rel="noopener noreferrer" className="headline hover:text-primary hover:underline">
                       {n.title}
                     </a>
-                    <p className="kicker mt-1">{n.source_name}</p>
+                    <p className="kicker mt-1">{n.source_name} · Prioridad {priorityLabel(n.pr.score)}</p>
+                    {n.pr.reasons.length > 0 && (
+                      <ul className="mt-1.5 flex flex-wrap gap-1.5 text-xs">
+                        {n.pr.reasons.map((r) => (
+                          <li key={r} className="rounded-full border border-divider bg-bg px-2 py-0.5 text-muted">{r}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                   {lead !== null && lead > 0 ? (
                     <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                       {lead >= 60 ? `${Math.floor(lead / 60)} h ${lead % 60} min` : `${lead} min`} antes que {n.media_source}
                     </span>
-                  ) : (
-                    <span className="rounded-full border border-divider px-2.5 py-0.5 text-xs text-muted">
-                      Sin cobertura de prensa localizada
-                    </span>
-                  )}
+                                    ) : null}
                 </li>
               );
             })}
           </ul>
         ) : (
-          <p className="text-sm text-muted">Aún no hay señales. Carga noticias desde la sección Noticias.</p>
+          <p className="text-sm text-muted">No hay señales de los últimos 7 días. Carga noticias desde la sección Noticias.</p>
         )}
       </section>
       <div className="grid gap-3 sm:grid-cols-2">

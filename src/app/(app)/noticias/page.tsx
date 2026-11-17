@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { TrustBadge } from "@/components/trust-badge";
 import { getCurrentRole } from "@/lib/auth";
 import { NEWS_FEEDS, leadMinutes } from "@/lib/ingest/news";
+import { priorityLabel, scoreNews } from "@/lib/priority";
 import { canPublishRole, isStaffRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
 import { AnalyzeButton } from "./analyze-button";
@@ -35,6 +36,7 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
   const source = one(sp.fuente);
   const q = one(sp.q).trim().slice(0, 80);
   const page = Math.max(1, Number(one(sp.pagina)) || 1);
+  const order = one(sp.orden) === "recientes" ? "recientes" : "prioridad";
   const role = await getCurrentRole();
   const mayLoad = canPublishRole(role);
   const mayAnalyze = isStaffRole(role);
@@ -44,14 +46,24 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
     .from("news_items")
     .select("id,source_key,source_name,url,title,excerpt,published_at,detected_at,matched_keywords,trust_layer,media_source,media_url,media_published_at", { count: "exact" })
     .order("published_at", { ascending: false, nullsFirst: false })
-    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+    .limit(300);
   if (NEWS_FEEDS.some((f) => f.key === source)) query = query.eq("source_key", source);
   if (q) query = query.ilike("title", `%${q.replace(/[%_]/g, "")}%`);
-  const [{ data, count, error }, cmp] = await Promise.all([
+  const [{ data: all, error }, cmp, prefs] = await Promise.all([
     query,
     supabase.from("news_items").select("published_at,media_published_at").not("media_url", "is", null).not("published_at", "is", null),
+    supabase.from("user_alert_preferences").select("name,keywords").eq("is_paused", false),
   ]);
   if (error) return <p role="alert" className="text-danger">No se pudieron cargar las noticias.</p>;
+  const now = new Date();
+  const alerts = (prefs.data ?? []).map((a) => ({ name: a.name, keywords: (a.keywords ?? []) as string[] }));
+  const ranked = (all ?? []).map((n) => ({
+    ...n,
+    pr: scoreNews({ ...n, matched_keywords: (n.matched_keywords ?? []) as string[] }, alerts, now),
+  }));
+  if (order === "prioridad") ranked.sort((a, b) => b.pr.score - a.pr.score);
+  const count = ranked.length;
+  const data = ranked.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const leads = (cmp.data ?? []).map((r) => leadMinutes(r.published_at as string, r.media_published_at as string));
   const first = leads.filter((l) => l > 0).length;
   const sorted = [...leads].sort((a, b) => a - b);
@@ -68,6 +80,7 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
     const u = new URLSearchParams();
     if (q) u.set("q", q);
     if (source) u.set("fuente", source);
+    u.set("orden", order);
     u.set("pagina", String(p));
     return `/noticias?${u}`;
   };
@@ -103,6 +116,13 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
             {NEWS_FEEDS.map((f) => <option key={f.key} value={f.key}>{f.name}</option>)}
           </select>
         </div>
+        <div>
+          <label htmlFor="orden" className="mb-1 block text-sm font-medium">Ordenar por</label>
+          <select id="orden" name="orden" defaultValue={order} className="field">
+            <option value="prioridad">Prioridad para ti</option>
+            <option value="recientes">Más recientes</option>
+          </select>
+        </div>
         <button className="btn">Filtrar</button>
         {(q || source) && <Link href="/noticias" className="py-2 text-sm text-primary underline">Quitar filtros</Link>}
       </form>
@@ -119,6 +139,17 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
             {data.map((n) => (
               <li key={n.id} className="card">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs font-semibold ${
+                      priorityLabel(n.pr.score) === "Alta"
+                        ? "bg-success/15 text-success"
+                        : priorityLabel(n.pr.score) === "Media"
+                          ? "bg-warning/15 text-warning"
+                          : "bg-surface-2 text-muted"
+                    }`}
+                  >
+                    Prioridad {priorityLabel(n.pr.score)}
+                  </span>
                   <TrustBadge layer={n.trust_layer} />
                   <span>{n.source_name}</span>
                   <span>· publicada {fmt(n.published_at)}</span>
@@ -143,6 +174,13 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
                     <span className="text-muted">Sin cobertura de prensa localizada</span>
                   )}
                 </p>
+                {n.pr.reasons.length > 0 && (
+                  <ul className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                    {n.pr.reasons.map((r) => (
+                      <li key={r} className="rounded-full border border-divider bg-bg px-2 py-0.5 text-muted">{r}</li>
+                    ))}
+                  </ul>
+                )}
                 <h2 className="headline mt-1">
                   <a href={n.url} target="_blank" rel="noopener noreferrer" className="hover:text-primary hover:underline">{n.title}</a>
                 </h2>
