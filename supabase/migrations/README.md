@@ -66,3 +66,6 @@ Sin datos de negocio: solo los 11 sectores. Pruebas P0 ejecutadas en una transac
 - `20261116130000_init_12_news_items.sql`: tabla `news_items` (titular, extracto ≤ 400, enlace, fechas, capa `inference`), RLS: lectura para autenticados, inserción solo staff. Aplicada.
 - `20261117100000_init_15_news_analyses_deep.sql` — análisis profundo de noticias (escenarios, cadena de valor, oportunidades, qué vigilar). Aplicada.
 - `20261117120000_init_16_tender_publication_guard.sql` — guardia de publicación de licitaciones (borrador por defecto, gestor + nota, revisor inmutable, procedencia). Aplicada el 2026-11-17; verificada con `supabase/tests/p0_suite.sql` bloque D.
+- `20261117130000_init_17_entity_type_news.sql` — valor `news` en `entity_type` (notificaciones y ejecuciones IA sobre noticias). Aplicada.
+- `20261117140000_init_18_guards_ops_ai_notifications.sql` — licitaciones publicadas editables solo por gestores; guardia de publicación de proyectos y permisos; operación de fuentes (`record_ingestion_run`); registro y gasto de IA (`record_ai_run`, `ai_spend_month`); notificaciones in-app (`push_my_notifications`). Aplicada; verificada con bloque E.
+- `20261117150000_init_19_propose_opportunity.sql` — `propose_opportunity_from_news`: noticia → documento fuente → acontecimiento (pendiente) → oportunidad en borrador. Aplicada; verificada con bloque F.

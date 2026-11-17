@@ -435,3 +435,115 @@ BEGIN
 
   RAISE EXCEPTION E'RESULTADOS D (revertido):\n%', res;
 END $$;
+
+-- ------------- BLOQUE E: guardias P1, operación, IA y notificaciones (migración 18) -------------
+-- Agregado 2026-11-17. Se revierte al final.
+DO $$
+DECLARE
+  res text := ''; tn uuid := gen_random_uuid(); m uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+  v uuid := gen_random_uuid(); s uuid := gen_random_uuid(); d uuid := gen_random_uuid();
+  t uuid; p uuid; nw uuid; st text; n int; x numeric;
+BEGIN
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn,'tenant','Tenant E');
+  INSERT INTO auth.users (id, email) VALUES (m,'me@test.invalid'),(a,'ae@test.invalid'),(v,'ve@test.invalid');
+  UPDATE users SET role='opportunity_manager' WHERE id=m;
+  UPDATE users SET role='analyst' WHERE id=a;
+  INSERT INTO sources (id, code, name, base_url, allowed_hosts, access_method) VALUES (s,'test_e','Fuente E','https://example.invalid',ARRAY['example.invalid'],'manual');
+  INSERT INTO source_documents (id, source_id, canonical_url, content_hash) VALUES (d, s, 'https://example.invalid/e', repeat('e',64));
+
+  -- E-01: analista no edita una licitación publicada.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+  INSERT INTO public_tenders (source_id, external_id, process_code, title, status, publication_status) VALUES (s,'E-1','E-1','T','open','published') RETURNING id INTO t;
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+    SET LOCAL ROLE authenticated; UPDATE public_tenders SET title='cambiado' WHERE id=t; RESET ROLE;
+    res := res || E'E-01 INESPERADO\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'E-01 OK: ' || SQLERRM || E'\n'; END;
+
+  -- E-02: proyecto no se publica sin documento; E-03 sin nota; E-04 con ambos sí.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+  INSERT INTO projects (name, dedup_key) VALUES ('Proyecto E', repeat('e',64)) RETURNING id, publication_status::text INTO p, st;
+  res := res || 'E-02a (esperado draft): ' || st || E'\n';
+  BEGIN UPDATE projects SET publication_status='published', review_notes='ok revisado' WHERE id=p; res := res || E'E-02 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'E-02 OK: ' || SQLERRM || E'\n'; END;
+  BEGIN UPDATE projects SET publication_status='published', primary_source_document_id=d WHERE id=p; res := res || E'E-03 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'E-03 OK: ' || SQLERRM || E'\n'; END;
+  UPDATE projects SET publication_status='published', primary_source_document_id=d, review_notes='revisado con documento' WHERE id=p;
+  SELECT (reviewed_by=m)::text INTO st FROM projects WHERE id=p;
+  res := res || 'E-04 (esperado true): ' || st || E'\n';
+
+  -- E-05: analista no registra cargas; gestor sí y actualiza la fuente.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+  BEGIN PERFORM record_ingestion_run('test_e', true, '{}', '{}', NULL); res := res || E'E-05 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'E-05 OK: ' || SQLERRM || E'\n'; END;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+  PERFORM record_ingestion_run('test_e', false, '{}', '{}', 'HTTP 500');
+  SELECT (last_error = 'HTTP 500')::text INTO st FROM sources WHERE id=s;
+  res := res || 'E-06 error registrado (esperado true): ' || st || E'\n';
+
+  -- E-07: un lector no registra IA; analista sí y suma gasto.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+  BEGIN PERFORM record_ai_run('t', 'news', NULL, 'm', 'v', 's', 1, 1, 0.5, 1, 'succeeded', NULL); res := res || E'E-07 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'E-07 OK: ' || SQLERRM || E'\n'; END;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+  SELECT ai_spend_month() INTO x;
+  PERFORM record_ai_run('t', 'news', NULL, 'm', 'v', 's', 1, 1, 0.5, 1, 'succeeded', NULL);
+  SELECT (ai_spend_month() - x)::text INTO st;
+  res := res || 'E-08 gasto sumado (esperado 0.5): ' || st || E'\n';
+
+  -- E-09: notificaciones deduplicadas y solo propias.
+  SELECT id INTO nw FROM news_items LIMIT 1;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+  SELECT push_my_notifications(jsonb_build_array(
+    jsonb_build_object('entity_type','news','entity_id',nw,'title','t','reason','r'),
+    jsonb_build_object('entity_type','news','entity_id',nw,'title','t','reason','r'),
+    jsonb_build_object('entity_type','news','entity_id',gen_random_uuid(),'title','x','reason','x'))) INTO n;
+  res := res || 'E-09 insertadas (esperado 1): ' || n || E'\n';
+  SELECT push_my_notifications(jsonb_build_array(jsonb_build_object('entity_type','news','entity_id',nw,'title','t','reason','r'))) INTO n;
+  res := res || 'E-10 repetida (esperado 0): ' || n || E'\n';
+  SELECT count(*) INTO n FROM notifications WHERE user_id = v;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+  SET LOCAL ROLE authenticated; SELECT count(*) INTO n FROM notifications WHERE user_id = v; RESET ROLE;
+  res := res || 'E-11 otro usuario ve notificaciones ajenas (esperado 0): ' || n || E'\n';
+
+  RAISE EXCEPTION E'RESULTADOS E (revertido):\n%', res;
+END $$;
+
+-- ------------- BLOQUE F: noticia -> oportunidad en borrador (migración 19) -------------
+-- Agregado 2026-11-17. Se revierte al final.
+DO $$
+DECLARE
+  res text := ''; tn uuid := gen_random_uuid(); m uuid := gen_random_uuid(); a uuid := gen_random_uuid(); v uuid := gen_random_uuid();
+  nw uuid; op1 uuid; op2 uuid; st text;
+BEGIN
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn,'tenant','Tenant F');
+  INSERT INTO auth.users (id, email) VALUES (m,'mf@test.invalid'),(a,'af@test.invalid'),(v,'vf@test.invalid');
+  UPDATE users SET role='opportunity_manager' WHERE id=m;
+  UPDATE users SET role='analyst' WHERE id=a;
+  SELECT id INTO nw FROM news_items LIMIT 1;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+  BEGIN PERFORM propose_opportunity_from_news(nw, 'supply', 'T', 'D', NULL, NULL); res := res || E'F-01 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'F-01 OK (lector no propone): ' || SQLERRM || E'\n'; END;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+  op1 := propose_opportunity_from_news(nw, 'supply', 'Proveedores de fibra', 'Hipótesis de suministro', 'Plazos', 'Revisar pliegos');
+  SELECT o.publication_status || '/' || o.trust_layer || '/' || e.verification_status || '/' || (d.canonical_url = n.url)::text
+    INTO st FROM investment_opportunities o JOIN economic_events e ON e.id=o.originating_event_id
+    JOIN source_documents d ON d.id=e.primary_source_document_id JOIN news_items n ON n.id=nw WHERE o.id=op1;
+  res := res || 'F-02 (esperado draft/inference/pending/true): ' || st || E'\n';
+
+  op2 := propose_opportunity_from_news(nw, 'services', 'Contratistas de obra', 'Otra hipótesis', NULL, NULL);
+  SELECT (count(DISTINCT originating_event_id) = 1)::text INTO st FROM investment_opportunities WHERE id IN (op1, op2);
+  res := res || 'F-03 mismo acontecimiento para la misma noticia (esperado true): ' || st || E'\n';
+
+  BEGIN PERFORM propose_opportunity_from_news(nw, 'supply', 'Proveedores de fibra', 'dup', NULL, NULL); res := res || E'F-04 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'F-04 OK (duplicado rechazado): ' || left(SQLERRM, 80) || E'\n'; END;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+  BEGIN UPDATE investment_opportunities SET publication_status='published', reviewed_by=m, confidence=50, confidence_explanation='x' WHERE id=op1;
+    res := res || E'F-05 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'F-05 OK (no se publica sin verificar): ' || SQLERRM || E'\n'; END;
+
+  RAISE EXCEPTION E'RESULTADOS F (revertido):\n%', res;
+END $$;

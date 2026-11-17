@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { TrustBadge } from "@/components/trust-badge";
+import Link from "next/link";
+import { StatusBadge, TrustBadge } from "@/components/trust-badge";
+import { PUBLICATION } from "@/lib/format";
+import { OPPORTUNITY_TYPES } from "@/lib/opportunity-types";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Oportunidades" };
@@ -11,14 +14,14 @@ async function List() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("investment_opportunities")
-    .select("id,title,description,opportunity_type,confidence,confidence_explanation,trust_layer")
+    .select("id,title,description,opportunity_type,confidence,confidence_explanation,trust_layer,publication_status")
     .order("created_at", { ascending: false })
     .limit(50);
   if (error) return <p role="alert" className="text-danger">No se pudieron cargar las oportunidades.</p>;
   if (!data?.length) {
     return (
       <p className="empty-state">
-        Aún no hay oportunidades publicadas. Una oportunidad se publica solo con evidencia citada y revisión humana; sin eso, no aparece.
+        Aún no hay oportunidades. Un analista puede proponerlas desde el análisis de impacto de una noticia; se publican solo con evidencia citada y revisión humana.
       </p>
     );
   }
@@ -28,10 +31,11 @@ async function List() {
         <li key={o.id} className="card">
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
             <TrustBadge layer={o.trust_layer} />
-            <span>{o.opportunity_type}</span>
+            <span>{OPPORTUNITY_TYPES[o.opportunity_type] ?? o.opportunity_type}</span>
+            {o.publication_status !== "published" && <StatusBadge label={PUBLICATION[o.publication_status] ?? o.publication_status} tone="warning" />}
             <span>· confianza: {o.confidence != null ? `${o.confidence} %` : "No disponible"}</span>
           </div>
-          <h2 className="mt-1 font-semibold">{o.title}</h2>
+          <h2 className="headline mt-1"><Link href={`/oportunidades/${o.id}`} className="hover:text-primary hover:underline">{o.title}</Link></h2>
           <p className="mt-1 text-sm">{o.description}</p>
           {o.confidence_explanation && <p className="mt-1 text-xs text-muted">{o.confidence_explanation}</p>}
         </li>

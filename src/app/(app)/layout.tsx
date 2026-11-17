@@ -3,9 +3,8 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { Icon, SideNav, SideNavList, type NavGroup } from "@/components/nav-links";
 import { getCurrentRole } from "@/lib/auth";
-import { hoursAgoIso } from "@/lib/format";
 import { timeAgo } from "@/lib/news-format";
-import { matchesAlert, trendingKeywords } from "@/lib/radar";
+import { trendingKeywords } from "@/lib/radar";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "../login/actions";
 
@@ -39,6 +38,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/revision", label: "Revisión", icon: "check" },
       { href: "/admin/ingesta", label: "Carga de datos", icon: "upload" },
+      { href: "/admin/operaciones", label: "Operaciones", icon: "chart" },
       { href: "/configuracion", label: "Configuración", icon: "gear", ready: false },
     ],
   },
@@ -85,27 +85,26 @@ async function DataFreshness() {
   );
 }
 
-/** Campana: noticias de las últimas 24 h que coinciden con tus alertas activas. */
+/** Campana: notificaciones sin leer del usuario (RLS: solo las propias). */
 async function AlertsBell() {
   await connection();
   const supabase = await createClient();
-  const since = hoursAgoIso(24);
-  const [prefs, news] = await Promise.all([
-    supabase.from("user_alert_preferences").select("keywords").eq("is_paused", false),
-    supabase.from("news_items").select("title,excerpt").gte("detected_at", since).limit(200),
-  ]);
-  const kws = (prefs.data ?? []).flatMap((p) => (p.keywords ?? []) as string[]);
-  const count = kws.length ? (news.data ?? []).filter((x) => matchesAlert(x.title, x.excerpt, kws).length > 0).length : 0;
+  const { count } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "delivered")
+    .is("read_at", null);
+  const n = count ?? 0;
   return (
     <Link
       href="/alertas"
-      aria-label={count ? `Alertas: ${count} coincidencia(s) en 24 horas` : "Alertas"}
+      aria-label={n ? `Alertas: ${n} notificación(es) sin leer` : "Alertas"}
       className="relative rounded-md p-2 text-muted hover:bg-surface-2 hover:text-text"
     >
       <Icon name="bell" />
-      {count > 0 && (
+      {n > 0 && (
         <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-warning px-1 text-center text-[10px] font-bold leading-4 text-white">
-          {count}
+          {n > 99 ? "99+" : n}
         </span>
       )}
     </Link>

@@ -114,7 +114,7 @@ async function Summary() {
             {soon.data.map((t) => (
               <li key={t.id} className="flex flex-wrap items-start justify-between gap-2 py-2 text-sm">
                 <div className="min-w-0">
-                  <Link href={`/licitaciones?q=${encodeURIComponent(t.title.slice(0, 60))}`} className="font-semibold hover:text-primary hover:underline">{t.title}</Link>
+                  <Link href={`/licitaciones/${t.id}`} className="font-semibold hover:text-primary hover:underline">{t.title}</Link>
                   <p className="text-xs text-muted">{t.procurement_method ?? "Modalidad no disponible"} · cierra {closeFmt(t.deadline_at)}</p>
                 </div>
                 <span className="num font-semibold">{t.budget_currency ? formatMoney(t.budget_amount, t.budget_currency) : "No disponible"}</span>

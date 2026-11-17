@@ -100,3 +100,23 @@ D-07 viewer ve borrador (esperado 0): 0                               (RLS)
 ## 7. Bloqueos
 
 B-001/B-002 (SRS y Plan Maestro ausentes), B-009/B-017 (licencias y abogado), B-011 (clave y tope de IA), B-013 (equipo), **B-020** (entorno de pruebas separado), **B-021** (aceptación de la excepción de dependencias).
+
+
+## 8. Incremento P1 (rama `feat/p1-producto`, 2026-11-17)
+
+| Backlog | Estado | Implementación | Verificación |
+|---|---|---|---|
+| P1-03 Edición de licitaciones publicadas solo por gestores | **Hecho** | Migración 18 (`enforce_tender_publication`) | P0 bloque E-01 |
+| — Guardia de proyectos y permisos (hallazgo nuevo: podían publicarse sin revisión) | **Hecho** | Migración 18 (`enforce_registry_publication`): gestor + documento + nota; revisor inmutable | P0 E-02…E-04 |
+| P1-02 Registro de fuentes y panel de operaciones | **Hecho (parcial)** | `sources.last_success_at/last_error_at/last_error/responsible`; `record_ingestion_run`; cargas DGCP y de noticias registran éxito/fallo; `/admin/operaciones` | P0 E-05/E-06; carga DGCP real registrada el 2026-11-17 |
+| P1-04 Costo, latencia y tope mensual de IA | **Hecho** | `record_ai_run`, `ai_spend_month`, `src/lib/ai/pricing.ts`; tope `AI_MONTHLY_BUDGET_USD` (5 USD por defecto); cada análisis registra modelo, versión de prompt y esquema, tokens, costo y latencia | `pricing.test.ts`; P0 E-07/E-08. **No ejecutado con la API real** (B-011) |
+| P1-07 Alertas con entrega in-app | **Hecho** | `push_my_notifications` (dedup por entidad, solo propias), bandeja `/alertas` con leído/no leído, campana con no leídas | `notifications.test.ts`; P0 E-09…E-11 |
+| P1-06 Oportunidades desde un análisis | **Hecho (inicial)** | `propose_opportunity_from_news`; botón en el análisis de cada noticia; ficha `/oportunidades/[id]` con «qué falta para publicar» | P0 bloque F |
+| P1-01 Historial de cambios por licitación | Parcial | Ficha `/licitaciones/[id]` con procedencia, validación y revisión; **sin tabla de versiones todavía** | — |
+| P1-05 Proyectos y permisos con carga manual | Pendiente | Guardia lista; falta formulario de carga con documento | — |
+| P1-08 Cobertura ≥70 % en `src/lib` | Pendiente | 54 unitarias | — |
+| P0-02 E2E con sesión por rol | **Bloqueado (B-020)** | — | — |
+
+Evidencia local: lint, tipos, 54/54 unitarias, build y 5/5 E2E en verde; bloques P0 D, E y F ejecutados contra `xzlwrlgjsdymcidlmqew` con el resultado esperado y revertidos.
+
+**Pendiente de decisión del usuario:** que un gestor marque como «verificado» un acontecimiento derivado de una noticia y adjunte evidencia literal (necesario para publicar oportunidades). La base ya lo exige; falta la pantalla de verificación (siguiente incremento).

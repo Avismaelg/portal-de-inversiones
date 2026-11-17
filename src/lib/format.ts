@@ -53,3 +53,11 @@ export function todayInRD(days = 0): string {
 export function hoursAgoIso(hours: number): string {
   return new Date(Date.now() - hours * 3600 * 1000).toISOString();
 }
+
+/** «Cierra en 5 h», «Cierra en 3 día(s)» o «Cerrada para ofertas»; null sin fecha. */
+export function deadlineLabel(deadline: string | null): string | null {
+  if (!deadline) return null;
+  const ms = new Date(deadline).getTime() - Date.now();
+  if (ms <= 0) return "Cerrada para ofertas";
+  return ms < 86400000 ? `Cierra en ${Math.floor(ms / 3600000)} h` : `Cierra en ${Math.floor(ms / 86400000)} día(s)`;
+}

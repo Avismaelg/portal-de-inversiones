@@ -46,10 +46,18 @@ export async function loadDgcpSample(_p: LoadResult | null, formData: FormData):
       rejected += page.rejected.length;
       rows.push(...page.items.map(mapProceso));
     }
-  } catch {
+  } catch (e) {
+    await supabase.rpc("record_ingestion_run", {
+      p_source_code: "dgcp_ocds", p_ok: false, p_payload: { days }, p_result: {}, p_error: e instanceof Error ? e.message : "error",
+    });
     return { ok: false, message: "DGCP no respondió correctamente. Reintenta más tarde." };
   }
-  if (!rows.length) return { ok: false, message: "DGCP no devolvió procesos en esa ventana." };
+  if (!rows.length) {
+    await supabase.rpc("record_ingestion_run", {
+      p_source_code: "dgcp_ocds", p_ok: true, p_payload: { days }, p_result: { total, rejected, loaded: 0 }, p_error: null,
+    });
+    return { ok: false, message: "DGCP no devolvió procesos en esa ventana." };
+  }
 
   const batch = rows.slice(0, MAX_ROWS);
   // Estado actual de los que ya existen: la carga no deshace decisiones humanas (regla dgcp_auto_publish_v1).
@@ -88,7 +96,12 @@ export async function loadDgcpSample(_p: LoadResult | null, formData: FormData):
   const { error } = await supabase
     .from("public_tenders")
     .upsert(payload, { onConflict: "source_id,external_id" });
-  if (error) return { ok: false, message: "No se pudieron guardar las licitaciones." };
+  if (error) {
+    await supabase.rpc("record_ingestion_run", {
+      p_source_code: "dgcp_ocds", p_ok: false, p_payload: { days }, p_result: { total, rejected }, p_error: `upsert: ${error.message}`,
+    });
+    return { ok: false, message: "No se pudieron guardar las licitaciones." };
+  }
 
   // Publicados que vuelven a revisión: la nota de revisión anterior ya no aplica.
   const demoted = payload
@@ -99,6 +112,13 @@ export async function loadDgcpSample(_p: LoadResult | null, formData: FormData):
   }
   const published = payload.filter((p) => p.publication_status === "published").length;
   const inReview = payload.filter((p) => p.publication_status === "in_review").length;
+  await supabase.rpc("record_ingestion_run", {
+    p_source_code: "dgcp_ocds",
+    p_ok: true,
+    p_payload: { days, limit: MAX_ROWS },
+    p_result: { total, rejected, loaded: payload.length, published, in_review: inReview, demoted: demoted.length },
+    p_error: null,
+  });
   revalidatePath("/licitaciones");
   revalidatePath("/dashboard");
   return {

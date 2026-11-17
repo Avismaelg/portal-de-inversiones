@@ -139,7 +139,7 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
             {data.map((t) => (
               <li key={t.id} className="card">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <h2 className="headline">{t.title}</h2>
+                  <h2 className="headline"><Link href={`/licitaciones/${t.id}`} className="hover:text-primary hover:underline">{t.title}</Link></h2>
                   <WatchButton type="tender" id={t.id} watching={watchedIds.has(t.id)} />
                 </div>
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">

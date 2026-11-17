@@ -10,6 +10,7 @@ import { CHAIN_KIND, DIRECTION, HORIZON, initials, timeAgo } from "@/lib/news-fo
 import { priorityLabel, scoreNews } from "@/lib/priority";
 import { isStaffRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
+import { ProposeForm } from "../../oportunidades/propose-form";
 import { AnalyzeButton } from "../analyze-button";
 
 export const metadata: Metadata = { title: "Noticia" };
@@ -150,6 +151,9 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
                     <p className="mt-1">{o.rationale}</p>
                     <p className="mt-1 text-xs text-muted"><span className="font-semibold">Riesgos: </span>{o.risks}</p>
                     <p className="text-xs text-muted"><span className="font-semibold">Verificar antes de actuar: </span>{o.what_to_verify}</p>
+                    {isStaffRole(role) && (
+                      <ProposeForm newsId={n.id} title={o.idea} description={o.rationale} risks={o.risks} nextStep={o.what_to_verify} />
+                    )}
                   </li>
                 ))}
               </ul>

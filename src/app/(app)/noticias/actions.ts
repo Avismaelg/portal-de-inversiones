@@ -23,10 +23,13 @@ export async function loadNews(): Promise<NewsLoadResult> {
   });
   const { news, report } = await collectNews(client);
   const failed = report.filter((r) => !r.ok).map((r) => r.key);
+  const supabase = await createClient();
+  const logRun = (ok: boolean, result: Record<string, unknown>, err: string | null) =>
+    supabase.rpc("record_ingestion_run", { p_source_code: "news_primary_rss", p_ok: ok, p_payload: { feeds: report.length }, p_result: result, p_error: err });
   if (!news.length) {
+    await logRun(failed.length < report.length, { report, relevant: 0 }, failed.length ? `feeds con error: ${failed.join(", ")}` : null);
     return { ok: false, message: `No se obtuvieron noticias relevantes.${failed.length ? ` Fallaron: ${failed.join(", ")}.` : ""}` };
   }
-  const supabase = await createClient();
   const { data, error } = await supabase
     .from("news_items")
     .upsert(
@@ -43,7 +46,10 @@ export async function loadNews(): Promise<NewsLoadResult> {
       { onConflict: "url", ignoreDuplicates: true },
     )
     .select("id");
-  if (error) return { ok: false, message: "No se pudieron guardar las noticias." };
+  if (error) {
+    await logRun(false, { report }, `upsert: ${error.message}`);
+    return { ok: false, message: "No se pudieron guardar las noticias." };
+  }
   // Ventaja temporal: ¿cuándo salió lo mismo en prensa? (solo se guarda nombre, enlace y hora del medio)
   const media = await collectMedia(client);
   let matched = 0;
@@ -62,8 +68,13 @@ export async function loadNews(): Promise<NewsLoadResult> {
     );
     matched = results.filter(Boolean).length;
   }
-  revalidatePath("/noticias");
   const fresh = data?.length ?? 0;
+  await logRun(true, { report, relevant: news.length, new: fresh, media_items: media.length, media_matched: matched }, failed.length ? `feeds con error: ${failed.join(", ")}` : null);
+  await supabase.rpc("record_ingestion_run", {
+    p_source_code: "media_reference_rss", p_ok: media.length > 0, p_payload: {}, p_result: { items: media.length, matched },
+    p_error: media.length ? null : "sin elementos de medios",
+  });
+  revalidatePath("/noticias");
   return {
     ok: true,
     message: `${fresh} noticia(s) nueva(s) de ${news.length} relevantes; ${matched} con cobertura en prensa localizada.${failed.length ? ` Feeds con error: ${failed.join(", ")}.` : ""}`,
