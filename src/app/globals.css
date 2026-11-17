@@ -1,38 +1,38 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #faf8f4;
-  --color-bg-subtle: #f3f0e9;
-  --color-surface: #fffefb;
-  --color-surface-2: #ece8de;
-  --color-text: #1b1a17;
-  --color-text-muted: #5a564d;
-  --color-border-ui: #8c877b;
-  --color-divider: #ddd7c9;
-  --color-focus: #0f766e;
-  --color-primary: #0f766e;
+  --color-bg: #f4f2ee;
+  --color-bg-subtle: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef3f8;
+  --color-text: #191919;
+  --color-text-muted: #5e5e5e;
+  --color-border-ui: #8a8a8a;
+  --color-divider: #e0dfdc;
+  --color-focus: #0a66c2;
+  --color-primary: #0a66c2;
   --color-on-primary: #ffffff;
-  --color-success: #166534;
-  --color-warning: #92400e;
-  --color-danger: #b42318;
+  --color-success: #057642;
+  --color-warning: #915907;
+  --color-danger: #cc1016;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #0a0f14;
-    --color-bg-subtle: #0f161d;
-    --color-surface: #121a22;
-    --color-surface-2: #1a2530;
-    --color-text: #e6edf3;
-    --color-text-muted: #9aa9b8;
-    --color-border-ui: #5d6e80;
-    --color-divider: #223040;
-    --color-focus: #5eead4;
-    --color-primary: #2dd4bf;
-    --color-on-primary: #042f2e;
-    --color-success: #4ade80;
-    --color-warning: #fbbf24;
-    --color-danger: #ff8a80;
+    --color-bg: #000000;
+    --color-bg-subtle: #1b1f23;
+    --color-surface: #1b1f23;
+    --color-surface-2: #2c3238;
+    --color-text: #ebebeb;
+    --color-text-muted: #a3a8ad;
+    --color-border-ui: #6f777e;
+    --color-divider: #38434f;
+    --color-focus: #71b7fb;
+    --color-primary: #71b7fb;
+    --color-on-primary: #0a1f33;
+    --color-success: #7fc15e;
+    --color-warning: #e7a33e;
+    --color-danger: #ff7a7f;
   }
 }
 
@@ -73,45 +73,43 @@ body {
 /* ---- Componentes base (interfaz) ---- */
 @layer components {
   .card {
-    @apply rounded-2xl border border-divider bg-surface p-5 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_4px_16px_rgb(15_23_42/0.04)];
+    @apply rounded-lg border border-divider bg-surface p-4;
   }
   .empty-state {
-    @apply rounded-xl border border-dashed border-line bg-bg-subtle p-8 text-center text-muted;
+    @apply rounded-lg border border-divider bg-surface p-8 text-center text-muted;
   }
   .field {
-    @apply rounded-lg border border-line bg-surface px-3 py-2 text-sm shadow-sm transition-colors;
+    @apply rounded-md border border-line bg-surface px-3 py-2 text-sm transition-colors;
   }
   .field:hover {
     border-color: var(--color-primary);
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary shadow-sm transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-1.5 text-sm font-semibold text-on-primary transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center rounded-lg border border-line px-3 py-1.5 text-sm transition-colors hover:bg-surface-2;
+    @apply inline-flex items-center justify-center rounded-full border border-primary px-3 py-1 text-sm font-semibold text-primary transition-colors hover:bg-primary/10;
   }
   .eyebrow {
-    @apply text-xs font-semibold uppercase tracking-widest text-primary;
+    @apply text-xs font-semibold text-primary;
   }
   .num {
     font-variant-numeric: tabular-nums;
   }
   .page-title {
-    font-family: var(--font-serif), Georgia, serif;
-    @apply text-3xl font-bold tracking-tight md:text-4xl;
+    @apply text-xl font-semibold tracking-tight md:text-2xl;
   }
   .headline {
-    font-family: var(--font-serif), Georgia, serif;
-    @apply text-xl font-semibold leading-snug tracking-tight;
+    @apply text-base font-semibold leading-snug;
   }
   .kicker {
-    @apply text-xs font-semibold uppercase tracking-wider text-muted;
+    @apply text-xs font-semibold text-muted;
   }
   .rule {
-    @apply border-t-2 border-text;
+    @apply border-t border-divider;
   }
   .page-lead {
-    @apply mt-2 mb-8 max-w-2xl text-base text-muted;
+    @apply mt-1 mb-4 max-w-2xl text-sm text-muted;
   }
 }
 

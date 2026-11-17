@@ -12,7 +12,7 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint: strin
   return (
     <div className="card">
       <p className="text-sm font-medium text-muted">{label}</p>
-      <p className="mt-2 num text-4xl font-semibold tracking-tight text-text">{value}</p>
+      <p className="mt-2 num text-3xl font-semibold tracking-tight text-text">{value}</p>
       <p className="mt-1 text-xs text-muted">{hint}</p>
     </div>
   );
@@ -60,9 +60,9 @@ async function Summary() {
   }
   return (
     <>
-      <section aria-labelledby="senales" className="mb-10">
-        <div className="rule mb-1 flex items-baseline justify-between gap-3 pt-2">
-          <h2 id="senales" className="kicker">Señales recientes</h2>
+      <section aria-labelledby="senales" className="card mb-4">
+        <div className="mb-1 flex items-baseline justify-between gap-3">
+          <h2 id="senales" className="text-base font-semibold">Señales recientes</h2>
           <Link href="/noticias" className="text-sm font-medium text-primary hover:underline">
             Ver las {signals.count ?? 0} noticias →
           </Link>
@@ -73,7 +73,7 @@ async function Summary() {
               const lead =
                 n.published_at && n.media_published_at ? leadMinutes(n.published_at, n.media_published_at) : null;
               return (
-                <li key={n.id} className="flex flex-wrap items-start justify-between gap-3 py-4">
+                <li key={n.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
                   <div className="min-w-0">
                     <a href={n.url} target="_blank" rel="noopener noreferrer" className="headline hover:text-primary hover:underline">
                       {n.title}
@@ -97,7 +97,7 @@ async function Summary() {
           <p className="text-sm text-muted">Aún no hay señales. Carga noticias desde la sección Noticias.</p>
         )}
       </section>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Kpi
           label="Instrumentos"
           value={String(inst.count ?? 0)}
@@ -112,11 +112,11 @@ async function Summary() {
         <Kpi label="Licitaciones que cierran en 7 días" value={String(closing.count ?? 0)} hint={`Corte: ${formatDate(today)}`} />
         <Kpi label="Vencen en 30 días" value={String(due.count ?? 0)} hint={`Corte: ${formatDate(today)}`} />
       </div>
-      <section className="mt-8" aria-labelledby="fuentes">
-        <h2 id="fuentes" className="kicker mb-3">
+      <section className="card mt-4" aria-labelledby="fuentes">
+        <h2 id="fuentes" className="mb-3 text-base font-semibold">
           Estado de fuentes
         </h2>
-        <ul className="divide-y divide-divider overflow-hidden rounded-xl border border-divider bg-surface">
+        <ul className="divide-y divide-divider">
           {(sources.data ?? []).map((s) => (
             <li key={s.code} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
               <span>{s.name}</span>

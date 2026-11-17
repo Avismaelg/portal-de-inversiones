@@ -6,12 +6,7 @@ import { usePathname } from "next/navigation";
 export interface NavItem {
   href: string;
   label: string;
-  ready: boolean;
   icon: keyof typeof ICONS;
-}
-export interface NavGroup {
-  title: string;
-  items: NavItem[];
 }
 
 /** Iconos de trazo (24x24), decorativos. */
@@ -29,15 +24,15 @@ const ICONS = {
   spark: "M12 3v4m0 10v4M3 12h4m10 0h4M6 6l2.5 2.5M15.5 15.5L18 18M18 6l-2.5 2.5M8.5 15.5L6 18",
 } as const;
 
-function Icon({ name }: { name: keyof typeof ICONS }) {
+export function Icon({ name }: { name: keyof typeof ICONS }) {
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
-      className="h-[18px] w-[18px] shrink-0"
+      className="h-6 w-6 shrink-0"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
@@ -46,45 +41,62 @@ function Icon({ name }: { name: keyof typeof ICONS }) {
   );
 }
 
-export function NavLinks({ groups }: { groups: NavGroup[] }) {
-  return <NavList groups={groups} pathname={usePathname()} />;
+const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+export function TopNav({ primary, more }: { primary: NavItem[]; more: NavItem[] }) {
+  return <TopNavList primary={primary} more={more} pathname={usePathname()} />;
 }
 
-export function NavList({ groups, pathname }: { groups: NavGroup[]; pathname: string }) {
+/** Barra de navegación horizontal: icono sobre etiqueta, subrayado en la página activa (estilo red profesional). */
+export function TopNavList({ primary, more, pathname }: { primary: NavItem[]; more: NavItem[]; pathname: string }) {
+  const item = (n: NavItem) => {
+    const active = isActive(pathname, n.href);
+    return (
+      <li key={n.href}>
+        <Link
+          href={n.href}
+          aria-current={active ? "page" : undefined}
+          className={`flex min-w-16 flex-col items-center gap-0.5 border-b-2 px-2 py-1.5 text-xs transition-colors ${
+            active ? "border-text text-text" : "border-transparent text-muted hover:text-text"
+          }`}
+        >
+          <Icon name={n.icon} />
+          {n.label}
+        </Link>
+      </li>
+    );
+  };
+  const moreActive = more.some((m) => isActive(pathname, m.href));
   return (
-    <div className="space-y-6">
-      {groups.map((g) => (
-        <div key={g.title}>
-          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-widest text-muted">{g.title}</p>
-          <ul className="flex flex-wrap gap-1 md:flex-col">
-            {g.items.map((n) => {
-              const active = n.ready && (pathname === n.href || pathname.startsWith(`${n.href}/`));
-              return (
-                <li key={n.label}>
-                  {n.ready ? (
-                    <Link
-                      href={n.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors ${
-                        active ? "bg-primary/10 font-semibold text-primary" : "text-text hover:bg-surface-2"
-                      }`}
-                    >
-                      <Icon name={n.icon} />
-                      {n.label}
-                    </Link>
-                  ) : (
-                    <span className="flex items-center gap-3 px-3 py-2 text-sm text-muted">
-                      <Icon name={n.icon} />
-                      {n.label}
-                      <span className="ml-auto rounded-full border border-divider px-1.5 text-[10px]">pronto</span>
-                    </span>
-                  )}
-                </li>
-              );
-            })}
+    <ul className="flex items-stretch gap-0.5 overflow-x-auto">
+      {primary.map(item)}
+      <li className="relative">
+        <details className="group">
+          <summary
+            className={`flex min-w-16 cursor-pointer list-none flex-col items-center gap-0.5 border-b-2 px-2 py-1.5 text-xs marker:hidden ${
+              moreActive ? "border-text text-text" : "border-transparent text-muted hover:text-text"
+            }`}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
+              <circle cx="6" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="18" cy="12" r="1.8" />
+            </svg>
+            Más
+          </summary>
+          <ul className="absolute right-0 z-20 mt-1 w-56 rounded-lg border border-divider bg-surface p-1 shadow-lg">
+            {more.map((n) => (
+              <li key={n.href}>
+                <Link
+                  href={n.href}
+                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-surface-2 ${isActive(pathname, n.href) ? "font-semibold text-primary" : ""}`}
+                >
+                  <Icon name={n.icon} />
+                  {n.label}
+                </Link>
+              </li>
+            ))}
           </ul>
-        </div>
-      ))}
-    </div>
+        </details>
+      </li>
+    </ul>
   );
 }

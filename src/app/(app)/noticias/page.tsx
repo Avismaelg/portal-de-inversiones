@@ -115,9 +115,9 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
       ) : (
         <>
           <p className="mb-2 text-sm text-muted" aria-live="polite">{count} noticia(s) · página {page} de {pages}</p>
-          <ul className="divide-y divide-divider border-t-2 border-text">
+          <ul className="space-y-3">
             {data.map((n) => (
-              <li key={n.id} className="py-6">
+              <li key={n.id} className="card">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                   <TrustBadge layer={n.trust_layer} />
                   <span>{n.source_name}</span>
