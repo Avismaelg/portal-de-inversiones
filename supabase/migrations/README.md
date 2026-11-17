@@ -63,3 +63,4 @@ Sin datos de negocio: solo los 11 sectores. Pruebas P0 ejecutadas en una transac
 ## Aplicado el 2026-11-16
 
 - `20261116120000_init_11_unpublish_reason.sql`: `unpublished_at` y `unpublish_reason` en `financial_instruments` e `instrument_auctions` (despublicar con motivo). Aplicada en el proyecto «PORTAL DE INVERSIONES».
+- `20261116130000_init_12_news_items.sql`: tabla `news_items` (titular, extracto ≤ 400, enlace, fechas, capa `inference`), RLS: lectura para autenticados, inserción solo staff. Aplicada.

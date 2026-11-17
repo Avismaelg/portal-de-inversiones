@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin/ingesta", label: "Carga de datos", ready: true },
   { href: "#", label: "Radar", ready: false },
   { href: "#", label: "Proyectos y permisos", ready: false },
+  { href: "/noticias", label: "Noticias", ready: true },
   { href: "/licitaciones", label: "Licitaciones", ready: true },
   { href: "/watchlist", label: "Mi lista", ready: true },
   { href: "#", label: "Oportunidades", ready: false },

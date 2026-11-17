@@ -140,3 +140,13 @@ Pendiente: textos legales (términos y privacidad) para la casilla de registro; 
 **Decisión sobre la fuente DGCP:** no se activó. La base tiene la restricción `sources_no_active_without_legal`: una fuente automática activa exige `legal_status = verified_ok`, que solo puede dar el abogado (G0 #5). No se falseó ese estado. `dgcp_ocds` sigue `is_active = false` y `pending_review`; la carga la dispara una persona y la UI lo declara.
 
 Sin hacer en la demo: IA, radar, proyectos y permisos, oportunidades y alertas (cobertura pendiente); despliegue.
+
+## 11. Noticias de fuentes primarias (2026-11-16)
+
+| Hito | Estado | Evidencia |
+|---|---|---|
+| Migración 12 `news_items` | APLICADA | `supabase/migrations/` |
+| Parser RSS, filtro de relevancia (fuertes/débiles) y recolección de 7 feeds | HECHO, probado en lectura contra los feeds reales (29 relevantes de 70) | `src/lib/ingest/news.ts` |
+| Pantalla `/noticias` y botón de carga manual (rol de gestión) | HECHO, **sin probar con sesión ni guardado real** | `src/app/(app)/noticias/` |
+
+Sin automatizar: la carga la dispara una persona (G0 #5). Términos de cada institución sin leer. El filtro es por palabras clave y provisional (B-011: sin IA). Las noticias se guardan como capa `inference` (señal), con titular, extracto breve y enlace; nunca el texto completo.
