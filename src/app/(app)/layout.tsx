@@ -7,26 +7,26 @@ const GROUPS: NavGroup[] = [
   {
     title: "Inteligencia",
     items: [
-      { href: "/dashboard", label: "Dashboard", ready: true },
-      { href: "/instrumentos", label: "Instrumentos", ready: true },
-      { href: "/licitaciones", label: "Licitaciones", ready: true },
-      { href: "/noticias", label: "Noticias", ready: true },
-      { href: "/watchlist", label: "Mi lista", ready: true },
+      { href: "/dashboard", label: "Dashboard", icon: "home", ready: true },
+      { href: "/instrumentos", label: "Instrumentos", icon: "chart", ready: true },
+      { href: "/licitaciones", label: "Licitaciones", icon: "doc", ready: true },
+      { href: "/noticias", label: "Noticias", icon: "news", ready: true },
+      { href: "/watchlist", label: "Mi lista", icon: "star", ready: true },
     ],
   },
   {
     title: "Gestión",
     items: [
-      { href: "/revision", label: "Revisión", ready: true },
-      { href: "/admin/ingesta", label: "Carga de datos", ready: true },
+      { href: "/revision", label: "Revisión", icon: "check", ready: true },
+      { href: "/admin/ingesta", label: "Carga de datos", icon: "upload", ready: true },
     ],
   },
   {
     title: "Próximamente",
     items: [
-      { href: "#", label: "Radar", ready: false },
-      { href: "#", label: "Proyectos y permisos", ready: false },
-      { href: "#", label: "Oportunidades", ready: false },
+      { href: "#", label: "Radar", icon: "radar", ready: false },
+      { href: "#", label: "Proyectos y permisos", icon: "map", ready: false },
+      { href: "#", label: "Oportunidades", icon: "spark", ready: false },
     ],
   },
 ];
@@ -60,7 +60,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="mb-6 flex items-center gap-3 px-1">
           <span
             aria-hidden="true"
-            className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-on-primary"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-[#0b3b52] text-sm font-bold text-white shadow-sm"
           >
             AV
           </span>
@@ -75,7 +75,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </nav>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between gap-3 border-b border-divider bg-bg px-4 py-3 md:px-8">
-          <p className="text-xs text-muted">República Dominicana · datos con trazabilidad de fuente</p>
+          <p className="text-xs text-muted">Información pública poco difundida · República Dominicana</p>
           <Suspense fallback={<span className="text-sm text-muted">…</span>}>
             <UserMenu />
           </Suspense>

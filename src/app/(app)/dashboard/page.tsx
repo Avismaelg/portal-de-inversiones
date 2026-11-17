@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, todayInRD } from "@/lib/format";
+import { leadMinutes } from "@/lib/ingest/news";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -10,7 +11,7 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint: strin
   return (
     <div className="card">
       <p className="text-sm font-medium text-muted">{label}</p>
-      <p className="mt-2 text-4xl font-semibold tracking-tight text-primary">{value}</p>
+      <p className="mt-2 num text-4xl font-semibold tracking-tight text-text">{value}</p>
       <p className="mt-1 text-xs text-muted">{hint}</p>
     </div>
   );
@@ -20,7 +21,7 @@ async function Summary() {
   const supabase = await createClient();
   const today = todayInRD();
   const in30 = todayInRD(30);
-  const [inst, auctions, due, sources, last, tenders, closing] = await Promise.all([
+  const [inst, auctions, due, sources, last, tenders, closing, signals] = await Promise.all([
     supabase.from("financial_instruments").select("id", { count: "exact", head: true }),
     supabase.from("instrument_auctions").select("id", { count: "exact", head: true }),
     supabase
@@ -42,8 +43,13 @@ async function Summary() {
       .eq("status", "open")
       .gte("deadline_at", new Date(todayInRD() + "T00:00:00-04:00").toISOString())
       .lte("deadline_at", new Date(todayInRD(7) + "T23:59:59-04:00").toISOString()),
+    supabase
+      .from("news_items")
+      .select("id,source_name,title,url,published_at,media_source,media_published_at", { count: "exact" })
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .limit(5),
   ]);
-  if ([inst, auctions, due, sources, last, tenders, closing].some((r) => r.error)) {
+  if ([inst, auctions, due, sources, last, tenders, closing, signals].some((r) => r.error)) {
     return (
       <p role="alert" className="text-danger">
         No se pudieron cargar los datos. Reintenta en unos minutos.
@@ -52,6 +58,43 @@ async function Summary() {
   }
   return (
     <>
+      <section aria-labelledby="senales" className="card mb-8">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 id="senales" className="text-lg font-semibold">Señales recientes</h2>
+          <Link href="/noticias" className="text-sm font-medium text-primary hover:underline">
+            Ver las {signals.count ?? 0} noticias →
+          </Link>
+        </div>
+        {signals.data?.length ? (
+          <ul className="divide-y divide-divider">
+            {signals.data.map((n) => {
+              const lead =
+                n.published_at && n.media_published_at ? leadMinutes(n.published_at, n.media_published_at) : null;
+              return (
+                <li key={n.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                  <div className="min-w-0">
+                    <a href={n.url} target="_blank" rel="noopener noreferrer" className="font-medium hover:text-primary hover:underline">
+                      {n.title}
+                    </a>
+                    <p className="text-xs text-muted">{n.source_name}</p>
+                  </div>
+                  {lead !== null && lead > 0 ? (
+                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                      {lead >= 60 ? `${Math.floor(lead / 60)} h ${lead % 60} min` : `${lead} min`} antes que {n.media_source}
+                    </span>
+                  ) : (
+                    <span className="rounded-full border border-divider px-2.5 py-0.5 text-xs text-muted">
+                      Sin cobertura de prensa localizada
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted">Aún no hay señales. Carga noticias desde la sección Noticias.</p>
+        )}
+      </section>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Kpi
           label="Instrumentos"
@@ -93,7 +136,11 @@ async function Summary() {
 export default function DashboardPage() {
   return (
     <>
-      <h1 className="page-title mb-6">Dashboard</h1>
+      <p className="eyebrow">Inteligencia de inversión</p>
+      <h1 className="page-title">Lo que casi nadie está siguiendo</h1>
+      <p className="page-lead">
+        Señales de fuentes primarias antes de que lleguen a la prensa, con su impacto y trazabilidad. No es asesoría de inversión.
+      </p>
       <Suspense fallback={<p className="text-muted">Cargando…</p>}>
         <Summary />
       </Suspense>

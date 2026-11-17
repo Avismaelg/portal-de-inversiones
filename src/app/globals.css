@@ -1,36 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #ffffff;
-  --color-bg-subtle: #f4f7fb;
+  --color-bg: #f6f7f9;
+  --color-bg-subtle: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-2: #eef2f8;
-  --color-text: #0b1424;
-  --color-text-muted: #475569;
-  --color-border-ui: #7b8899;
-  --color-divider: #d5dce6;
-  --color-focus: #0053b8;
-  --color-primary: #0053b8;
+  --color-surface-2: #eef2f5;
+  --color-text: #0f172a;
+  --color-text-muted: #526071;
+  --color-border-ui: #8a97a8;
+  --color-divider: #e2e8ef;
+  --color-focus: #0f766e;
+  --color-primary: #0f766e;
   --color-on-primary: #ffffff;
-  --color-success: #0b6b3a;
-  --color-warning: #8a4b00;
+  --color-success: #166534;
+  --color-warning: #92400e;
   --color-danger: #b42318;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #060d1b;
-    --color-bg-subtle: #0a1426;
-    --color-surface: #0d1730;
-    --color-surface-2: #14224a;
-    --color-text: #e8eef8;
-    --color-text-muted: #9db0ce;
-    --color-border-ui: #5b6f94;
-    --color-divider: #1e2d55;
-    --color-focus: #59c9ff;
-    --color-primary: #59c9ff;
-    --color-on-primary: #04101f;
-    --color-success: #62ddb4;
+    --color-bg: #0a0f14;
+    --color-bg-subtle: #0f161d;
+    --color-surface: #121a22;
+    --color-surface-2: #1a2530;
+    --color-text: #e6edf3;
+    --color-text-muted: #9aa9b8;
+    --color-border-ui: #5d6e80;
+    --color-divider: #223040;
+    --color-focus: #5eead4;
+    --color-primary: #2dd4bf;
+    --color-on-primary: #042f2e;
+    --color-success: #4ade80;
     --color-warning: #fbbf24;
     --color-danger: #ff8a80;
   }
@@ -72,7 +72,7 @@ body {
 /* ---- Componentes base (interfaz) ---- */
 @layer components {
   .card {
-    @apply rounded-xl border border-divider bg-surface p-4 shadow-sm;
+    @apply rounded-2xl border border-divider bg-surface p-5 shadow-[0_1px_2px_rgb(15_23_42/0.04),0_4px_16px_rgb(15_23_42/0.04)];
   }
   .empty-state {
     @apply rounded-xl border border-dashed border-line bg-bg-subtle p-8 text-center text-muted;
@@ -88,6 +88,12 @@ body {
   }
   .btn-ghost {
     @apply inline-flex items-center justify-center rounded-lg border border-line px-3 py-1.5 text-sm transition-colors hover:bg-surface-2;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-widest text-primary;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
   }
   .page-title {
     @apply text-2xl font-semibold tracking-tight;
