@@ -547,3 +547,63 @@ BEGIN
 
   RAISE EXCEPTION E'RESULTADOS F (revertido):\n%', res;
 END $$;
+
+-- ------------- BLOQUE G: evidencia literal y publicación de oportunidad (migración 20) -------------
+-- Agregado 2026-11-17. Se revierte al final.
+DO $$
+DECLARE
+  res text := ''; tn uuid := gen_random_uuid(); m uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+  nw uuid; op uuid; ev uuid; doc uuid; eid uuid; st text;
+  q text := 'cita literal de prueba suficientemente larga';
+BEGIN
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn,'tenant','Tenant G');
+  INSERT INTO auth.users (id, email) VALUES (m,'mg@test.invalid'),(a,'ag@test.invalid');
+  UPDATE users SET role='opportunity_manager' WHERE id=m;
+  UPDATE users SET role='analyst' WHERE id=a;
+  SELECT id INTO nw FROM news_items LIMIT 1;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+  op := propose_opportunity_from_news(nw, 'supply', 'Prueba G evidencia', 'Hipótesis de prueba G', NULL, NULL);
+  SELECT o.originating_event_id, e.primary_source_document_id INTO ev, doc
+    FROM investment_opportunities o JOIN economic_events e ON e.id=o.originating_event_id WHERE o.id=op;
+
+  SET LOCAL ROLE authenticated;
+  BEGIN INSERT INTO evidence (opportunity_id, source_document_id, claim_field, quote, quote_hash, literal_verified)
+          VALUES (op, doc, 'x', q, repeat('e',64), true);
+    res := res || E'G-01 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'G-01 OK (analista no marca verificada): ' || SQLERRM || E'\n'; END;
+  INSERT INTO evidence (opportunity_id, source_document_id, claim_field, quote, quote_hash, literal_verified)
+    VALUES (op, doc, 'x', q, repeat('e',64), false) RETURNING id INTO eid;
+  res := res || E'G-02 OK (sin verificar sí se inserta)\n';
+  BEGIN UPDATE evidence SET literal_verified = true WHERE id = eid;
+    res := res || E'G-03 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'G-03 OK (no se cambia a verificada): ' || SQLERRM || E'\n'; END;
+  BEGIN PERFORM add_literal_evidence(op, q, 0, length(q)); res := res || E'G-04 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'G-04 OK (analista no atestigua): ' || SQLERRM || E'\n'; END;
+
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+  BEGIN PERFORM add_literal_evidence(op, 'corta', 0, 5); res := res || E'G-05 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'G-05 OK (cita corta): ' || SQLERRM || E'\n'; END;
+  PERFORM add_literal_evidence(op, q, 0, length(q));
+  RESET ROLE;
+  SELECT count(*)::text INTO st FROM evidence WHERE opportunity_id = op AND literal_verified;
+  res := res || 'G-06 gestor atestigua (esperado 1): ' || st || E'\n';
+
+  SET LOCAL ROLE authenticated;
+  BEGIN UPDATE investment_opportunities SET publication_status='published', reviewed_by=m, review_notes='Revisado G' WHERE id=op;
+    res := res || E'G-07 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'G-07 OK (acontecimiento sin verificar): ' || SQLERRM || E'\n'; END;
+  INSERT INTO verification_records (subject_type, subject_id, check_type, result, reasons, reviewer_id)
+    VALUES ('event', ev, 'human_review', 'verified', '["fuente oficial consultada"]'::jsonb, m);
+  UPDATE investment_opportunities SET publication_status='published', reviewed_by=m, review_notes='Revisado G', confidence=55, confidence_explanation='Prueba G' WHERE id=op;
+  RESET ROLE;
+  SELECT o.publication_status || '/' || o.publisher_role || '/' || e.verification_status INTO st
+    FROM investment_opportunities o JOIN economic_events e ON e.id=o.originating_event_id WHERE o.id=op;
+  res := res || 'G-08 (esperado published/opportunity_manager/verified): ' || st || E'\n';
+
+  SET LOCAL ROLE authenticated;
+  BEGIN PERFORM add_literal_evidence(op, q || ' otra', 0, length(q) + 5); res := res || E'G-09 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'G-09 OK (ya publicada): ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+
+  RAISE EXCEPTION E'RESULTADOS G (revertido):\n%', res;
+END $$;

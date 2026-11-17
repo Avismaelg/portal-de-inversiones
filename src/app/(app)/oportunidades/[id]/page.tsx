@@ -4,9 +4,12 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { StatusBadge, TrustBadge } from "@/components/trust-badge";
+import { getCurrentRole } from "@/lib/auth";
 import { PUBLICATION } from "@/lib/format";
 import { OPPORTUNITY_TYPES } from "@/lib/opportunity-types";
+import { canPublishRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
+import { DecisionForm, EvidenceForm, VerifyEventForm } from "./review-steps";
 
 export const metadata: Metadata = { title: "Oportunidad" };
 
@@ -26,22 +29,29 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const { data: o } = await supabase
     .from("investment_opportunities")
-    .select("id,title,description,opportunity_type,risks,next_steps,confidence,confidence_explanation,trust_layer,publication_status,created_at,originating_event_id,economic_events(id,title,verification_status,source_documents(canonical_url,title))")
+    .select("id,title,description,opportunity_type,risks,next_steps,confidence,confidence_explanation,trust_layer,publication_status,created_at,originating_event_id,economic_events(id,title,verification_status,verification_reason,source_documents(canonical_url,title))")
     .eq("id", id)
     .maybeSingle();
   if (!o) notFound();
   const ev = (Array.isArray(o.economic_events) ? o.economic_events[0] : o.economic_events) as {
     title: string;
     verification_status: string;
+    verification_reason: string | null;
     source_documents: { canonical_url: string; title: string | null } | { canonical_url: string; title: string | null }[] | null;
   } | null;
   const doc = ev ? (Array.isArray(ev.source_documents) ? ev.source_documents[0] : ev.source_documents) : null;
-  const { count: evidence } = await supabase.from("evidence").select("id", { count: "exact", head: true }).eq("opportunity_id", id).eq("literal_verified", true);
+  const [{ data: quotes }, role] = await Promise.all([
+    supabase.from("evidence").select("id,quote,literal_verified,created_at").eq("opportunity_id", id).order("created_at"),
+    getCurrentRole(),
+  ]);
+  const evidence = (quotes ?? []).filter((q) => q.literal_verified).length;
+  const eventOk = !!ev && ["verified", "partially_verified"].includes(ev.verification_status);
   const blockers = [
-    ev && !["verified", "partially_verified"].includes(ev.verification_status) ? "El acontecimiento de origen no está verificado." : null,
+    !eventOk ? "El acontecimiento de origen no está verificado." : null,
     !evidence ? "Falta al menos una cita verificada literalmente contra el documento." : null,
-    o.confidence == null ? "Falta la confianza con su explicación." : null,
+    o.confidence == null ? "Falta la confianza con su explicación (se completa al publicar)." : null,
   ].filter(Boolean) as string[];
+  const canReview = canPublishRole(role) && (o.publication_status === "draft" || o.publication_status === "in_review");
 
   return (
     <div className="space-y-3">
@@ -68,7 +78,10 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
         {ev ? (
           <>
             <p className="mt-1 text-sm">{ev.title}</p>
-            <p className="text-xs text-muted">{VERIFICATION[ev.verification_status] ?? ev.verification_status}</p>
+            <p className="text-xs text-muted">
+              {VERIFICATION[ev.verification_status] ?? ev.verification_status}
+              {ev.verification_reason ? ` — ${ev.verification_reason.replace(/^\["|"\]$/g, "")}` : ""}
+            </p>
             {doc && (
               <a href={doc.canonical_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm text-primary underline">
                 Documento fuente ↗
@@ -79,6 +92,43 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
           <p className="mt-1 text-sm text-muted">No disponible.</p>
         )}
       </section>
+
+      <section aria-labelledby="evidencia" className="card">
+        <h2 id="evidencia" className="text-base font-semibold">Evidencia literal</h2>
+        {quotes?.length ? (
+          <ul className="mt-2 space-y-2 text-sm">
+            {quotes.map((q) => (
+              <li key={q.id} className="border-l-2 border-divider pl-3">
+                <q>{q.quote}</q>
+                <StatusBadge label={q.literal_verified ? "Verificada literalmente" : "Sin verificar"} tone={q.literal_verified ? "success" : "warning"} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-sm text-muted">Aún no hay citas.</p>
+        )}
+      </section>
+
+      {canReview && (
+        <section aria-labelledby="revisar" className="card">
+          <h2 id="revisar" className="text-base font-semibold">Revisión del gestor</h2>
+          <ol className="mt-2 space-y-4">
+            <li>
+              <h3 className="text-sm font-semibold">1. Verificar el acontecimiento {eventOk && <span className="text-success">✓</span>}</h3>
+              <p className="text-xs text-muted">Contrasta con la fuente oficial. Queda registrado con tu rol y la fecha.</p>
+              <VerifyEventForm id={o.id} />
+            </li>
+            <li>
+              <h3 className="text-sm font-semibold">2. Adjuntar una cita literal {evidence > 0 && <span className="text-success">✓</span>}</h3>
+              <EvidenceForm id={o.id} />
+            </li>
+            <li>
+              <h3 className="text-sm font-semibold">3. Decidir</h3>
+              <DecisionForm id={o.id} confidence={o.confidence} explanation={o.confidence_explanation} />
+            </li>
+          </ol>
+        </section>
+      )}
 
       {o.publication_status !== "published" && (
         <section aria-labelledby="falta" className="card border-l-4 border-l-warning">

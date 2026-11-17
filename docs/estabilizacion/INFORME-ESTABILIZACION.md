@@ -112,11 +112,13 @@ B-001/B-002 (SRS y Plan Maestro ausentes), B-009/B-017 (licencias y abogado), B-
 | P1-04 Costo, latencia y tope mensual de IA | **Hecho** | `record_ai_run`, `ai_spend_month`, `src/lib/ai/pricing.ts`; tope `AI_MONTHLY_BUDGET_USD` (5 USD por defecto); cada análisis registra modelo, versión de prompt y esquema, tokens, costo y latencia | `pricing.test.ts`; P0 E-07/E-08. **No ejecutado con la API real** (B-011) |
 | P1-07 Alertas con entrega in-app | **Hecho** | `push_my_notifications` (dedup por entidad, solo propias), bandeja `/alertas` con leído/no leído, campana con no leídas | `notifications.test.ts`; P0 E-09…E-11 |
 | P1-06 Oportunidades desde un análisis | **Hecho (inicial)** | `propose_opportunity_from_news`; botón en el análisis de cada noticia; ficha `/oportunidades/[id]` con «qué falta para publicar» | P0 bloque F |
+| P1-06b Verificación del acontecimiento, evidencia literal y decisión | **Hecho** | Ficha `/oportunidades/[id]`: el gestor (1) registra la verificación humana del acontecimiento, (2) adjunta una cita que el servidor comprueba literalmente contra la fuente leída en ese momento (`src/lib/quote.ts`, sin guardar el texto) y (3) publica o rechaza con nota y confianza. Migración 20: `add_literal_evidence` (solo gestor) | `quote.test.ts`; P0 bloque G (9 casos). **Sin prueba en la interfaz con datos reales** (no hay oportunidades y no se crearon en la cuenta del usuario) |
+| — Hallazgo: un analista podía insertar `evidence` con `literal_verified=true` sin comprobación | **Hecho** | Migración 20 (`evidence_literal_guard`): desde la API solo la función `add_literal_evidence` marca una cita como verificada; la cita no se puede editar después | P0 G-01…G-04 |
 | P1-01 Historial de cambios por licitación | Parcial | Ficha `/licitaciones/[id]` con procedencia, validación y revisión; **sin tabla de versiones todavía** | — |
 | P1-05 Proyectos y permisos con carga manual | Pendiente | Guardia lista; falta formulario de carga con documento | — |
-| P1-08 Cobertura ≥70 % en `src/lib` | Pendiente | 54 unitarias | — |
+| P1-08 Cobertura ≥70 % en `src/lib` | Pendiente | 59 unitarias | — |
 | P0-02 E2E con sesión por rol | **Bloqueado (B-020)** | — | — |
 
-Evidencia local: lint, tipos, 54/54 unitarias, build y 5/5 E2E en verde; bloques P0 D, E y F ejecutados contra `xzlwrlgjsdymcidlmqew` con el resultado esperado y revertidos.
+Evidencia local: lint, tipos, 59/59 unitarias y build en verde (5/5 E2E en el incremento anterior; la primera ejecución falló por tiempo de espera al compilar rutas en frío y la segunda pasó); bloques P0 D, E, F y G ejecutados contra `xzlwrlgjsdymcidlmqew` con el resultado esperado y revertidos.
 
-**Pendiente de decisión del usuario:** que un gestor marque como «verificado» un acontecimiento derivado de una noticia y adjunte evidencia literal (necesario para publicar oportunidades). La base ya lo exige; falta la pantalla de verificación (siguiente incremento).
+**Riesgo residual (documentado):** la base no puede comprobar por sí misma la cita porque el texto de las noticias no se almacena (términos de las fuentes pendientes, B-009). La comprobación la hace el servidor; la función `add_literal_evidence` registra que la atestigua un gestor. Un gestor que llamara a la función directamente podría registrar una cita sin comprobar: queda trazado y es una acción humana con rol de publicación.
