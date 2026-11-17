@@ -63,3 +63,24 @@ describe("news", () => {
     ]);
   });
 });
+
+import { findMediaMatch, leadMinutes, sameStory } from "@/lib/ingest/news";
+
+describe("ventaja sobre la prensa", () => {
+  const media = [
+    { source_key: "eldinero", source_name: "El Dinero", url: "https://eldinero.com.do/x", title: "Indotel otorga concesión a Claro y Viettel por US$119.5 millones", published_at: "2026-11-16T18:00:00.000Z" },
+    { source_key: "dl", source_name: "Diario Libre", url: "https://diariolibre.com/y", title: "Turismo crece en noviembre", published_at: "2026-11-16T18:30:00.000Z" },
+  ];
+  it("reconoce la misma noticia y calcula la ventaja", () => {
+    const m = findMediaMatch("Indotel firma concesión con Claro y Viettel por US$119.5 millones", "2026-11-16T17:26:55.000Z", media);
+    expect(m?.source_name).toBe("El Dinero");
+    expect(leadMinutes("2026-11-16T17:26:55.000Z", m!.published_at)).toBe(33);
+  });
+  it("no empareja noticias distintas ni sin fecha", () => {
+    expect(sameStory("Senado aprueba ley de presupuesto", "Turismo crece en noviembre")).toBe(false);
+    expect(findMediaMatch("Indotel firma concesión con Claro y Viettel", null, media)).toBeNull();
+  });
+  it("ignora coincidencias fuera de ±5 días", () => {
+    expect(findMediaMatch("Indotel firma concesión con Claro y Viettel por US$119.5 millones", "2026-11-01T00:00:00.000Z", media)).toBeNull();
+  });
+});

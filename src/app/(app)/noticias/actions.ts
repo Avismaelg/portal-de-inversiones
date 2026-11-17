@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentRole } from "@/lib/auth";
 import { PoliteClient } from "@/lib/ingest/polite-client";
-import { NEWS_HOSTS, collectNews } from "@/lib/ingest/news";
+import { MEDIA_HOSTS, NEWS_HOSTS, collectMedia, collectNews, findMediaMatch } from "@/lib/ingest/news";
 import { canPublishRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,7 +16,7 @@ export type NewsLoadResult = { ok: boolean; message: string };
 export async function loadNews(): Promise<NewsLoadResult> {
   if (!canPublishRole(await getCurrentRole())) return { ok: false, message: "Tu rol no puede cargar noticias." };
   const client = new PoliteClient({
-    allowedHosts: NEWS_HOSTS,
+    allowedHosts: [...NEWS_HOSTS, ...MEDIA_HOSTS],
     clientName: "AviTech-Ingest/0.1",
     contact: process.env.INGEST_CONTACT?.trim() || "contacto-pendiente",
     maxPerMinute: 30,
@@ -44,10 +44,28 @@ export async function loadNews(): Promise<NewsLoadResult> {
     )
     .select("id");
   if (error) return { ok: false, message: "No se pudieron guardar las noticias." };
+  // Ventaja temporal: ¿cuándo salió lo mismo en prensa? (solo se guarda nombre, enlace y hora del medio)
+  const media = await collectMedia(client);
+  let matched = 0;
+  if (media.length) {
+    const results = await Promise.all(
+      news.map(async (n) => {
+        const m = findMediaMatch(n.title, n.published_at, media);
+        if (!m) return false;
+        const { error: e } = await supabase
+          .from("news_items")
+          .update({ media_source: m.source_name, media_url: m.url, media_published_at: m.published_at })
+          .eq("url", n.url)
+          .is("media_url", null);
+        return !e;
+      }),
+    );
+    matched = results.filter(Boolean).length;
+  }
   revalidatePath("/noticias");
   const fresh = data?.length ?? 0;
   return {
     ok: true,
-    message: `${fresh} noticia(s) nueva(s) de ${news.length} relevantes.${failed.length ? ` Feeds con error: ${failed.join(", ")}.` : ""}`,
+    message: `${fresh} noticia(s) nueva(s) de ${news.length} relevantes; ${matched} con cobertura en prensa localizada.${failed.length ? ` Feeds con error: ${failed.join(", ")}.` : ""}`,
   };
 }

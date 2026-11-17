@@ -154,3 +154,88 @@ export async function collectNews(
   }
   return { news, report };
 }
+
+/**
+ * Medios usados SOLO como referencia de tiempo: se lee titular y fecha para saber cuándo salió el mismo hecho
+ * en prensa. No se guarda su texto (solo nombre, enlace y hora de la noticia coincidente). Términos pendientes.
+ */
+export const MEDIA_FEEDS: readonly NewsFeed[] = [
+  { key: "diariolibre", name: "Diario Libre", url: "https://www.diariolibre.com/rss/economia.xml" },
+  { key: "eldinero", name: "El Dinero", url: "https://eldinero.com.do/feed/" },
+  { key: "dominicantoday", name: "Dominican Today", url: "https://dominicantoday.com/feed/" },
+];
+
+export const MEDIA_HOSTS: readonly string[] = [
+  ...new Set(
+    MEDIA_FEEDS.flatMap((f) => {
+      const h = new URL(f.url).hostname;
+      return [h, h.startsWith("www.") ? h.slice(4) : `www.${h}`];
+    }),
+  ),
+];
+
+export interface MediaItem {
+  source_key: string;
+  source_name: string;
+  url: string;
+  title: string;
+  published_at: string;
+}
+
+const STOPWORDS = new Set(
+  "para como pero sobre entre desde hasta este esta estos estas ante tras sino segun cada tambien mediante durante donde cuando quien dice anuncia nuevo nueva nuevos nuevas with from that this will have been after their about into over under than more some".split(" "),
+);
+
+/** Palabras significativas del titular (sin tildes, ≥4 caracteres o números, sin palabras vacías). */
+export function titleTokens(title: string): Set<string> {
+  return new Set(
+    fold(title)
+      .split(/[^a-z0-9]+/)
+      .filter((w) => (w.length >= 4 || /^\d{2,}$/.test(w)) && !STOPWORDS.has(w)),
+  );
+}
+
+/** Coincidencia si comparten ≥3 palabras y al menos la mitad de las del titular más corto. */
+export function sameStory(a: string, b: string): boolean {
+  const ta = titleTokens(a);
+  const tb = titleTokens(b);
+  const shared = [...ta].filter((w) => tb.has(w)).length;
+  return shared >= 3 && shared / Math.min(ta.size, tb.size) >= 0.5;
+}
+
+const FIVE_DAYS = 5 * 24 * 3600 * 1000;
+
+/** Medio más temprano que cubrió la misma noticia (±5 días de la publicación primaria). */
+export function findMediaMatch(
+  title: string,
+  publishedAt: string | null,
+  media: readonly MediaItem[],
+): MediaItem | null {
+  if (!publishedAt) return null;
+  const t0 = new Date(publishedAt).getTime();
+  const hits = media
+    .filter((m) => Math.abs(new Date(m.published_at).getTime() - t0) <= FIVE_DAYS && sameStory(title, m.title))
+    .sort((a, b) => a.published_at.localeCompare(b.published_at));
+  return hits[0] ?? null;
+}
+
+/** Minutos de ventaja de la fuente primaria (positivo = salió antes que el medio). */
+export function leadMinutes(primaryAt: string, mediaAt: string): number {
+  return Math.round((new Date(mediaAt).getTime() - new Date(primaryAt).getTime()) / 60000);
+}
+
+export async function collectMedia(client: PoliteClient, feeds: readonly NewsFeed[] = MEDIA_FEEDS): Promise<MediaItem[]> {
+  const out: MediaItem[] = [];
+  for (const f of feeds) {
+    try {
+      const res = await client.get(f.url, { headers: { Accept: "application/rss+xml, application/xml, text/xml" } });
+      if (!res.ok) continue;
+      for (const i of parseRss(await res.text())) {
+        if (i.published_at) out.push({ source_key: f.key, source_name: f.name, url: i.url, title: i.title, published_at: i.published_at });
+      }
+    } catch {
+      // un medio caído no detiene la comparación
+    }
+  }
+  return out;
+}

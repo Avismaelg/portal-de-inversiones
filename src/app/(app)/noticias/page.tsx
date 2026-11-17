@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { TrustBadge } from "@/components/trust-badge";
 import { getCurrentRole } from "@/lib/auth";
-import { NEWS_FEEDS } from "@/lib/ingest/news";
+import { NEWS_FEEDS, leadMinutes } from "@/lib/ingest/news";
 import { canPublishRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
 import { LoadNewsButton } from "./load-button";
@@ -13,6 +13,12 @@ export const metadata: Metadata = { title: "Noticias" };
 const PAGE_SIZE = 25;
 type Params = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+
+function fmtLead(min: number) {
+  const a = Math.abs(min);
+  const t = a >= 1440 ? `${Math.round(a / 1440)} día(s)` : a >= 60 ? `${Math.floor(a / 60)} h ${a % 60} min` : `${a} min`;
+  return t;
+}
 
 const fmt = (v: string | null) =>
   v
@@ -29,13 +35,20 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
   const supabase = await createClient();
   let query = supabase
     .from("news_items")
-    .select("id,source_key,source_name,url,title,excerpt,published_at,detected_at,matched_keywords,trust_layer", { count: "exact" })
+    .select("id,source_key,source_name,url,title,excerpt,published_at,detected_at,matched_keywords,trust_layer,media_source,media_url,media_published_at", { count: "exact" })
     .order("published_at", { ascending: false, nullsFirst: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
   if (NEWS_FEEDS.some((f) => f.key === source)) query = query.eq("source_key", source);
   if (q) query = query.ilike("title", `%${q.replace(/[%_]/g, "")}%`);
-  const { data, count, error } = await query;
+  const [{ data, count, error }, cmp] = await Promise.all([
+    query,
+    supabase.from("news_items").select("published_at,media_published_at").not("media_url", "is", null).not("published_at", "is", null),
+  ]);
   if (error) return <p role="alert" className="text-danger">No se pudieron cargar las noticias.</p>;
+  const leads = (cmp.data ?? []).map((r) => leadMinutes(r.published_at as string, r.media_published_at as string));
+  const first = leads.filter((l) => l > 0).length;
+  const sorted = [...leads].sort((a, b) => a - b);
+  const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null;
   const pages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
   const link = (p: number) => {
     const u = new URLSearchParams();
@@ -48,6 +61,22 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
   return (
     <>
       {mayLoad && <LoadNewsButton />}
+      <section aria-labelledby="ventaja" className="card mb-6">
+        <h2 id="ventaja" className="text-sm font-semibold">Ventaja sobre la prensa</h2>
+        {leads.length ? (
+          <p className="mt-1 text-sm">
+            En {leads.length} noticia(s) con cobertura de prensa localizada, la fuente primaria salió antes en{" "}
+            <strong>{first}</strong> ({Math.round((first / leads.length) * 100)} %). Mediana:{" "}
+            <strong>{median! >= 0 ? `${fmtLead(median!)} antes` : `${fmtLead(median!)} después`}</strong>.
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-muted">Aún no hay coincidencias con prensa para calcular la ventaja.</p>
+        )}
+        <p className="mt-1 text-xs text-muted">
+          Compara con Diario Libre (economía), El Dinero y Dominican Today por similitud de titular. Solo se ve lo que
+          esos feeds publican (≈20–30 últimas notas): «sin cobertura localizada» no prueba que la prensa no la haya publicado.
+        </p>
+      </section>
       <form method="get" role="search" className="mb-6 flex flex-wrap items-end gap-3">
         <div>
           <label htmlFor="q" className="mb-1 block text-sm font-medium">Buscar en titulares</label>
@@ -81,7 +110,26 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
                   <span>· publicada {fmt(n.published_at)}</span>
                   <span>· detectada {fmt(n.detected_at)}</span>
                 </div>
-                <h2 className="mt-2 font-semibold">
+                <p className="mt-2 text-xs">
+                  {n.media_url && n.published_at && n.media_published_at ? (
+                    <>
+                      {(() => {
+                        const l = leadMinutes(n.published_at, n.media_published_at);
+                        return (
+                          <span className={l > 0 ? "font-medium text-success" : "text-muted"}>
+                            {l > 0 ? `Llegó ${fmtLead(l)} antes que` : `Salió ${fmtLead(l)} después de`}{" "}
+                          </span>
+                        );
+                      })()}
+                      <a href={n.media_url} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                        {n.media_source}
+                      </a>
+                    </>
+                  ) : (
+                    <span className="text-muted">Sin cobertura de prensa localizada</span>
+                  )}
+                </p>
+                <h2 className="mt-1 font-semibold">
                   <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-primary underline">{n.title}</a>
                 </h2>
                 {n.excerpt && <p className="mt-1 text-sm">{n.excerpt}</p>}
