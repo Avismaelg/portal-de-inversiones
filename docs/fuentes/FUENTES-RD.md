@@ -300,3 +300,24 @@ Una sola solicitud `GET /procesos?limit=5` con `User-Agent` genérico `AviTech-I
 **Implementado (inactivo):** `src/lib/ingest/dgcp.ts` valida la respuesta con zod, mapea a la forma de `public_tenders`, **no inventa estados** (lo no visto queda `unknown` con bandera), cuenta los elementos inválidos, y recorre páginas por ventana de fechas a través de `PoliteClient`. **No escribe en la base** y `sources.is_active` sigue en `false`.
 
 **Siguen abiertos:** (a) lista real de `estado_proceso`; (b) contratos (`/contratos`) y proveedores aún sin mapear; (c) fijar N con el reparto real por año; (d) abogado sobre la licencia; (e) un worker con credenciales de servidor que persista los datos, solo cuando se active la fuente.
+
+## Noticias para inversión — sondeo de feeds RSS (2026-11-16)
+
+Una sola solicitud de lectura por feed, con `User-Agent` genérico. **Términos de uso y licencia de cada medio: NO leídos** (`DESCONOCIDO — verificar`). Nada se guardó.
+
+| Fuente | Feed | Resultado | Notas |
+|---|---|---|---|
+| Ministerio de Hacienda y Economía | `hacienda.gob.do/feed/` | HTTP 200, RSS, 10 ítems, **texto completo** | Institucional (fuente primaria); mezcla noticias de interés con actos internos. `robots.txt` responde 301 (sin leer) |
+| Diario Libre — Economía | `diariolibre.com/rss/economia.xml` | HTTP 200, RSS, 30 ítems, sin descripción | `robots.txt` sin reglas visibles para `*` |
+| El Dinero | `eldinero.com.do/feed/` | HTTP 200, RSS, 20 ítems, resumen corto | Mezcla economía con política y exterior: exige filtro de relevancia |
+| El Día | `eldia.com.do/feed/` | HTTP 200 | **`robots.txt` prohíbe `/feed/rss/`**: no usar hasta aclararlo |
+| Dominican Today | `dominicantoday.com/feed/` | HTTP 200, RSS en inglés | `robots.txt` sin reglas visibles |
+| Listín Diario | `/rss/economia` | HTTP 404 | Sin feed en esa ruta |
+| Banco Central | `bancentral.gov.do/rss` | HTTP 200 pero HTML, no RSS | Sin feed verificado |
+| Acento / El Caribe | — | 404 / redirección | Sin feed verificado |
+
+**Riesgos que condicionan el diseño:**
+1. **Derechos de autor:** los medios son obras protegidas. Propuesta: guardar solo titular, enlace, fecha, medio y un extracto breve; nunca el texto completo de medios privados. Hacienda (institucional) es la excepción posible, pendiente de abogado.
+2. **Una noticia no es un hecho verificado:** debe entrar como señal (capa «Inferencia») hasta tener evidencia. El modelo `economic_events` exige fuente documental y revisión humana antes de publicar (cláusula P0), así que **no sirve tal cual** para un flujo masivo de titulares.
+3. **Relevancia:** los feeds mezclan temas; hace falta un filtro (palabras clave y, más adelante, IA — B-011 sin proveedor).
+4. **Regla G0 #5:** ningún conector se activa sin licencia verificada o abogado; la lectura de feeds seguiría el mismo régimen que DGCP (carga disparada por una persona).
