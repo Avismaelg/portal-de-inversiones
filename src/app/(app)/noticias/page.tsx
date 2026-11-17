@@ -4,13 +4,16 @@ import { Suspense } from "react";
 import { TrustBadge } from "@/components/trust-badge";
 import { getCurrentRole } from "@/lib/auth";
 import { NEWS_FEEDS, leadMinutes } from "@/lib/ingest/news";
-import { canPublishRole } from "@/lib/review-rules";
+import { canPublishRole, isStaffRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
+import { AnalyzeButton } from "./analyze-button";
 import { LoadNewsButton } from "./load-button";
 
 export const metadata: Metadata = { title: "Noticias" };
 
 const PAGE_SIZE = 25;
+const DIRECTION: Record<string, string> = { positive: "positivo", negative: "negativo", neutral: "neutral", mixed: "mixto", unclear: "poco claro" };
+const HORIZON: Record<string, string> = { short: "corto", medium: "medio", long: "largo", unclear: "poco claro" };
 type Params = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
@@ -30,7 +33,9 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
   const source = one(sp.fuente);
   const q = one(sp.q).trim().slice(0, 80);
   const page = Math.max(1, Number(one(sp.pagina)) || 1);
-  const mayLoad = canPublishRole(await getCurrentRole());
+  const role = await getCurrentRole();
+  const mayLoad = canPublishRole(role);
+  const mayAnalyze = isStaffRole(role);
 
   const supabase = await createClient();
   let query = supabase
@@ -49,6 +54,13 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
   const first = leads.filter((l) => l > 0).length;
   const sorted = [...leads].sort((a, b) => a - b);
   const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : null;
+  const { data: analyses } = data?.length
+    ? await supabase
+        .from("news_analyses")
+        .select("news_id,summary,impact_direction,horizon,sectors,risks,confidence,confidence_explanation,evidence_quote,quote_verified,model")
+        .in("news_id", data.map((n) => n.id))
+    : { data: [] };
+  const byNews = new Map((analyses ?? []).map((a) => [a.news_id, a]));
   const pages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
   const link = (p: number) => {
     const u = new URLSearchParams();
@@ -133,6 +145,34 @@ async function Feed({ searchParams }: { searchParams: Promise<Params> }) {
                   <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-primary underline">{n.title}</a>
                 </h2>
                 {n.excerpt && <p className="mt-1 text-sm">{n.excerpt}</p>}
+                {(() => {
+                  const a = byNews.get(n.id);
+                  return (
+                    <>
+                      {a && (
+                        <div className="mt-3 rounded-xl border-l-4 border-primary bg-primary/5 p-3 text-sm">
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <TrustBadge layer="ai_analysis" />
+                            <span className="text-muted">
+                              Impacto {DIRECTION[a.impact_direction] ?? a.impact_direction} · horizonte {HORIZON[a.horizon] ?? a.horizon} · confianza {a.confidence} %
+                            </span>
+                          </div>
+                          <p className="mt-1">{a.summary}</p>
+                          {a.sectors.length > 0 && <p className="mt-1 text-xs text-muted">Sectores: {a.sectors.join(", ")}</p>}
+                          {a.risks.length > 0 && <p className="text-xs text-muted">Riesgos: {a.risks.join("; ")}</p>}
+                          <p className="mt-1 text-xs text-muted">{a.confidence_explanation}</p>
+                          <p className="mt-1 text-xs text-muted">
+                            {a.evidence_quote && a.quote_verified
+                              ? `Cita verificada en el texto: «${a.evidence_quote}»`
+                              : "Sin cita verificable en el texto: tómalo como orientación."}{" "}
+                            · Generado por IA ({a.model}); inferencia, no hecho verificado.
+                          </p>
+                        </div>
+                      )}
+                      {mayAnalyze && <AnalyzeButton id={n.id} again={!!a} />}
+                    </>
+                  );
+                })()}
                 <p className="mt-2 text-xs text-muted">Coincidencias: {(n.matched_keywords as string[]).slice(0, 6).join(", ")}</p>
               </li>
             ))}
