@@ -96,6 +96,10 @@ export default function RevisionPage() {
       <p className="mb-6 text-sm text-muted">
         Publicar es una decisión humana y queda en la auditoría. Solo se puede publicar con toda la evidencia verificada.
       </p>
+      <p className="mb-6">
+        <Link href="/revision/licitaciones" className="btn-ghost">Revisar licitaciones pendientes →</Link>
+      </p>
+      <h2 className="mb-3 text-base font-semibold">Instrumentos financieros</h2>
       <Suspense fallback={<p className="text-muted">Cargando…</p>}>
         <Queue />
       </Suspense>

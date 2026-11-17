@@ -11,9 +11,9 @@ Mercado inicial: República Dominicana. Expansión: internacional.
 4. `docs/requisitos/` — SRS y Plan Maestro (si existen; si no, no inventar).
 5. `docs/sprint-1/PLAN-SPRINT-1.md` — alcance, criterios y evidencia del Sprint 1.
 
-## Estado actual: Sprint 1 — habilitadores técnicos
+## Estado actual: sprint de estabilización (2026-11-17)
 
-Sprint 0 cerrado y G0 aprobado (2026-11-15). Sprint 1 autorizado para CI, pruebas, gitleaks y estructura de migraciones. **B-016…B-019 resueltos el 2026-11-15 (B-017 sujeto a abogado); el SQL sigue sin ejecutar.** **No hay proyecto Supabase todavía (B-003): no ejecutar SQL, no crear tablas y no afirmar RLS probado.** El código de producto del corte vertical espera Supabase. Evidencia en `docs/sprint-1/PLAN-SPRINT-1.md`.
+Sprint 0 cerrado y G0 aprobado (2026-11-15). Supabase `xzlwrlgjsdymcidlmqew` en uso con 16 migraciones aplicadas y RLS; la suite `supabase/tests/p0_suite.sql` verifica guardias. Hay código de producto en `src/app/(app)`. Auditoría y backlog vigentes: `docs/estabilizacion/INFORME-ESTABILIZACION.md`. Ninguna fuente está activada como conector automático (G0 #5); las cargas son manuales asistidas.
 
 ## Reglas no negociables
 

@@ -380,3 +380,58 @@ BEGIN
   res := res || 'SIGNUP-3 sin email (esperado <uuid>@no-email.invalid): ' || r.email || E'\n';
   RAISE EXCEPTION E'RESULTADOS C (revertido):\n%', res;
 END $$;
+
+-- ------------------- BLOQUE D: publicación de licitaciones (migración 16) -------------------
+-- Agregado 2026-11-17 (sprint de estabilización, auditoría 5.2). Se revierte al final.
+-- Ejecutado el 2026-11-17 contra xzlwrlgjsdymcidlmqew: D-01..D-07 con el resultado esperado.
+DO $$
+DECLARE
+  res text := ''; tn uuid := gen_random_uuid(); m uuid := gen_random_uuid(); a uuid := gen_random_uuid();
+  v uuid := gen_random_uuid(); s uuid := gen_random_uuid(); t_flag uuid; t_clean uuid; st text; n int;
+BEGIN
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn,'tenant','Tenant D');
+  INSERT INTO auth.users (id, email) VALUES (m,'md@test.invalid'),(a,'ad@test.invalid'),(v,'vd@test.invalid');
+  UPDATE users SET role='opportunity_manager' WHERE id=m;
+  UPDATE users SET role='analyst' WHERE id=a;
+  INSERT INTO sources (id, code, name, base_url, allowed_hosts, access_method) VALUES (s,'test_d','Fuente D','https://example.invalid',ARRAY['example.invalid'],'manual');
+
+  -- D-01: el valor por defecto ya no publica.
+  INSERT INTO public_tenders (source_id, external_id, process_code, title, status, data_quality_flags)
+  VALUES (s,'D-1','D-1','Con bandera','unknown',ARRAY['unmapped_status:x']) RETURNING id, publication_status::text INTO t_flag, st;
+  res := res || 'D-01 (esperado draft): ' || st || E'\n';
+  INSERT INTO public_tenders (source_id, external_id, process_code, title, status) VALUES (s,'D-2','D-2','Limpia','open') RETURNING id INTO t_clean;
+
+  -- D-02: sin sesión no se publica.
+  BEGIN UPDATE public_tenders SET publication_status='published' WHERE id=t_clean; res := res || E'D-02 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'D-02 OK: ' || SQLERRM || E'\n'; END;
+
+  -- D-03: analista (staff, no gestor) no publica, ni vía UPDATE directo como authenticated.
+  BEGIN
+    PERFORM set_config('request.jwt.claims', json_build_object('sub', a)::text, true);
+    SET LOCAL ROLE authenticated;
+    UPDATE public_tenders SET publication_status='published' WHERE id=t_clean;
+    RESET ROLE; res := res || E'D-03 INESPERADO\n';
+  EXCEPTION WHEN others THEN RESET ROLE; res := res || 'D-03 OK: ' || SQLERRM || E'\n'; END;
+
+  -- D-04: gestor no publica un registro con banderas sin nota.
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', m)::text, true);
+  BEGIN UPDATE public_tenders SET publication_status='published' WHERE id=t_flag; res := res || E'D-04 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || 'D-04 OK: ' || SQLERRM || E'\n'; END;
+
+  -- D-05: gestor publica con nota; queda registrado responsable y fecha.
+  UPDATE public_tenders SET publication_status='published', review_notes='revisado' WHERE id=t_flag;
+  SELECT (reviewed_by = m)::text || '/' || (reviewed_at IS NOT NULL)::text INTO st FROM public_tenders WHERE id=t_flag;
+  res := res || 'D-05 (esperado true/true): ' || st || E'\n';
+
+  -- D-06: el revisor de un registro publicado no se puede reescribir.
+  UPDATE public_tenders SET reviewed_by = NULL WHERE id=t_flag;
+  SELECT (reviewed_by = m)::text INTO st FROM public_tenders WHERE id=t_flag;
+  res := res || 'D-06 (esperado true): ' || st || E'\n';
+
+  -- D-07: un lector (viewer) no ve lo que está en borrador (RLS). anon no tiene GRANT sobre la tabla.
+  RESET ROLE; PERFORM set_config('request.jwt.claims', json_build_object('sub', v)::text, true);
+  SET LOCAL ROLE authenticated; SELECT count(*) INTO n FROM public_tenders WHERE id = t_clean; RESET ROLE;
+  res := res || 'D-07 viewer ve borrador (esperado 0): ' || n || E'\n';
+
+  RAISE EXCEPTION E'RESULTADOS D (revertido):\n%', res;
+END $$;

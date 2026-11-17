@@ -2,7 +2,7 @@
 
 Plataforma SaaS de inteligencia económica, financiera y de oportunidades de negocio para República Dominicana, con expansión internacional.
 
-> **Estado:** Sprint 0 cerrado y G0 aprobado (2026-11-15). Sprint 1 técnico con habilitadores listos en local; Supabase sigue bloqueado (B-003). B-016…B-019 resueltos el 2026-11-15; el SQL sigue sin ejecutar. No hay código de producto todavía.
+> **Estado (verificado 2026-11-17, commit base `e4f96f3`):** aplicación funcional en desarrollo local sobre Supabase `xzlwrlgjsdymcidlmqew` (16 migraciones aplicadas, RLS activa). Hay código de producto: autenticación, instrumentos con revisión y publicación, licitaciones DGCP (carga manual asistida), noticias de fuentes primarias, radar, alertas in-app, watchlist y análisis de impacto con Claude (requiere `AI_API_KEY`). **No está listo para producción:** fuentes sin revisión legal (B-009/B-017), E2E sin sesión real y sin entorno de pruebas separado, sin despliegue. Sprint de estabilización en curso: `docs/estabilizacion/INFORME-ESTABILIZACION.md`.
 
 - **Organización:** AviTech Solutions Group
 - **Versión:** 0.1.0
@@ -39,7 +39,7 @@ Motivo: el proyecto está en OneDrive y `node_modules` es un junction a `C:\User
 | `npm run build` | Build de producción |
 | `npm run test:e2e` | Playwright + axe (Chromium) |
 | `npm run secret:scan` | gitleaks sobre el historial |
-| `npm run audit` | `npm audit --audit-level=high` |
+| `npm run audit` | Puerta de dependencias: producción bloquea; desarrollo con excepciones documentadas (`docs/seguridad/RIESGOS-DEPENDENCIAS.md`) |
 | `npm run verify` | lint + tipos + coverage + build |
 
 Playwright necesita el navegador instalado una vez:
@@ -53,7 +53,7 @@ El navegador se guarda fuera de OneDrive, en `%LOCALAPPDATA%\ms-playwright`.
 
 gitleaks se resuelve desde `C:\Users\User\.portal-tools\gitleaks\gitleaks.exe` o desde el `PATH`. El CI también ejecuta el escaneo.
 
-Evidencia de la última ejecución: `docs/sprint-1/PLAN-SPRINT-1.md` §5. No se declara una prueba como pasada sin salida verificable.
+Evidencia de la última ejecución: `docs/estabilizacion/INFORME-ESTABILIZACION.md`. No se declara una prueba como pasada sin salida verificable.
 
 ---
 
@@ -61,7 +61,7 @@ Evidencia de la última ejecución: `docs/sprint-1/PLAN-SPRINT-1.md` §5. No se 
 
 - **Sprint 0:** cerrado. G0 aprobado con recortes y condiciones (`docs/sprint-0/G0-ACTA.md`).
 - **Sprint 1 técnico:** CI, Vitest, Playwright, axe, gitleaks, Dependabot y estructura de migraciones (`docs/sprint-1/PLAN-SPRINT-1.md`).
-- **Bloqueado:** proyecto Supabase (B-003), proveedor LLM (B-011), abogado y licencias (B-009/B-017), equipo y dedicación (B-013). B-016…B-019 resueltos el 2026-11-15; B-017 queda sujeto a abogado. Detalle en `docs/sprint-0/BLOQUEOS.md`.
+- **Bloqueado o pendiente:** abogado y licencias de fuentes (B-009/B-017), clave y presupuesto del proveedor LLM (B-011: Anthropic elegido, falta `AI_API_KEY` y tope mensual), SRS y Plan Maestro ausentes del repo (B-001/B-002), equipo y dedicación (B-013), entorno Supabase de pruebas separado (nuevo). Supabase (B-003) disponible desde 2026-11-15. Detalle en `docs/sprint-0/BLOQUEOS.md`.
 - **Fuera del MVP:** comparador, calculadora V-05, vistas guardadas, capa `Cálculo`, CSV, alertas por email, facturación y multi-tenant.
 
 ---
@@ -110,10 +110,12 @@ docs/
 ├── producto/                        # Ventana B
 ├── ux/                              # Ventana B
 ├── qa/                              # Ventana B
-└── adr/                             # decisiones arquitectónicas
+├── adr/                             # decisiones arquitectónicas
+└── estabilizacion/                  # auditoría y sprint de estabilización (2026-11-17)
 
 supabase/
-└── migrations/                      # convención; aún sin migraciones ejecutables
+├── migrations/                      # 16 migraciones aplicadas en xzlwrlgjsdymcidlmqew
+└── tests/p0_suite.sql               # guardias, RLS y privilegios (bloques A–D, se revierten solos)
 ```
 
 ---

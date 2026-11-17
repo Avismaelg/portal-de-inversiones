@@ -41,3 +41,10 @@ Registro único de impedimentos. Cualquier ventana puede **añadir** filas; nadi
 3. Describe el hecho, no la interpretación.
 4. Indica impacto concreto y responsable.
 5. No cierres un bloqueo sin evidencia de que se resolvió.
+
+## Actualización 2026-11-17 (sprint de estabilización)
+
+- **B-003:** en uso. `xzlwrlgjsdymcidlmqew` tiene 16 migraciones aplicadas; `.env.local` configurado por el usuario. El antiguo `ecmqmgpruxclmpnnpgzv` no se usa.
+- **B-011:** proveedor elegido por el usuario: Anthropic (Claude, SDK `@anthropic-ai/sdk` 1.9.0, modelo por defecto `claude-sonnet-5-5`). **Sigue abierto:** falta `AI_API_KEY` en `.env.local` y el tope de gasto mensual (`AI_MONTHLY_BUDGET_USD`) no se aplica todavía en código.
+- **B-020 (nuevo):** no existe un proyecto Supabase de pruebas separado ni usuarios de prueba por rol. Impide E2E con sesión real y pruebas de RLS desde la interfaz sin tocar datos reales. Responsable: usuario (crear proyecto o rama de Supabase). ABIERTO.
+- **B-021 (nuevo):** `picomatch` ≤4.0.7 (GHSA-fc5q-39xc-vjpf, alta) sin versión corregida; solo afecta herramientas de desarrollo. Excepción temporal hasta 2026-12-17, **pendiente de aceptación formal** del responsable de seguridad. Ver `docs/seguridad/RIESGOS-DEPENDENCIAS.md`. ABIERTO.

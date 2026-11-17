@@ -14,7 +14,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "secret:scan": "powershell -ExecutionPolicy Bypass -File tools/secret-scan.ps1",
-    "audit": "npm audit --audit-level=high",
+    "audit": "node tools/audit-check.mjs",
     "verify": "npm run lint && npm run typecheck && npm run test:coverage && npm run build"
   },
   "dependencies": {

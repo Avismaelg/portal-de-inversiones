@@ -7,6 +7,7 @@ import { PoliteClient } from "@/lib/ingest/polite-client";
 import { canPublishRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
 import { todayInRD } from "@/lib/format";
+import { AUTO_PUBLISH_RULE, decidePublication, type PublicationStatus } from "@/lib/ingest/tender-publication";
 
 export type LoadResult = { ok: boolean; message: string };
 
@@ -50,7 +51,20 @@ export async function loadDgcpSample(_p: LoadResult | null, formData: FormData):
   }
   if (!rows.length) return { ok: false, message: "DGCP no devolvió procesos en esa ventana." };
 
-  const payload = rows.slice(0, MAX_ROWS).map((r) => ({
+  const batch = rows.slice(0, MAX_ROWS);
+  // Estado actual de los que ya existen: la carga no deshace decisiones humanas (regla dgcp_auto_publish_v1).
+  const { data: existingRows, error: exErr } = await supabase
+    .from("public_tenders")
+    .select("external_id,publication_status,data_quality_flags")
+    .eq("source_id", source.id)
+    .in("external_id", batch.map((r) => r.external_id));
+  if (exErr) return { ok: false, message: "No se pudo leer el estado actual de las licitaciones." };
+  const existing = new Map(
+    (existingRows ?? []).map((e) => [e.external_id, { publication_status: e.publication_status as PublicationStatus, data_quality_flags: e.data_quality_flags ?? [] }]),
+  );
+  const extractedAt = new Date().toISOString();
+
+  const payload = batch.map((r) => ({
     source_id: source.id,
     external_id: r.external_id,
     process_code: r.process_code,
@@ -64,17 +78,31 @@ export async function loadDgcpSample(_p: LoadResult | null, formData: FormData):
     budget_amount: r.budget_amount,
     budget_currency: r.budget_currency,
     data_quality_flags: r.data_quality_flags,
+    source_url: r.source_url,
+    extracted_at: extractedAt,
+    validation: { rule: AUTO_PUBLISH_RULE, schema: "ok", flags: r.data_quality_flags },
+    // Dato tal como lo publica la fuente oficial; la publicación en AviTech la controla la base (migración 16).
     trust_layer: "confirmed" as const,
-    publication_status: "published" as const,
+    publication_status: decidePublication(existing.get(r.external_id), r.data_quality_flags),
   }));
   const { error } = await supabase
     .from("public_tenders")
     .upsert(payload, { onConflict: "source_id,external_id" });
   if (error) return { ok: false, message: "No se pudieron guardar las licitaciones." };
+
+  // Publicados que vuelven a revisión: la nota de revisión anterior ya no aplica.
+  const demoted = payload
+    .filter((p) => p.publication_status === "in_review" && existing.get(p.external_id)?.publication_status === "published")
+    .map((p) => p.external_id);
+  if (demoted.length) {
+    await supabase.from("public_tenders").update({ review_notes: null }).eq("source_id", source.id).in("external_id", demoted);
+  }
+  const published = payload.filter((p) => p.publication_status === "published").length;
+  const inReview = payload.filter((p) => p.publication_status === "in_review").length;
   revalidatePath("/licitaciones");
   revalidatePath("/dashboard");
   return {
     ok: true,
-    message: `Cargadas ${payload.length} licitaciones (de ${total} en la ventana; ${rejected} elementos inválidos).`,
+    message: `Cargadas ${payload.length} licitaciones (de ${total} en la ventana; ${rejected} elementos inválidos): ${published} publicadas, ${inReview} en revisión por estado no reconocido.`,
   };
 }

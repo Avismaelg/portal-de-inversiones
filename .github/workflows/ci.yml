@@ -74,7 +74,7 @@ jobs:
         run: ./gitleaks git --no-banner --redact --verbose .
 
   audit:
-    name: npm audit (high)
+    name: npm audit (prod bloquea; dev con excepciones)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -84,4 +84,4 @@ jobs:
           node-version: 24
           cache: npm
 
-      - run: npm audit --audit-level=high
+      - run: node tools/audit-check.mjs

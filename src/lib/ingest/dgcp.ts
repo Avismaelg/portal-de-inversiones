@@ -78,6 +78,8 @@ export interface TenderRow {
   budget_currency: string | null;
   buyer_code: number | null;
   buyer_name: string | null;
+  /** URL del procedimiento en el portal de la DGCP, solo si es https. */
+  source_url: string | null;
   data_quality_flags: string[];
 }
 
@@ -121,6 +123,7 @@ export function mapProceso(p: Proceso): TenderRow {
     budget_currency: amountOk && currency ? currency : null,
     buyer_code: p.codigo_unidad_compra ?? null,
     buyer_name: p.unidad_compra ?? null,
+    source_url: p.url && /^https:\/\//.test(p.url) ? p.url : null,
     data_quality_flags: flags,
   };
 }
