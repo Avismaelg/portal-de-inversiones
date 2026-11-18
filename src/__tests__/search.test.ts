@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ilikeAny, ilikePattern, normalizeQuery, SEARCH_MAX } from "@/lib/search";
+import { ilikePattern, normalizeQuery, SEARCH_MAX, stripAccents } from "@/lib/search";
 
 describe("normalizeQuery", () => {
   it("colapsa espacios, quita controles y recorta", () => {
@@ -14,16 +14,19 @@ describe("normalizeQuery", () => {
   });
 });
 
+describe("stripAccents", () => {
+  it("quita tildes, diéresis y la virgulilla de la ñ, y pasa a minúsculas", () => {
+    expect(stripAccents("Energía Peña PINGÜINO Ángel")).toBe("energia pena pinguino angel");
+  });
+});
+
 describe("ilikePattern", () => {
-  it("envuelve en comodines y neutraliza caracteres especiales", () => {
-    expect(ilikePattern("energía solar")).toBe("%energía solar%");
+  it("envuelve en comodines, sin tildes, y neutraliza caracteres especiales", () => {
+    expect(ilikePattern("Energía Solar")).toBe("%energia solar%");
     expect(ilikePattern("50%_off")).toBe("%50 off%");
     expect(ilikePattern('a,title.eq.x),(b"')).toBe("%a title.eq.x b%");
   });
   it("vacío si no queda texto", () => {
     expect(ilikePattern("%%,,")).toBe("");
-  });
-  it("ilikeAny arma el filtro or() con valores entre comillas", () => {
-    expect(ilikeAny(["title", "excerpt"], "%puerto%")).toBe('title.ilike."%puerto%",excerpt.ilike."%puerto%"');
   });
 });

@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { StatusBadge } from "@/components/trust-badge";
 import { WatchButton } from "@/components/watch-button";
 import { formatMoney } from "@/lib/format";
+import { FTS } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Licitaciones" };
@@ -55,7 +56,7 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
       count: "exact",
     })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-  if (q) query = query.textSearch("search_vector", q, { type: "websearch", config: "spanish" });
+  if (q) query = query.textSearch("search_vector", q, FTS);
   if (method) query = query.eq("procurement_method", method);
   if (status && STATUS[status]) query = query.eq("status", status as "open");
   if (onlyOpen) query = query.eq("status", "open").gte("deadline_at", now.toISOString());

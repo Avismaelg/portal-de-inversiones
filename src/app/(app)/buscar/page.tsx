@@ -6,7 +6,7 @@ import { StatusBadge, TrustBadge } from "@/components/trust-badge";
 import { formatMoney, PUBLICATION } from "@/lib/format";
 import { timeAgo } from "@/lib/news-format";
 import { OPPORTUNITY_TYPES } from "@/lib/opportunity-types";
-import { ilikeAny, ilikePattern, normalizeQuery } from "@/lib/search";
+import { FTS, ilikePattern, normalizeQuery } from "@/lib/search";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Buscar" };
@@ -47,40 +47,39 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
   if (!q) return <p className="empty-state">Escribe al menos 2 caracteres para buscar en noticias, licitaciones, oportunidades, proyectos e instrumentos.</p>;
 
   const pattern = ilikePattern(q);
-  const fts = { type: "websearch" as const, config: "spanish" };
   const supabase = await createClient();
   const [news, tenders, opps, projects, instruments] = await Promise.all([
     pattern
       ? supabase
           .from("news_items")
           .select("id,source_name,title,published_at", { count: "exact" })
-          .or(ilikeAny(["title", "excerpt"], pattern))
+          .ilike("search_plain", pattern)
           .order("published_at", { ascending: false, nullsFirst: false })
           .limit(LIMIT)
       : Promise.resolve({ data: [], count: 0, error: null }),
     supabase
       .from("public_tenders")
       .select("id,title,process_code,status,deadline_at,budget_amount,budget_currency", { count: "exact" })
-      .textSearch("search_vector", q, fts)
+      .textSearch("search_vector", q, FTS)
       .order("published_at", { ascending: false, nullsFirst: false })
       .limit(LIMIT),
     supabase
       .from("investment_opportunities")
       .select("id,title,opportunity_type,confidence,trust_layer,publication_status", { count: "exact" })
-      .textSearch("search_vector", q, fts)
+      .textSearch("search_vector", q, FTS)
       .order("created_at", { ascending: false })
       .limit(LIMIT),
     supabase
       .from("projects")
       .select("id,name,status,trust_layer,publication_status", { count: "exact" })
-      .textSearch("search_vector", q, fts)
+      .textSearch("search_vector", q, FTS)
       .order("created_at", { ascending: false })
       .limit(LIMIT),
     pattern
       ? supabase
           .from("financial_instruments")
           .select("id,name,isin,currency,trust_layer,publication_status", { count: "exact" })
-          .or(ilikeAny(["name", "isin"], pattern))
+          .ilike("search_plain", pattern)
           .order("issue_date", { ascending: false, nullsFirst: false })
           .limit(LIMIT)
       : Promise.resolve({ data: [], count: 0, error: null }),

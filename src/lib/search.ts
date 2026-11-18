@@ -9,16 +9,20 @@ export function normalizeQuery(raw: string | null | undefined): string {
   return q.length >= SEARCH_MIN ? q : "";
 }
 
+/** Configuración FTS de la migración 22: español + unaccent. */
+export const FTS = { type: "websearch", config: "es_unaccent" } as const;
+
+/** Minúsculas y sin tildes; equivale a lower(unaccent()) de la columna `search_plain` (migración 22). */
+export function stripAccents(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
 /**
  * Patrón seguro para `ilike` dentro de un filtro `or()` de PostgREST: quita comodines (% _ \) y
  * los caracteres que separan condiciones (, ( ) ") para que la consulta no altere el filtro.
  */
 export function ilikePattern(q: string): string {
-  const clean = q.replace(/[%_\\,()"]/g, " ").replace(/\s+/g, " ").trim();
+  const clean = stripAccents(q).replace(/[%_\\,()"]/g, " ").replace(/\s+/g, " ").trim();
   return clean ? `%${clean}%` : "";
 }
 
-/** Filtro `or()` de PostgREST: el patrón va entre comillas dobles (ilikePattern ya las quitó). */
-export function ilikeAny(columns: readonly string[], pattern: string): string {
-  return columns.map((c) => `${c}.ilike."${pattern}"`).join(",");
-}
