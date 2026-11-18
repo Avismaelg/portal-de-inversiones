@@ -64,7 +64,19 @@ export class PoliteClient {
 
   /** Serializa las llamadas: una activa a la vez. */
   get(url: string, init: RequestInit = {}): Promise<Response> {
-    const run = this.tail.then(() => this.doGet(url, init));
+    return this.enqueue(() => this.doRequest("GET", url, init));
+  }
+
+  /**
+   * POST de solo consulta (APIs que reciben los filtros en el cuerpo, p. ej. BCRD).
+   * Mismas garantías que `get`; nunca sigue redirecciones (un POST redirigido se devuelve tal cual).
+   */
+  post(url: string, init: RequestInit = {}): Promise<Response> {
+    return this.enqueue(() => this.doRequest("POST", url, init));
+  }
+
+  private enqueue(fn: () => Promise<Response>): Promise<Response> {
+    const run = this.tail.then(fn);
     this.tail = run.catch(() => undefined);
     return run;
   }
@@ -81,22 +93,22 @@ export class PoliteClient {
     }
   }
 
-  private async doGet(url: string, init: RequestInit): Promise<Response> {
+  private async doRequest(method: "GET" | "POST", url: string, init: RequestInit): Promise<Response> {
     this.assertAllowed(url);
     let attempt = 0;
     for (;;) {
       await this.throttle();
       const res = await this.fetchImpl(url, {
         ...init,
-        method: "GET",
+        method,
         redirect: "manual",
         headers: { ...(init.headers as Record<string, string>), "User-Agent": this.userAgent },
       });
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get("location");
-        if (!loc) return res;
+        if (!loc || method !== "GET") return res;
         // Redirección solo si sigue dentro de la lista cerrada (alta explícita del host nuevo).
-        return this.doGet(this.assertAllowed(new URL(loc, url).toString()).toString(), init);
+        return this.doRequest(method, this.assertAllowed(new URL(loc, url).toString()).toString(), init);
       }
       const retryable = res.status === 429 || res.status >= 500;
       if (!retryable || attempt >= this.maxRetries) return res;

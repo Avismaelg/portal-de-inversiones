@@ -61,7 +61,7 @@ Módulos que alimenta: D (licitaciones/contratos), E (proveedores), F (oportunid
 | Campo | Hallazgo | Evidencia |
 |---|---|---|
 | URL oficial | `https://www.bancentral.gov.do/` | Leída (HTTP 200) |
-| ¿API documentada? | **No documentada en lo leído.** El pie enlaza "API" a `https://apibcrd.bancentral.gov.do/`, que devolvió solo el texto "API BCRD" sin endpoints, formatos ni términos. → `DESCONOCIDO — verificar` | `apibcrd.bancentral.gov.do` |
+| ¿API documentada? | **Sí (verificado 2026-11-18).** Especificación pública Swagger 2.0 en `https://api.bancentral.gov.do/swagger/v1/swagger.json`. El portal `apibcrd.bancentral.gov.do` es una SPA con inicio de sesión que emite tokens personales. Detalle en §3.1. | `api.bancentral.gov.do/swagger/v1/swagger.json` |
 | Formato | XLS, XLSX y PDF alojados en `cdn.bancentral.gov.do`. Ejemplos: `tbm_activad.xlsx` (tasas activas), `tbm_pasivad.xlsx`, `Serie_TPM.xlsx`, `operaciones_interb.xls`, `reservas_internacionales.xlsx`; valores: `certificados_inversion_ti.xls`, `valores_circulacion.xlsx`, `valores_vencimientos.xls`. CSV/JSON: no hallados. | `bancentral.gov.do/a/d/2536-sector-monetario-y-financiero`, `/a/d/2598-subasta` |
 | Frecuencia | No declarada. Solo se ven períodos (p. ej. "Octubre 2026"). Existe "Calendario de publicación" (`/a/d/3897-publicaciones`), **no leído**. | — |
 | Términos de uso | Enlace "Términos de uso" `https://bancentral.gov.do/a/d/3894`: la página cargó solo el título; **texto no obtenido** → `DESCONOCIDO — verificar`. Pie: "© . Todos los derechos reservados." | `/a/d/3894` |
@@ -69,10 +69,24 @@ Módulos que alimenta: D (licitaciones/contratos), E (proveedores), F (oportunid
 | Cobertura | Series macro (tasas, TPM, IMAE, PIB, IPC, reservas), instrumentos de mercado abierto (letras, notas), valores en circulación. Resultados de subastas: páginas `/a/d/2717-compra-de-valores`, `/2708-letras-del-banco-central`, `/2711-notas-del-banco-central` **no leídas**. | — |
 | Calidad | `DESCONOCIDO — verificar` (sin diccionario de datos visible). Los XLS cambian de estructura sin aviso: riesgo de ruptura. | — |
 | Legalidad | Sin términos leídos no se puede concluir. `REQUIERE ABOGADO` para confirmar reutilización comercial. | — |
-| **Estrategia propuesta** | Descarga programada de XLS/XLSX con detección de cambios por hash y validación de columnas; si cambia el esquema, **detener y alertar** (no adivinar). Preguntar al BCRD por API o autorización formal (procedimiento manual de solicitud). | — |
-| Riesgo | **Medio**: términos desconocidos, formatos frágiles, frecuencia no declarada. | — |
+| **Estrategia propuesta** | **API BCRD** como vía principal (§3.1) en cuanto se autorice la IP de origen; los XLS/XLSX quedan como respaldo, con detección de cambios por hash y validación de columnas (si cambia el esquema, **detener y alertar**). | — |
+| Riesgo | **Medio**: términos de la API no leídos, token restringido por IP, frecuencia no declarada. | — |
 
 Módulos: C (instrumentos, tasas, subastas), A (eventos macro).
+
+### 3.1 API BCRD — verificación del 2026-11-18
+
+| Campo | Hallazgo | Evidencia |
+|---|---|---|
+| Base | `https://api.bancentral.gov.do` (de `assets/appconfig.production.json` del portal) | Lectura directa |
+| Endpoints | Todos `POST`, JSON: `MacroVariables/Monetarias`, `/Inflacion`, `/SectorReal`, `/SectorExterno` (cuerpo `{token}`); `MacroVariables/HistoricoTasas` (`fromDate`, `toDate`, `skipCount`, `maxResultCount`); `/api/v2/HistoricoIPC` (`monthFrom`, `yearFrom`, `monthTo`, `yearTo`, paginación) | `swagger.json` |
+| Autenticación | Token personal **en el cuerpo** (`"token"`), no en encabezado. Se genera en el portal; el portal tiene restricciones por token (`ApiTokenRestrictions`) y aceptación de términos (`ApiTokens/AcceptTermsOfService`). | `swagger.json`; bundle JS del portal |
+| Respuesta | Sobre ABP: `{ success, result, error: { message }, unAuthorizedRequest }`. La spec declara `result` como `Var { name, values: object[] }`. **Forma real de `values`: `[PENDIENTE]`** (no se obtuvo aún ninguna respuesta con datos). | `swagger.json` |
+| Restricción por IP | **Confirmada.** Con un token válido, `Monetarias` respondió HTTP 500 con «Intento de acceso desde una dirección desconocida FROM IP …», tanto por IPv6 como por IPv4. El token solo funciona desde IPs registradas. | Llamadas reales, 2026-11-18 |
+| Límites de uso | No publicados en la spec → `[PENDIENTE]`. El conector usa 10 peticiones/min y una solicitud activa. | — |
+| Términos de la API | Existen (endpoint de aceptación) pero **texto no leído** → `[PENDIENTE]`. Sigue `REQUIERE ABOGADO` para reutilización comercial (B-009). | — |
+| Portal | El inicio de sesión de `apibcrd.bancentral.gov.do` devolvió «An unexpected server error occurred» en todos los intentos del 2026-11-18; además falla la carga de `./es-us.js`. | Consola del navegador |
+| Código | `src/lib/ingest/bcrd.ts` (solo lectura, sin escritura en base, errores tipados `BcrdIpNotAllowedError`), pruebas en `src/__tests__/bcrd.test.ts`, prueba manual `node tools/bcrd-probe.mjs [grupo]`. Token en `.env.local` como `BCRD_API_TOKEN`. | — |
 
 ## 4. F-03 — Ministerio de Hacienda y Economía — Dirección General de Crédito Público
 
