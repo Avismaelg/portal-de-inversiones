@@ -2,6 +2,12 @@
 // Uso: node tools/bcrd-probe.mjs [monetarias|inflacion|sectorReal|sectorExterno]
 // Lee BCRD_API_TOKEN de .env.local y nunca lo imprime.
 import { readFileSync } from "node:fs";
+import dns from "node:dns";
+import net from "node:net";
+
+// El BCRD solo admite IPv4: resolver primero A y no intentar IPv6 en paralelo.
+dns.setDefaultResultOrder("ipv4first");
+net.setDefaultAutoSelectFamily(false);
 
 const PATHS = {
   monetarias: "/api/services/app/MacroVariables/Monetarias",

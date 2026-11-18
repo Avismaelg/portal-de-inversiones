@@ -7,6 +7,8 @@
  * - Todos los endpoints son POST con el token en el cuerpo JSON (`{"token": "..."}`).
  * - Respuesta con sobre ABP (`success`, `result`, `error`). El BCRD restringe cada token por IP de
  *   origen y responde HTTP 500 con "Intento de acceso desde una dirección desconocida" si no coincide.
+ * - Solo se registran IPs v4: el proceso que use este conector debe salir por IPv4
+ *   (en Node: `dns.setDefaultResultOrder("ipv4first")` y `net.setDefaultAutoSelectFamily(false)`).
  *
  * [PENDIENTE] Forma real de `result`: la spec declara `Var { name, values: object[] }`, pero aún
  * no se obtuvo ninguna respuesta con datos (IP no autorizada). Por eso `values` se deja sin tipar.
