@@ -36,7 +36,7 @@ async function MacroPulse() {
   const [obs, fx] = await Promise.all([
     supabase
       .from("macro_observations")
-      .select("series_key,group_name,category_path,indicator,value,as_of,first_seen_at,last_seen_at,data_quality_flags")
+      .select("series_key,group_name,category_path,indicator,value,as_of,unit,first_seen_at,last_seen_at,data_quality_flags")
       .in("series_key", KEY_SERIES.map((k) => k.key))
       .order("first_seen_at", { ascending: false })
       .limit(200),

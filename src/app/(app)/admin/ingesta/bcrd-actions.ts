@@ -7,12 +7,14 @@ import {
   BcrdIpNotAllowedError,
   type BcrdMacroGroup,
   createBcrdClient,
+  fetchHistoricoIpc,
   fetchHistoricoTasas,
   fetchMacro,
   type MacroIndicator,
 } from "@/lib/ingest/bcrd";
 import { createIpv4Fetch } from "@/lib/ingest/ipv4-fetch";
-import { observationKeyOf, seriesKeyOf } from "@/lib/macro";
+import { ipcToIndicators, observationKeyOf, seriesKeyOf, unitFor } from "@/lib/macro";
+import { syncMyNotifications } from "../../alertas/actions";
 import { canPublishRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
 import { todayInRD } from "@/lib/format";
@@ -20,10 +22,12 @@ import type { LoadResult } from "./actions";
 
 const SOURCE = "bcrd_api";
 const FX_WINDOW_DAYS = 45;
+const IPC_YEARS = 2;
+const API_CALLS = 6;
 
 /**
- * Carga manual asistida del BCRD (G0 #5): 5 llamadas a la API (4 grupos macro + histórico de tasa
- * de cambio). La fuente sigue `pending_review` y no se activa como conector automático.
+ * Carga manual asistida del BCRD (G0 #5): 6 llamadas a la API (4 grupos macro, histórico de tasa
+ * de cambio e histórico del IPC). La fuente sigue `pending_review` y no se activa como conector automático.
  */
 export async function loadBcrdData(): Promise<LoadResult> {
   if (!canPublishRole(await getCurrentRole())) return { ok: false, message: "Tu rol no puede cargar datos." };
@@ -44,13 +48,19 @@ export async function loadBcrdData(): Promise<LoadResult> {
 
   let indicators: MacroIndicator[] = [];
   let rates;
+  let ipcRejected = 0;
   const fromDate = todayInRD(-FX_WINDOW_DAYS);
   const toDate = todayInRD(1);
+  const year = Number(todayInRD().slice(0, 4));
   try {
     for (const g of Object.keys(BCRD_MACRO_GROUPS) as BcrdMacroGroup[]) {
       indicators = indicators.concat(await fetchMacro(client, token, g));
     }
     rates = await fetchHistoricoTasas(client, token, { fromDate, toDate, maxResultCount: 100 });
+    // Años completos: con rangos parciales del año en curso el BCRD devolvió vacío.
+    const ipc = await fetchHistoricoIpc(client, token, { yearFrom: year - IPC_YEARS, monthFrom: 1, yearTo: year, monthTo: 12, maxResultCount: 100 });
+    ipcRejected = ipc.rejected;
+    indicators = indicators.concat(ipcToIndicators(ipc.items));
   } catch (e) {
     if (e instanceof BcrdIpNotAllowedError) {
       await fail(`ip_not_allowed:${e.sourceIp ?? "?"}`);
@@ -65,27 +75,35 @@ export async function loadBcrdData(): Promise<LoadResult> {
 
   const now = new Date().toISOString();
   // Variables macro: una fila por valor nuevo; las ya vistas solo actualizan last_seen_at.
-  const macroRows = indicators.map((i) => ({
-    source_id: source.id,
-    series_key: seriesKeyOf(i),
-    group_name: i.group,
-    category_path: i.path,
-    indicator: i.indicator,
-    value: i.value,
-    as_of: i.as_of,
-    observation_key: observationKeyOf(i),
-    data_quality_flags: i.data_quality_flags,
-    trust_layer: "confirmed" as const,
-    last_seen_at: now,
-  }));
-  const keys = macroRows.map((r) => r.observation_key);
+  const macroRows = indicators.map((i) => {
+    const key = seriesKeyOf(i);
+    const unit = unitFor(key);
+    return {
+      source_id: source.id,
+      series_key: key,
+      group_name: i.group,
+      category_path: i.path,
+      indicator: i.indicator,
+      value: i.value,
+      as_of: i.as_of,
+      unit,
+      observation_key: observationKeyOf(i),
+      data_quality_flags: unit ? i.data_quality_flags : [...i.data_quality_flags, "unit_unknown"],
+      trust_layer: "confirmed" as const,
+      last_seen_at: now,
+    };
+  });
+  // Se lee por serie (pocas claves en la URL) y se cruza en memoria.
+  const seriesKeys = [...new Set(macroRows.map((r) => r.series_key))];
   const { data: seen, error: seenErr } = await supabase
     .from("macro_observations")
     .select("observation_key")
     .eq("source_id", source.id)
-    .in("observation_key", keys);
+    .in("series_key", seriesKeys)
+    .limit(5000);
   if (seenErr) return { ok: false, message: "No se pudo leer el estado actual de los datos macro." };
-  const seenKeys = new Set((seen ?? []).map((s) => s.observation_key));
+  const loadKeys = new Set(macroRows.map((r) => r.observation_key));
+  const seenKeys = new Set((seen ?? []).map((s) => s.observation_key).filter((k) => loadKeys.has(k)));
   const fresh = macroRows.filter((r) => !seenKeys.has(r.observation_key));
   if (fresh.length) {
     const { error } = await supabase.from("macro_observations").insert(fresh);
@@ -94,12 +112,17 @@ export async function loadBcrdData(): Promise<LoadResult> {
       return { ok: false, message: "No se pudieron guardar los datos macro." };
     }
   }
-  if (seenKeys.size) {
-    await supabase
+  const seenList = [...seenKeys];
+  for (let i = 0; i < seenList.length; i += 25) {
+    const { error } = await supabase
       .from("macro_observations")
       .update({ last_seen_at: now })
       .eq("source_id", source.id)
-      .in("observation_key", [...seenKeys]);
+      .in("observation_key", seenList.slice(i, i + 25));
+    if (error) {
+      await fail(`update macro: ${error.message}`);
+      return { ok: false, message: "No se pudieron actualizar los datos macro ya guardados." };
+    }
   }
 
   // Tasa de cambio: una fila por día; si el BCRD corrige un día ya guardado, se cuenta como revisión.
@@ -144,16 +167,19 @@ export async function loadBcrdData(): Promise<LoadResult> {
     fx_revised: revised,
     fx_rejected: rates.rejected.length,
     fx_total_api: rates.totalCount,
-    api_calls: 5,
+    ipc_rejected: ipcRejected,
+    api_calls: API_CALLS,
   };
   await supabase.rpc("record_ingestion_run", {
     p_source_code: SOURCE, p_ok: true, p_payload: { fromDate, toDate }, p_result: result, p_error: null,
   });
   revalidatePath("/macro");
   revalidatePath("/dashboard");
+  // Los avisos de quien carga se generan ya; el resto de usuarios los recibe al abrir Alertas.
+  await syncMyNotifications();
   const partial = rates.totalCount > rates.items.length + rates.rejected.length ? " (el histórico tenía más días que una página)" : "";
   return {
     ok: true,
-    message: `BCRD: ${indicators.length} indicadores (${fresh.length} valores nuevos) y ${rates.items.length} días de tasa de cambio (${newDays} nuevos, ${revised} corregidos)${partial}. 5 llamadas de la cuota diaria.`,
+    message: `BCRD: ${indicators.length} valores leídos (${fresh.length} nuevos) y ${rates.items.length} días de tasa de cambio (${newDays} nuevos, ${revised} corregidos)${partial}. ${API_CALLS} llamadas de la cuota diaria.`,
   };
 }

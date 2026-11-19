@@ -13,8 +13,9 @@
  *   `date` en `dd/MM/yyyy` y anidación variable. Solo trae el último dato de cada indicador.
  * - `HistoricoTasas`: `values: [{ totalCount, items: [{ buyingValue, sellingValue, exchangeRateDate, ... }] }]`.
  *
- * [PENDIENTE] Unidades de cada indicador (la API no las declara) y parámetros válidos de HistoricoIPC
- * (con junio–octubre 2026 devolvió `values: []`).
+ * - `HistoricoIPC`: `values: [{ month, year, indexValue }]` con rangos de años completos.
+ *
+ * Las unidades no vienen en la API; están en `src/lib/macro.ts` (`unitFor`), tomadas de la web del BCRD.
  */
 import { z } from "zod";
 import { PoliteClient } from "./polite-client";
@@ -127,7 +128,7 @@ export function parseBcrdDate(value: string | null | undefined): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-/** Aplana el árbol de un grupo en indicadores. No inventa unidades ni fechas ausentes. */
+/** Aplana el árbol de un grupo en indicadores. No inventa fechas ausentes; las unidades se asignan aparte. */
 export function flattenMacro(root: MacroNode): MacroIndicator[] {
   const out: MacroIndicator[] = [];
   const walk = (node: MacroNode, path: string[], inheritedDate: string | null | undefined, rawDate: string | null | undefined) => {
@@ -141,7 +142,6 @@ export function flattenMacro(root: MacroNode): MacroIndicator[] {
     const flags: string[] = [];
     if (ownRaw == null) flags.push("missing_date");
     else if (ownDate == null) flags.push(`invalid_date:${ownRaw}`);
-    flags.push("unit_unknown");
     out.push({
       group: root.name,
       path: path.slice(1),
@@ -281,19 +281,51 @@ export async function fetchHistoricoTasas(
   return parseExchangeRates(status, result);
 }
 
+// ---------- Histórico del IPC ----------
+
+const ipcSchema = z.object({
+  name: z.string().nullish(),
+  values: z.array(z.unknown()),
+});
+const ipcItemSchema = z.object({ month: z.number().int().min(1).max(12), year: z.number().int(), indexValue: z.number().positive() });
+
+export interface IpcPoint {
+  /** Primer día del mes (YYYY-MM-01). */
+  month_start: string;
+  value: number;
+}
+
 /**
- * Histórico del IPC entre dos meses. Devuelve `result` sin interpretar: la forma de los datos
- * aún no se ha visto (respuesta vacía el 2026-11-18). [PENDIENTE]
+ * `{ name: "IPC", values: [{ month, year, indexValue }] }` (verificado el 2026-11-18 con 2024-01..2026-10).
+ * Con un rango dentro del mismo año reciente devolvió `values: []`: pedir rangos de años completos.
  */
+export function parseIpc(status: number, result: unknown): { items: IpcPoint[]; rejected: number } {
+  const r = ipcSchema.safeParse(result);
+  if (!r.success) throw new BcrdApiError("BCRD: histórico del IPC con forma inesperada", status);
+  const items: IpcPoint[] = [];
+  let rejected = 0;
+  for (const raw of r.data.values) {
+    const it = ipcItemSchema.safeParse(raw);
+    if (!it.success) {
+      rejected++;
+      continue;
+    }
+    items.push({ month_start: `${it.data.year}-${String(it.data.month).padStart(2, "0")}-01`, value: it.data.indexValue });
+  }
+  items.sort((a, b) => a.month_start.localeCompare(b.month_start));
+  return { items, rejected };
+}
+
+/** Histórico mensual del índice de precios al consumidor entre dos meses. */
 export async function fetchHistoricoIpc(
   client: PoliteClient,
   token: string,
   w: { yearFrom: number; monthFrom: number; yearTo: number; monthTo: number } & Page,
-): Promise<unknown> {
+): Promise<{ items: IpcPoint[]; rejected: number }> {
   for (const m of [w.monthFrom, w.monthTo]) {
     if (!Number.isInteger(m) || m < 1 || m > 12) throw new Error("mes fuera de rango 1-12");
   }
-  const { result } = await call(client, BCRD_HISTORICO_IPC, {
+  const { status, result } = await call(client, BCRD_HISTORICO_IPC, {
     yearFrom: w.yearFrom,
     monthFrom: w.monthFrom,
     yearTo: w.yearTo,
@@ -302,5 +334,5 @@ export async function fetchHistoricoIpc(
     maxResultCount: w.maxResultCount ?? 100,
     token: requireToken(token),
   });
-  return result;
+  return parseIpc(status, result);
 }

@@ -5,19 +5,33 @@ import { Suspense } from "react";
 import { timeAgo } from "@/lib/news-format";
 import { createClient } from "@/lib/supabase/server";
 import { AlertForm } from "./alert-form";
+import { MacroAlertForm } from "./macro-alert-form";
 import { deleteAlert, markAllNotificationsRead, markNotificationRead } from "./actions";
 import { NotificationsSync } from "./notifications-sync";
 
 export const metadata: Metadata = { title: "Alertas" };
 
-const href = (type: string, id: string) => (type === "news" ? `/noticias/${id}` : type === "tender" ? `/licitaciones/${id}` : "/alertas");
-const TYPE: Record<string, string> = { news: "Noticia", tender: "Licitación" };
+const href = (type: string, id: string) =>
+  type === "news" ? `/noticias/${id}` : type === "tender" ? `/licitaciones/${id}` : type === "macro" ? "/macro" : "/alertas";
+const TYPE: Record<string, string> = { news: "Noticia", tender: "Licitación", macro: "Dato BCRD" };
+
+function describePref(p: { keywords: string[] | null; macro_new_data: boolean; macro_trend_change: boolean; fx_daily_move_pct: number | null }): string {
+  const parts: string[] = [];
+  if (p.keywords?.length) parts.push(p.keywords.join(", "));
+  if (p.macro_new_data) parts.push("BCRD: valor nuevo");
+  if (p.macro_trend_change) parts.push("BCRD: cambio de dirección");
+  if (p.fx_daily_move_pct !== null) parts.push(`Dólar: ±${new Intl.NumberFormat("es-DO", { maximumFractionDigits: 2 }).format(Number(p.fx_daily_move_pct))} % en un día`);
+  return parts.join(" · ");
+}
 
 async function Inbox() {
   await connection();
   const supabase = await createClient();
   const [prefs, notes] = await Promise.all([
-    supabase.from("user_alert_preferences").select("id,name,keywords,is_paused").order("created_at", { ascending: false }),
+    supabase
+      .from("user_alert_preferences")
+      .select("id,name,keywords,is_paused,macro_new_data,macro_trend_change,fx_daily_move_pct")
+      .order("created_at", { ascending: false }),
     supabase
       .from("notifications")
       .select("id,entity_type,entity_id,title,reason,priority,status,created_at,read_at")
@@ -33,6 +47,7 @@ async function Inbox() {
     <>
       <NotificationsSync />
       <AlertForm />
+      <MacroAlertForm />
       <div className="grid gap-6 lg:grid-cols-[1fr_2fr]">
         <section aria-labelledby="mis" className="card self-start">
           <h2 id="mis" className="text-base font-semibold">Mis alertas</h2>
@@ -42,7 +57,7 @@ async function Inbox() {
                 <li key={p.id} className="flex items-start justify-between gap-2 py-2 text-sm">
                   <span>
                     <span className="font-medium">{p.name}</span>
-                    <span className="block text-xs text-muted">{((p.keywords ?? []) as string[]).join(", ")}</span>
+                    <span className="block text-xs text-muted">{describePref(p)}</span>
                   </span>
                   <form action={deleteAlert}>
                     <input type="hidden" name="id" value={p.id} />
@@ -52,7 +67,7 @@ async function Inbox() {
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-sm text-muted">Aún no tienes alertas. Crea una con las palabras que quieras vigilar.</p>
+            <p className="mt-2 text-sm text-muted">Aún no tienes alertas. Crea una con las palabras que quieras vigilar o con los datos del Banco Central.</p>
           )}
         </section>
 
@@ -109,8 +124,9 @@ export default function AlertasPage() {
       <p className="eyebrow">Alertas tempranas</p>
       <h1 className="page-title">Vigila lo que te importa</h1>
       <p className="page-lead">
-        Tus palabras clave se comparan con las noticias de los últimos 7 días y las licitaciones vigentes. Cada coincidencia genera una
-        notificación (una por elemento, sin duplicados). Solo dentro de la aplicación; el correo es una extensión posterior.
+        Tus palabras clave se comparan con las noticias de los últimos 7 días y las licitaciones vigentes, y tus alertas del Banco
+        Central con los datos oficiales que se cargan. Cada coincidencia genera una notificación (sin duplicados). Solo dentro de la
+        aplicación; el correo es una extensión posterior.
       </p>
       <Suspense fallback={<p className="text-muted">Cargando…</p>}>
         <Inbox />

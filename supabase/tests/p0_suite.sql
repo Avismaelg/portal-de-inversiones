@@ -687,3 +687,39 @@ BEGIN
   RESET ROLE;
   RAISE EXCEPTION E'RESULTADOS (revertido)\n%', res;
 END $$;
+
+-- ------------- BLOQUE M24: alertas macro y análisis de impacto macro ---------------
+-- Ejecutado el 2026-11-18 con la migración 24 aplicada: todas las líneas dieron lo esperado.
+DO $$
+DECLARE res text := ''; tn uuid := '00000000-0000-0000-0000-0000000024a1'; a uuid := '00000000-0000-0000-0000-0000000024b1'; v uuid := '00000000-0000-0000-0000-0000000024b2'; obs uuid; pref uuid; n int;
+BEGIN
+  SELECT id INTO obs FROM macro_observations LIMIT 1;  -- requiere al menos una carga del BCRD
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn,'tenant','Tenant prueba 24');
+  INSERT INTO auth.users (id, email) VALUES (a,'a24@test.invalid'),(v,'v24@test.invalid');
+  UPDATE users SET role='analyst' WHERE id=a;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  BEGIN INSERT INTO user_alert_preferences (user_id,name) VALUES (v,'vacía'); res := res || E'24-01 INESPERADO alerta vacía\n';
+  EXCEPTION WHEN others THEN res := res || '24-01 OK alerta sin objetivo rechazada: ' || SQLERRM || E'\n'; END;
+  INSERT INTO user_alert_preferences (user_id,name,macro_new_data) VALUES (v,'macro',true) RETURNING id INTO pref;
+  BEGIN INSERT INTO user_alert_preferences (user_id,name,fx_daily_move_pct) VALUES (v,'fx',0); res := res || E'24-02 INESPERADO umbral 0\n';
+  EXCEPTION WHEN others THEN res := res || '24-02 OK umbral 0 rechazado: ' || SQLERRM || E'\n'; END;
+  SELECT push_my_notifications(jsonb_build_array(
+    jsonb_build_object('entity_type','macro','entity_id',obs,'preference_id',pref,'title','t','reason','r','kind','new_data'),
+    jsonb_build_object('entity_type','macro','entity_id',obs,'preference_id',pref,'title','t','reason','r','kind','trend'),
+    jsonb_build_object('entity_type','macro','entity_id',obs,'preference_id',pref,'title','t','reason','r','kind','new_data'),
+    jsonb_build_object('entity_type','macro','entity_id',gen_random_uuid(),'preference_id',pref,'title','t','reason','r'))) INTO n;
+  res := res || '24-03 notificaciones macro (esperado 2: dos motivos, sin duplicar, id inexistente ignorado): ' || n || E'\n';
+  BEGIN INSERT INTO macro_analyses (model,snapshot,summary,impact_direction,horizon,confidence,confidence_explanation) VALUES ('m','{}','s','neutral','short',10,'e'); res := res || E'24-04 INESPERADO viewer inserta análisis\n';
+  EXCEPTION WHEN others THEN res := res || '24-04 OK viewer no inserta análisis: ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', a, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  INSERT INTO macro_analyses (model,snapshot,summary,impact_direction,horizon,confidence,confidence_explanation) VALUES ('m','{}','s','neutral','short',10,'e');
+  BEGIN INSERT INTO macro_analyses (model,snapshot,summary,impact_direction,horizon,confidence,confidence_explanation,trust_layer) VALUES ('m','{}','s','neutral','short',10,'e','confirmed'); res := res || E'24-05 INESPERADO análisis confirmado\n';
+  EXCEPTION WHEN others THEN res := res || '24-05 OK análisis no puede ser confirmado: ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+  SELECT count(*) INTO n FROM macro_observations WHERE unit IS NULL AND series_key NOT LIKE 'Sector Externo › Tasas de cambio%';
+  res := res || '24-06 filas sin unidad fuera de tasa de cambio (esperado 0): ' || n || E'\n';
+  RAISE EXCEPTION E'RESULTADOS (revertido)\n%', res;
+END $$;

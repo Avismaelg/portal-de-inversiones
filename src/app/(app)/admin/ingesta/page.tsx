@@ -21,8 +21,9 @@ async function Content() {
       <section aria-labelledby="bcrd" className="card mt-8">
         <h2 id="bcrd" className="mb-2 text-lg font-semibold">Banco Central (BCRD)</h2>
         <p className="mb-3 text-sm text-muted">
-          Trae el último dato de inflación, tasas, sector real y sector externo, y la tasa de cambio oficial de los
-          últimos 45 días. Usa 5 de las 500 llamadas diarias del token. La fuente sigue con estado legal{" "}
+          Trae el último dato de inflación, tasas, sector real y sector externo, la tasa de cambio de los últimos 45 días
+          y el índice de precios mensual de los últimos dos años. Usa 6 de las 500 llamadas diarias del token y genera
+          tus alertas del BCRD. La fuente sigue con estado legal{" "}
           <strong>pendiente de revisión</strong>: esta carga la dispara una persona. El BCRD solo acepta llamadas desde
           la IP IPv4 registrada en su consola.
         </p>
@@ -37,6 +38,11 @@ export default function IngestaPage() {
     <>
       <h1 className="page-title mb-2">Carga de datos</h1>
       <p className="mb-6 text-sm text-muted">
+        Cargas manuales asistidas de fuentes primarias. Las dispara una persona con rol de gestión; ninguna fuente está
+        activa como conector automático.
+      </p>
+      <h2 className="mb-2 text-lg font-semibold">Compras públicas (DGCP)</h2>
+      <p className="mb-3 text-sm text-muted">
         Fuente: API de datos abiertos de la DGCP. Los datos son de las instituciones; la DGCP no responde por su
         veracidad (Ley 340-06, art. 34).
       </p>

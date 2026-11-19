@@ -10,6 +10,7 @@ import {
   parseBcrdDate,
   parseBcrdEnvelope,
   parseExchangeRates,
+  parseIpc,
   parseMacroResult,
 } from "@/lib/ingest/bcrd";
 import { PoliteClient } from "@/lib/ingest/polite-client";
@@ -91,7 +92,7 @@ describe("parseBcrdDate", () => {
 });
 
 describe("variables macro", () => {
-  it("aplana el árbol con ruta, fecha heredada y unidad desconocida", () => {
+  it("aplana el árbol con ruta y fecha heredada", () => {
     const rows = parseMacroResult(200, inflacion);
     expect(rows).toHaveLength(6);
     expect(rows[3]).toEqual({
@@ -100,7 +101,7 @@ describe("variables macro", () => {
       indicator: "Interanual",
       value: 4.54,
       as_of: "2026-10-16",
-      data_quality_flags: ["unit_unknown"],
+      data_quality_flags: [],
     });
   });
 
@@ -113,6 +114,7 @@ describe("variables macro", () => {
       ["Pibs > Producto Interno Bruto", "Ene-Dic 2024", 5],
     ]);
     expect(rows.every((r) => r.as_of === null && r.data_quality_flags.includes("missing_date"))).toBe(true);
+    expect(rows.some((r) => r.data_quality_flags.includes("unit_unknown"))).toBe(false);
   });
 
   it("marca fechas inválidas y omite hojas sin valor", () => {
@@ -160,6 +162,26 @@ describe("histórico de tasas", () => {
   });
 });
 
+describe("histórico del IPC", () => {
+  it("convierte meses a YYYY-MM-01, ordena y cuenta inválidos", () => {
+    const r = parseIpc(200, {
+      name: "IPC",
+      values: [
+        { month: 2, year: 2025, indexValue: 131.6244 },
+        { month: 1, year: 2025, indexValue: 131.2004 },
+        { month: 13, year: 2025, indexValue: 1 },
+        { month: 3, year: 2025, indexValue: -1 },
+      ],
+    });
+    expect(r.items).toEqual([
+      { month_start: "2025-01-01", value: 131.2004 },
+      { month_start: "2025-02-01", value: 131.6244 },
+    ]);
+    expect(r.rejected).toBe(2);
+    expect(() => parseIpc(200, { values: "x" })).toThrow(/forma inesperada/);
+  });
+});
+
 describe("llamadas a la API", () => {
   it("envía POST con el token en el cuerpo y sin reintentar un 500", async () => {
     const f = vi.fn(async () => json(ipError, 500));
@@ -199,7 +221,7 @@ describe("llamadas a la API", () => {
     const page = await fetchHistoricoTasas(client, TOKEN, { fromDate: "2026-01-01", toDate: "2026-01-31" });
     const ipc = await fetchHistoricoIpc(client, TOKEN, { yearFrom: 2025, monthFrom: 1, yearTo: 2026, monthTo: 10, maxResultCount: 12 });
     expect(page.items).toHaveLength(2);
-    expect(ipc).toEqual({ name: "IPC", values: [] });
+    expect(ipc).toEqual({ items: [], rejected: 0 });
     const bodies = f.mock.calls.map((c) => JSON.parse((c as unknown as [string, RequestInit])[1].body as string));
     expect(bodies[0]).toEqual({ fromDate: "2026-01-01", toDate: "2026-01-31", skipCount: 0, maxResultCount: 100, token: TOKEN });
     expect(bodies[1]).toMatchObject({ yearFrom: 2025, monthFrom: 1, yearTo: 2026, monthTo: 10, skipCount: 0, maxResultCount: 12 });
