@@ -152,7 +152,7 @@ Implementa lo que `docs/ia/SISTEMA-IA.md` §4.2 y el backlog técnico piden para
 | T-AI-02 Verificador literal y validación de esquema | **Hecho** | Normalización, cita mínima, el dato debe estar dentro de la cita, cifras no presentes en la fuente | `literal.test.ts` |
 | T-AI-04 Agente 2 Extraction | **Hecho (v1, parcial)** | Esquema Zod estricto, prompt `extraction@1.0.0`, delimitador escapado, heurística de injection, importes y fechas calculados por código, estado degradado si no hay documento de aprobación | `extraction.test.ts`, `amounts.test.ts` |
 | Interfaz staff | **Hecho** | Sección «Datos estructurados del acontecimiento» y botón «Extraer datos con IA» en `/noticias/[id]`, solo para roles staff | Revisión de código; **sin prueba en el navegador con sesión real** |
-| Registro | **Pendiente de aplicar** | Migración 26: `record_extraction_run` guarda el candidato filtrado en `ai_analysis_runs` con `agent='extraction'`, `task='news_extraction'`, `subject_type='news'` | P0 bloque M26 escrito, **no ejecutado** |
+| Registro | **Hecho** | Migración 26 (aplicada el 2026-11-18): `record_extraction_run` guarda el candidato filtrado en `ai_analysis_runs` con `agent='extraction'`, `task='news_extraction'`, `subject_type='news'` | P0 bloque M26 ejecutado: 7/7 en el resultado esperado |
 | Tope de costo | **Hecho** | Reutiliza `ai_spend_month()` y `AI_MONTHLY_BUDGET_USD` (5 USD por defecto) | Lógica probada con cliente simulado |
 | Ejecución real | **No realizada** | — | Falta `AI_API_KEY` (B-011) |
 
@@ -160,4 +160,16 @@ Evidencia local (2026-11-18): `npm run lint`, `npm run typecheck` y `npm run bui
 
 Límites que se mantienen: no crea `economic_events`, no publica, no genera alertas y no guarda el texto de la fuente. No hay golden set (T-AI-03), suite adversarial completa (T-AI-07) ni evals en CI (T-AI-12); **no se declara ninguna exactitud**.
 
-**Bloqueo operativo:** la migración 26 no se aplicó desde esta sesión porque el servidor MCP de Supabase disponible apunta al proyecto `ecmqmgpruxclmpnnpgzv`, no a `xzlwrlgjsdymcidlmqew`. Debe aplicarse con el SQL Editor del proyecto correcto o `supabase db push` antes de usar la función; sin ella el botón extrae pero no guarda y la ficha no muestra el resultado.
+**Migración 26 aplicada** el 2026-11-18 desde el SQL Editor del proyecto `xzlwrlgjsdymcidlmqew` (el MCP de Supabase disponible en la sesión apuntaba a `ecmqmgpruxclmpnnpgzv`, así que no se usó para DDL). Verificación del bloque M26:
+
+```
+26-01 OK viewer no registra: only staff can record an AI run
+26-02 viewer no ve ejecuciones (esperado 0): 0
+26-03 analista registra (esperado extraction/news_extraction/news): extraction/news_extraction/news
+26-04 salida guardada (esperado false): false
+26-05 OK salida limitada: output too large
+26-06 OK costo no negativo: ... check constraint "ai_analysis_runs_cost_usd_check"
+26-07 OK modelo obligatorio: model required
+```
+
+El bloque se revirtió solo. Lo único que falta para usar el agente es la clave `AI_API_KEY` (B-011), que no está en `.env.local`; sin ella el botón responde pidiendo la clave y no llama a ningún proveedor.

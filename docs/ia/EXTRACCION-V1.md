@@ -5,7 +5,7 @@
 | Documento | `docs/ia/EXTRACCION-V1.md` |
 | Fecha | 2026-11-18 |
 | Autor | Ventana A |
-| Estado | **Implementado y probado con un cliente simulado.** No ejecutado contra la API real (B-011: falta `AI_API_KEY`) y la migración 26 **no está aplicada** (ver §6) |
+| Estado | **Implementado y probado con un cliente simulado.** Migración 26 aplicada y bloque P0 M26 verificado el 2026-11-18. No ejecutado contra la API real (B-011: falta `AI_API_KEY`) |
 | Base | `docs/ia/SISTEMA-IA.md` §3, §4.2, §6, §8; ADR-0006; tareas T-AI-01, T-AI-02 y T-AI-04 del backlog técnico |
 
 ## 1. Qué se implementó
@@ -68,11 +68,11 @@
 | `npx vitest run` (archivos nuevos) | 26/26 OK |
 | `npm run build` | OK; `/noticias/[id]` sigue siendo parcialmente prerenderizada |
 | Ejecución con la API real | **No realizada**: falta `AI_API_KEY` |
-| Migración 26 aplicada | **No**: el MCP de Supabase de esta sesión está conectado al proyecto `ecmqmgpruxclmpnnpgzv`, no a `xzlwrlgjsdymcidlmqew` |
+| Migración 26 aplicada | **Sí** (2026-11-18, SQL Editor del proyecto `xzlwrlgjsdymcidlmqew`); bloque P0 M26 con los 7 casos en el resultado esperado |
 
 ## 6. Cómo habilitarlo
 
-1. **Aplicar la migración** `supabase/migrations/20261118180000_init_26_extraction_runs.sql` al proyecto `xzlwrlgjsdymcidlmqew` (SQL Editor o `supabase db push`). Sin ella, el botón genera la extracción pero no puede guardarla y la ficha no la muestra.
+1. **Migración 26** — ya aplicada en `xzlwrlgjsdymcidlmqew` (2026-11-18). Si se recrea el entorno, aplicar `supabase/migrations/20261118180000_init_26_extraction_runs.sql` (SQL Editor o `supabase db push`). Sin ella, el botón genera la extracción pero no puede guardarla y la ficha no la muestra.
 2. **Configurar la clave** en `.env.local` (nunca en el repo):
    ```
    AI_API_KEY=…

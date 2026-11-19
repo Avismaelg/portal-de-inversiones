@@ -2,7 +2,7 @@
 
 Plataforma SaaS de inteligencia económica, financiera y de oportunidades de negocio para República Dominicana, con expansión internacional.
 
-> **Estado (2026-11-18):** aplicación funcional en desarrollo local sobre Supabase `xzlwrlgjsdymcidlmqew` (25 migraciones aplicadas, RLS activa; la 26 está en el repositorio y **pendiente de aplicar**). Hay código de producto: autenticación, instrumentos con revisión y publicación, licitaciones DGCP (carga manual asistida), noticias de fuentes primarias, radar, alertas in-app, watchlist, datos macro del BCRD, análisis de impacto con Claude y una v1 del agente de extracción de noticias (candidato para revisión, no publica). Los análisis con IA requieren `AI_API_KEY` y **no se han ejecutado contra la API real**. **No está listo para producción:** fuentes sin revisión legal (B-009/B-017), E2E sin sesión real y sin entorno de pruebas separado, sin despliegue. Sprint de estabilización en curso: `docs/estabilizacion/INFORME-ESTABILIZACION.md`.
+> **Estado (2026-11-18):** aplicación funcional en desarrollo local sobre Supabase `xzlwrlgjsdymcidlmqew` (26 migraciones aplicadas, RLS activa). Hay código de producto: autenticación, instrumentos con revisión y publicación, licitaciones DGCP (carga manual asistida), noticias de fuentes primarias, radar, alertas in-app, watchlist, datos macro del BCRD, análisis de impacto con Claude y una v1 del agente de extracción de noticias (candidato para revisión, no publica). Los análisis con IA requieren `AI_API_KEY` y **no se han ejecutado contra la API real**. **No está listo para producción:** fuentes sin revisión legal (B-009/B-017), E2E sin sesión real y sin entorno de pruebas separado, sin despliegue. Sprint de estabilización en curso: `docs/estabilizacion/INFORME-ESTABILIZACION.md`.
 
 - **Organización:** AviTech Solutions Group
 - **Versión:** 0.1.0
@@ -114,7 +114,7 @@ docs/
 └── estabilizacion/                  # auditoría y sprint de estabilización (2026-11-17)
 
 supabase/
-├── migrations/                      # 25 aplicadas en xzlwrlgjsdymcidlmqew; la 26 (extracción) está pendiente
+├── migrations/                      # 26 aplicadas en xzlwrlgjsdymcidlmqew
 └── tests/p0_suite.sql               # guardias, RLS y privilegios (bloques A–M26, se revierten solos)
 ```
 
