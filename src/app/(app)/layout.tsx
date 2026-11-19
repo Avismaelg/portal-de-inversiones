@@ -20,6 +20,7 @@ const GROUPS: NavGroup[] = [
       { href: "/permisos", label: "Permisos", icon: "permit", ready: false },
       { href: "/licitaciones", label: "Licitaciones", icon: "doc" },
       { href: "/instrumentos", label: "Finanzas", icon: "chart" },
+      { href: "/macro", label: "Macro BCRD", icon: "chart" },
       { href: "/oportunidades", label: "Oportunidades", icon: "spark" },
       { href: "/empresas", label: "Empresas", icon: "building", ready: false },
       { href: "/mapa", label: "Mapa", icon: "pin", ready: false },

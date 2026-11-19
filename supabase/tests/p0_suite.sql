@@ -651,3 +651,39 @@ BEGIN
 
   RAISE EXCEPTION E'RESULTADOS H (revertido):\n%', res;
 END $$;
+
+-- ------------------- BLOQUE M23: datos BCRD (macro y tasa de cambio) ---------------
+-- Ejecutado el 2026-11-18 con la migración 23 aplicada: todas las líneas dieron lo esperado.
+DO $$
+DECLARE res text := ''; tn uuid := '00000000-0000-0000-0000-0000000023a1'; m uuid := '00000000-0000-0000-0000-0000000023b1'; v uuid := '00000000-0000-0000-0000-0000000023b2'; s uuid; n int;
+BEGIN
+  SELECT id INTO s FROM sources WHERE code='bcrd_api';
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn,'tenant','Tenant prueba 23');
+  INSERT INTO auth.users (id, email) VALUES (m,'m23@test.invalid'),(v,'v23@test.invalid');
+  UPDATE users SET role='opportunity_manager' WHERE id=m;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  BEGIN INSERT INTO macro_observations (source_id,series_key,group_name,indicator,value,observation_key) VALUES (s,'k','G','i',1,'o1'); res := res || E'23-01 INESPERADO: viewer insertó\n';
+  EXCEPTION WHEN others THEN res := res || '23-01 OK viewer no inserta: ' || SQLERRM || E'\n'; END;
+  BEGIN INSERT INTO exchange_rates (source_id,rate_date,buying,selling) VALUES (s,'2026-11-18',60,61); res := res || E'23-02 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || '23-02 OK viewer no inserta tasas: ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', m, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  INSERT INTO macro_observations (source_id,series_key,group_name,indicator,value,observation_key) VALUES (s,'k','G','i',1,'o1');
+  INSERT INTO exchange_rates (source_id,rate_date,buying,selling) VALUES (s,'2026-11-18',60,61)
+    ON CONFLICT (source_id,currency_id,rate_date) DO UPDATE SET buying=excluded.buying, selling=excluded.selling, last_seen_at=now();
+  INSERT INTO exchange_rates (source_id,rate_date,buying,selling) VALUES (s,'2026-11-18',60.1,61)
+    ON CONFLICT (source_id,currency_id,rate_date) DO UPDATE SET buying=excluded.buying, selling=excluded.selling, last_seen_at=now();
+  SELECT count(*) INTO n FROM exchange_rates WHERE buying=60.1; res := res || '23-03 gestor inserta y actualiza tasas (esperado 1): ' || n || E'\n';
+  BEGIN UPDATE macro_observations SET value=2 WHERE observation_key='o1'; res := res || E'23-04 INESPERADO: cambió value\n';
+  EXCEPTION WHEN others THEN res := res || '23-04 OK value inmutable: ' || SQLERRM || E'\n'; END;
+  BEGIN UPDATE exchange_rates SET first_seen_at=now(); res := res || E'23-05 INESPERADO\n';
+  EXCEPTION WHEN others THEN res := res || '23-05 OK first_seen_at inmutable: ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+  SET LOCAL ROLE anon;
+  BEGIN SELECT count(*) INTO n FROM exchange_rates; res := res || E'23-06 INESPERADO anon lee\n';
+  EXCEPTION WHEN others THEN res := res || '23-06 OK anon no lee: ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+  RAISE EXCEPTION E'RESULTADOS (revertido)\n%', res;
+END $$;

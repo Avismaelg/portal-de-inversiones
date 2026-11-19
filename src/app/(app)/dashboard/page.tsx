@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatMoney, todayInRD } from "@/lib/format";
 import { NewsCard } from "@/components/news-card";
 import { scoreNews } from "@/lib/priority";
+import { buildPulse, summarizeFx } from "@/lib/macro";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -19,6 +20,66 @@ function Kpi({ label, value, hint }: { label: string; value: string; hint: strin
       <p className="mt-2 num text-3xl font-semibold tracking-tight text-text">{value}</p>
       <p className="mt-1 text-xs text-muted">{hint}</p>
     </div>
+  );
+}
+
+const KEY_SERIES = [
+  { key: "Inflación › Inflación › Interanual", label: "Inflación interanual" },
+  { key: "Monetarias › Tasas de interés › Activa", label: "Tasa activa" },
+  { key: "Monetarias › Tasas de interés › Pasiva", label: "Tasa pasiva" },
+  { key: "Sector Externo › Reservas Internacionales › Brutas", label: "Reservas brutas" },
+];
+
+/** Resumen del BCRD: dato oficial tal cual, con su cambio frente al valor anterior guardado. */
+async function MacroPulse() {
+  const supabase = await createClient();
+  const [obs, fx] = await Promise.all([
+    supabase
+      .from("macro_observations")
+      .select("series_key,group_name,category_path,indicator,value,as_of,first_seen_at,last_seen_at,data_quality_flags")
+      .in("series_key", KEY_SERIES.map((k) => k.key))
+      .order("first_seen_at", { ascending: false })
+      .limit(200),
+    supabase.from("exchange_rates").select("rate_date,buying,selling").gte("rate_date", todayInRD(-10)).order("rate_date", { ascending: false }),
+  ]);
+  if (obs.error || fx.error) return null;
+  const pulse = buildPulse(obs.data ?? [], new Date());
+  const fxs = summarizeFx(fx.data ?? []);
+  if (!pulse.length && !fxs) return null;
+  const nf = (v: number) => new Intl.NumberFormat("es-DO", { maximumFractionDigits: 4 }).format(v);
+  const delta = (v: number | null, pct = false) =>
+    v === null ? null : (
+      <span className={v > 0 ? "text-success" : v < 0 ? "text-danger" : "text-muted"}>
+        {v > 0 ? "+" : ""}{nf(v)}{pct ? " %" : ""}
+      </span>
+    );
+  return (
+    <section aria-labelledby="macro" className="card mb-4">
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <h2 id="macro" className="text-base font-semibold">Pulso macro (BCRD, dato oficial)</h2>
+        <Link href="/macro" className="text-sm font-semibold text-primary hover:underline">Ver todo →</Link>
+      </div>
+      <dl className="grid gap-3 sm:grid-cols-5">
+        {fxs && (
+          <div>
+            <dt className="text-xs text-muted">Dólar, venta · {formatDate(fxs.latest.rate_date)}</dt>
+            <dd className="num text-xl font-semibold">{nf(fxs.latest.selling)}</dd>
+            <dd className="text-xs">{delta(fxs.daily_pct, true) ?? "—"} vs. día anterior</dd>
+          </div>
+        )}
+        {KEY_SERIES.map((k) => {
+          const p = pulse.find((x) => x.series_key === k.key);
+          if (!p) return null;
+          return (
+            <div key={k.key}>
+              <dt className="text-xs text-muted">{k.label}{p.as_of ? ` · ${formatDate(p.as_of)}` : ""}</dt>
+              <dd className="num text-xl font-semibold">{nf(p.value)}</dd>
+              <dd className="text-xs">{p.change === null ? "Sin dato anterior guardado" : <>{delta(p.change)} vs. anterior</>}</dd>
+            </div>
+          );
+        })}
+      </dl>
+    </section>
   );
 }
 
@@ -104,6 +165,7 @@ async function Summary() {
           <p className="empty-state">No hay señales de los últimos 7 días. Carga noticias desde la sección Noticias.</p>
         )}
       </section>
+      <MacroPulse />
       <section aria-labelledby="pronto" className="card mb-4">
         <div className="mb-2 flex items-baseline justify-between gap-3">
           <h2 id="pronto" className="text-base font-semibold">Licitaciones que cierran en 7 días (mayor monto)</h2>
