@@ -12,6 +12,7 @@ import { isStaffRole } from "@/lib/review-rules";
 import { createClient } from "@/lib/supabase/server";
 import { ProposeForm } from "../../oportunidades/propose-form";
 import { AnalyzeButton } from "../analyze-button";
+import { ExtractionSection } from "./extraction-section";
 
 export const metadata: Metadata = { title: "Noticia" };
 
@@ -179,6 +180,12 @@ async function Detail({ params }: { params: Promise<{ id: string }> }) {
             {isStaffRole(role) && <AnalyzeButton id={n.id} again />}
           </section>
         </>
+      )}
+
+      {isStaffRole(role) && (
+        <Suspense fallback={<p className="card text-muted">Cargando datos extraídos…</p>}>
+          <ExtractionSection newsId={n.id} />
+        </Suspense>
       )}
     </div>
   );

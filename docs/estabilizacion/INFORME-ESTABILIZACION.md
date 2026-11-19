@@ -72,7 +72,7 @@ D-07 viewer ve borrador (esperado 0): 0                               (RLS)
 | Alertas in-app | `/alertas` por palabras clave (noticias y licitaciones), cálculo al vuelo; `notifications` sin uso | `radar.test.ts` | Parcial: sin entrega, lectura, deduplicación |
 | Oportunidades con revisión humana | `/oportunidades` de solo lectura; guardia en base (`enforce_opportunity_publication`) | P0 bloques A/B | No iniciado (solo lista) |
 | Instrumentos con evidencia | `/instrumentos`, revisión y despublicación con motivo | P0, `review-rules` | Funcional |
-| Análisis IA | Noticias: impacto, escenarios, cadena de valor; cita verificada | `analyze-news.test.ts`, `article.test.ts` | Implementado, **no ejecutado con la API real** (falta clave) |
+| Análisis IA | Noticias: impacto, escenarios, cadena de valor; cita verificada. Extracción v1 de un candidato de acontecimiento con citas literales (no publica) | `analyze-news.test.ts`, `article.test.ts`, `extraction.test.ts`, `literal.test.ts`, `amounts.test.ts`, `llm-client.test.ts` | Implementado, **no ejecutado con la API real** (falta clave); extracción pendiente de migración 26 |
 
 ## 6. Backlog priorizado
 
@@ -141,3 +141,23 @@ Bloqueo nuevo **B-022**: token del BCRD restringido por IP e IP del usuario din�
 Evidencia local: lint, tipos, 117/117 unitarias, 6/6 E2E y build en verde.
 
 **Riesgo residual (documentado):** la base no puede comprobar por sí misma la cita porque el texto de las noticias no se almacena (términos de las fuentes pendientes, B-009). La comprobación la hace el servidor; la función `add_literal_evidence` registra que la atestigua un gestor. Un gestor que llamara a la función directamente podría registrar una cita sin comprobar: queda trazado y es una acción humana con rol de publicación.
+
+## 10. Incremento IA: extracción de acontecimientos (rama `feat/ia-extraccion`, 2026-11-18)
+
+Implementa lo que `docs/ia/SISTEMA-IA.md` §4.2 y el backlog técnico piden para el Agente 2, sin añadir el asistente conversacional (excluido por la decisión de producto D-03). Detalle completo en `docs/ia/EXTRACCION-V1.md`.
+
+| Tarea | Estado | Implementación | Verificación |
+|---|---|---|---|
+| T-AI-01 Interfaz `LlmClient` independiente del proveedor | **Hecho** | `LlmClient`, `LlmRequest`, `LlmResult`; adaptador Anthropic; ningún agente importa el SDK | `llm-client.test.ts` |
+| T-AI-02 Verificador literal y validación de esquema | **Hecho** | Normalización, cita mínima, el dato debe estar dentro de la cita, cifras no presentes en la fuente | `literal.test.ts` |
+| T-AI-04 Agente 2 Extraction | **Hecho (v1, parcial)** | Esquema Zod estricto, prompt `extraction@1.0.0`, delimitador escapado, heurística de injection, importes y fechas calculados por código, estado degradado si no hay documento de aprobación | `extraction.test.ts`, `amounts.test.ts` |
+| Interfaz staff | **Hecho** | Sección «Datos estructurados del acontecimiento» y botón «Extraer datos con IA» en `/noticias/[id]`, solo para roles staff | Revisión de código; **sin prueba en el navegador con sesión real** |
+| Registro | **Pendiente de aplicar** | Migración 26: `record_extraction_run` guarda el candidato filtrado en `ai_analysis_runs` con `agent='extraction'`, `task='news_extraction'`, `subject_type='news'` | P0 bloque M26 escrito, **no ejecutado** |
+| Tope de costo | **Hecho** | Reutiliza `ai_spend_month()` y `AI_MONTHLY_BUDGET_USD` (5 USD por defecto) | Lógica probada con cliente simulado |
+| Ejecución real | **No realizada** | — | Falta `AI_API_KEY` (B-011) |
+
+Evidencia local (2026-11-18): `npm run lint`, `npm run typecheck` y `npm run build` en verde; `npm run test:coverage` 157/157 en 29 archivos; `src/lib` 95,94 % sentencias / 92,05 % ramas / 97,75 % funciones / 97,26 % líneas; `src/lib/ai` 94,75 / 83,87 / 97,67 / 96,53.
+
+Límites que se mantienen: no crea `economic_events`, no publica, no genera alertas y no guarda el texto de la fuente. No hay golden set (T-AI-03), suite adversarial completa (T-AI-07) ni evals en CI (T-AI-12); **no se declara ninguna exactitud**.
+
+**Bloqueo operativo:** la migración 26 no se aplicó desde esta sesión porque el servidor MCP de Supabase disponible apunta al proyecto `ecmqmgpruxclmpnnpgzv`, no a `xzlwrlgjsdymcidlmqew`. Debe aplicarse con el SQL Editor del proyecto correcto o `supabase db push` antes de usar la función; sin ella el botón extrae pero no guarda y la ficha no muestra el resultado.

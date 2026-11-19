@@ -786,3 +786,41 @@ BEGIN
   RESET ROLE;
   RAISE EXCEPTION E'RESULTADOS (revertido)\n%', res;
 END $$;
+
+-- ------------- BLOQUE M26: ejecuciones del agente de extracción (T-AI-01/T-AI-02) ---------------
+DO $$
+DECLARE res text := ''; tn uuid := '00000000-0000-0000-0000-0000000026a1'; a uuid := '00000000-0000-0000-0000-0000000026b1'; v uuid := '00000000-0000-0000-0000-0000000026b2';
+  u uuid; n int; ag text; tk text; st text; out jsonb;
+BEGIN
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn,'tenant','Tenant prueba 26');
+  INSERT INTO auth.users (id, email) VALUES (a,'a26@test.invalid'),(v,'v26@test.invalid');
+  UPDATE users SET role='analyst' WHERE id=a;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  BEGIN PERFORM record_extraction_run(gen_random_uuid(),'claude-haiku-5-5','p','s',10,10,0.001,100,'succeeded',NULL,'{}'::jsonb);
+    res := res || E'26-01 INESPERADO viewer registra\n';
+  EXCEPTION WHEN others THEN res := res || '26-01 OK viewer no registra: ' || SQLERRM || E'\n'; END;
+  SELECT count(*) INTO n FROM ai_analysis_runs;
+  res := res || '26-02 viewer no ve ejecuciones (esperado 0): ' || n || E'\n';
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', a, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  u := record_extraction_run(gen_random_uuid(),'claude-haiku-5-5','extraction@1.0.0','extraction-schema@1.0.0',100,50,0.0001,250,
+        'succeeded',NULL,
+        jsonb_build_object('extraction',jsonb_build_object('event',NULL),'injection_suspected',false,'used_full_text',true,'truncated',false));
+  SELECT agent::text, task, subject_type::text, output INTO ag, tk, st, out FROM ai_analysis_runs WHERE id=u;
+  res := res || '26-03 analista registra (esperado extraction/news_extraction/news): ' || ag || '/' || tk || '/' || st || E'\n';
+  res := res || '26-04 salida guardada (esperado false): ' || (out->>'injection_suspected') || E'\n';
+  BEGIN PERFORM record_extraction_run(gen_random_uuid(),'m','p','s',1,1,0,1,'succeeded',NULL,
+          jsonb_build_object('x',repeat('a',300000)));
+    res := res || E'26-05 INESPERADO salida enorme\n';
+  EXCEPTION WHEN others THEN res := res || '26-05 OK salida limitada: ' || SQLERRM || E'\n'; END;
+  BEGIN PERFORM record_extraction_run(gen_random_uuid(),'m','p','s',1,1,-1,1,'succeeded',NULL,NULL);
+    res := res || E'26-06 INESPERADO costo negativo\n';
+  EXCEPTION WHEN others THEN res := res || '26-06 OK costo no negativo: ' || SQLERRM || E'\n'; END;
+  BEGIN PERFORM record_extraction_run(gen_random_uuid(),NULL,'p','s',1,1,0,1,'succeeded',NULL,NULL);
+    res := res || E'26-07 INESPERADO modelo vacío\n';
+  EXCEPTION WHEN others THEN res := res || '26-07 OK modelo obligatorio: ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+  RAISE EXCEPTION E'RESULTADOS (revertido)\n%', res;
+END $$;

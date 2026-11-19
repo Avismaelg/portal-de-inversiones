@@ -3,10 +3,10 @@
 | Campo | Valor |
 |---|---|
 | Documento | `docs/ia/SISTEMA-IA.md` |
-| Versión | 0.1.0 (Sprint 0) |
+| Versión | 0.2.0 (2026-11-18) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana A |
-| Estado | **PROPUESTA** — ningún agente está implementado ni evaluado |
+| Estado | **Diseño vigente; Agente 2 (Extraction) tiene una implementación v1** probada con cliente simulado, sin ejecución real ni evals (ver `docs/ia/EXTRACCION-V1.md`). Los demás agentes siguen sin implementar |
 | Requisitos | `[PENDIENTE SRS]`. Base: PM §5; RF-A/F y RNF-16…RNF-22 provisionales de B |
 
 > **Qué no se afirma.** No se ha elegido proveedor ni modelo; no se ha medido precisión, costo ni latencia de nada. Todos los umbrales son **hipótesis** (los de calidad vienen de B, RNF-16…22; los de costo, de B RNF-21 con tope mensual `[PENDIENTE]`). Los esquemas JSON son contratos de diseño, aún sin código.
@@ -196,6 +196,16 @@ Esquema `EventCandidate` (v1.0):
 ```
 
 Reglas post-extracción (código): el importe se parsea con reglas de locale `es-DO` (coma/punto) y nunca por el LLM; `administrative_status` se **degrada** a `permit_applied`/`announced` si no hay cita de un documento de aprobación; las fechas relativas ("el próximo mes") sin fecha de publicación se descartan.
+
+**Implementación v1 (2026-11-18).** Existe una primera versión del agente en `src/lib/ai/extraction.ts`, con contrato `LlmClient` (`src/lib/ai/types.ts`), adaptador Anthropic (`src/lib/ai/anthropic-client.ts`), verificador literal (`src/lib/ai/literal.ts`), heurística de injection (`src/lib/ai/injection.ts`) y parser determinista de importes `es-DO` (`src/lib/ai/amounts.ts`). Se ejecuta desde la ficha de una noticia (staff) y guarda el candidato filtrado en `ai_analysis_runs` mediante `record_extraction_run` (migración 26). Diferencias frente al diseño de esta sección:
+
+- Entra el texto de una **noticia** (titular, extracto, cuerpo), no un `source_document` troceado; el sujeto del registro es `subject_type = 'news'`.
+- Se devuelve **un** `EventCandidate` por noticia, sin `source_document_id` en `evidence` (el texto de la fuente no se almacena).
+- `amounts[].value` lo calcula el código desde la expresión literal; la moneda se detecta en el texto, no la declara el modelo.
+- `occurred_at` exige cita con día, mes y año; si la cita no los contiene, la fecha se descarta.
+- El prompt (`extraction@1.0.0`) y el esquema (`extraction-schema@1.0.0`) viven en el código; la carpeta `ai/prompts` sigue pendiente.
+- No crea `economic_events`, no publica y no genera alertas: el resultado es un candidato para revisión humana.
+- **No evaluado**: no hay golden set, ni suite adversarial completa, ni medición de exactitud o costo real (T-AI-03, T-AI-07, T-AI-12).
 
 ### 4.3 Agente 3 — Verification
 
@@ -447,6 +457,8 @@ Límite honesto: ninguna defensa es completa. I-1 y I-5 son las que acotan el da
 | RI-08 | Dependencia de un proveedor | B | M | Interfaz `LlmClient`; prueba de portabilidad con 2 proveedores (Sprint 1+) |
 
 ## 13. Qué falta antes de implementar
+
+> Actualización 2026-11-18: el punto 1 sigue abierto (el adaptador Anthropic lee el modelo de `AI_MODEL_EXTRACTION` y el tope de `AI_MONTHLY_BUDGET_USD`, pero no hay clave configurada ni proveedor aprobado). El Agente 2 tiene una v1 (ver §4.2); los puntos 2–5 siguen abiertos.
 
 1. Elección de proveedor/modelos y tope mensual (decisión del usuario).
 2. Fuentes conectadas para construir el golden set (Fase 3).
