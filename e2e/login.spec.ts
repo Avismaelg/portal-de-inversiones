@@ -8,6 +8,13 @@ test("sin sesión, / y /instrumentos llevan a /login", async ({ page }) => {
   await expect(page).toHaveURL(/\/login$/);
 });
 
+test("sin sesión, los datos del BCRD y las alertas exigen login", async ({ page }) => {
+  for (const path of ["/macro", "/alertas", "/admin/ingesta"]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/login$/);
+  }
+});
+
 test("login se ve bien, es accesible y rechaza datos vacíos", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByRole("heading", { level: 1, name: "Iniciar sesión" })).toBeVisible();
