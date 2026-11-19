@@ -723,3 +723,66 @@ BEGIN
   res := res || '24-06 filas sin unidad fuera de tasa de cambio (esperado 0): ' || n || E'\n';
   RAISE EXCEPTION E'RESULTADOS (revertido)\n%', res;
 END $$;
+
+-- ------------- BLOQUE M25: carga manual de proyectos y permisos (P1-05) ---------------
+-- Ejecutado el 2026-11-18 con la migración 25 aplicada: las 13 líneas dieron lo esperado.
+DO $$
+DECLARE res text := ''; tn uuid := '00000000-0000-0000-0000-0000000025a1'; a uuid := '00000000-0000-0000-0000-0000000025b1'; m uuid := '00000000-0000-0000-0000-0000000025b2'; v uuid := '00000000-0000-0000-0000-0000000025b3';
+  d uuid; d2 uuid; p uuid; pm uuid; n int; st text;
+BEGIN
+  INSERT INTO organizations (id, org_type, legal_name) VALUES (tn,'tenant','Tenant prueba 25');
+  INSERT INTO auth.users (id, email) VALUES (a,'a25@test.invalid'),(m,'m25@test.invalid'),(v,'v25@test.invalid');
+  UPDATE users SET role='analyst' WHERE id=a; UPDATE users SET role='opportunity_manager' WHERE id=m;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  BEGIN PERFORM register_official_document('https://mimarena.gob.do/x.pdf','t',NULL); res := res || E'25-01 INESPERADO viewer registra\n';
+  EXCEPTION WHEN others THEN res := res || '25-01 OK viewer no registra documentos: ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', a, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  BEGIN PERFORM register_official_document('http://mimarena.gob.do/x.pdf','t',NULL); res := res || E'25-02 INESPERADO http\n';
+  EXCEPTION WHEN others THEN res := res || '25-02 OK solo https: ' || SQLERRM || E'\n'; END;
+  BEGIN PERFORM register_official_document('https://evilgob.do.example.com/x.pdf','t',NULL); res := res || E'25-03 INESPERADO dominio\n';
+  EXCEPTION WHEN others THEN res := res || '25-03 OK solo dominios oficiales: ' || SQLERRM || E'\n'; END;
+  BEGIN PERFORM register_official_document('https://notgob.do/x','t',NULL); res := res || E'25-03b INESPERADO notgob.do\n';
+  EXCEPTION WHEN others THEN res := res || '25-03b OK notgob.do rechazado' || E'\n'; END;
+  BEGIN PERFORM register_official_document('https://mimarena.gob.do/x.pdf','t',(now()+interval '5 days')::date); res := res || E'25-04 INESPERADO fecha futura\n';
+  EXCEPTION WHEN others THEN res := res || '25-04 OK fecha futura rechazada' || E'\n'; END;
+  d := register_official_document('https://mimarena.gob.do/x.pdf','Resolución','2026-11-01');
+  d2 := register_official_document('https://mimarena.gob.do/x.pdf','otro título',NULL);
+  res := res || '25-05 mismo URL reutiliza el documento (esperado true): ' || (d = d2) || E'\n';
+  BEGIN INSERT INTO projects (name, dedup_key) VALUES ('Sin doc', repeat('a',64)); res := res || E'25-06 INESPERADO proyecto sin documento\n';
+  EXCEPTION WHEN others THEN res := res || '25-06 OK proyecto exige documento: ' || SQLERRM || E'\n'; END;
+  INSERT INTO projects (name, dedup_key, primary_source_document_id, status, trust_layer) VALUES ('Parque solar prueba', repeat('b',64), d, 'announced', 'inference') RETURNING id INTO p;
+  UPDATE projects SET status = 'permit_applied' WHERE id = p;
+  UPDATE projects SET description = 'x' WHERE id = p;
+  SELECT count(*) INTO n FROM registry_status_changes WHERE project_id = p;
+  res := res || '25-07 historial del proyecto (esperado 2: alta y cambio; editar otro campo no cuenta): ' || n || E'\n';
+  SELECT string_agg(coalesce(from_status,'∅') || '→' || to_status || ':' || changed_by_role, ', ' ORDER BY changed_at, to_status) INTO st FROM registry_status_changes WHERE project_id = p;
+  res := res || '    ' || st || E'\n';
+  BEGIN UPDATE projects SET status = 'permit_approved' WHERE id = p; res := res || E'25-08 INESPERADO aprobado sin documento oficial\n';
+  EXCEPTION WHEN others THEN res := res || '25-08 OK aprobado exige documento oficial: ' || SQLERRM || E'\n'; END;
+  BEGIN INSERT INTO registry_status_changes (project_id, to_status) VALUES (p, 'operating'); res := res || E'25-09 INESPERADO escribe historial\n';
+  EXCEPTION WHEN others THEN res := res || '25-09 OK historial solo por disparador: ' || SQLERRM || E'\n'; END;
+  BEGIN UPDATE projects SET publication_status = 'published', review_notes = 'ok' WHERE id = p; res := res || E'25-10 INESPERADO analista publica\n';
+  EXCEPTION WHEN others THEN res := res || '25-10 OK analista no publica: ' || SQLERRM || E'\n'; END;
+  INSERT INTO permits (project_id, permit_type, status, official_document_id, dedup_key, trust_layer) VALUES (p, 'environmental', 'requested', d, repeat('c',64), 'inference') RETURNING id INTO pm;
+  SELECT count(*) INTO n FROM registry_status_changes WHERE permit_id = pm;
+  res := res || '25-11 historial del permiso (esperado 1): ' || n || E'\n';
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM registry_status_changes WHERE project_id = p;
+  res := res || '25-12 viewer ve historial de borrador (esperado 0): ' || n || E'\n';
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', m, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  UPDATE projects SET publication_status = 'published', review_notes = 'Revisado contra la resolución', trust_layer = 'confirmed' WHERE id = p;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM registry_status_changes WHERE project_id = p;
+  res := res || '25-13 viewer ve historial del publicado (esperado 2): ' || n || E'\n';
+  RESET ROLE;
+  RAISE EXCEPTION E'RESULTADOS (revertido)\n%', res;
+END $$;
