@@ -2,24 +2,28 @@
  * Conector API BCRD (F-02). Solo lectura: NO escribe en la base ni activa la fuente
  * (`sources.is_active` sigue en false hasta decisión del propietario y del abogado, G0 #5).
  *
- * Verificado el 2026-11-18:
+ * Verificado el 2026-11-18 con llamadas reales (HTTP 200):
  * - Especificación pública: https://api.bancentral.gov.do/swagger/v1/swagger.json (Swagger 2.0).
  * - Todos los endpoints son POST con el token en el cuerpo JSON (`{"token": "..."}`).
  * - Respuesta con sobre ABP (`success`, `result`, `error`). El BCRD restringe cada token por IP de
  *   origen y responde HTTP 500 con "Intento de acceso desde una dirección desconocida" si no coincide.
  * - Solo se registran IPs v4: el proceso que use este conector debe salir por IPv4
  *   (en Node: `dns.setDefaultResultOrder("ipv4first")` y `net.setDefaultAutoSelectFamily(false)`).
+ * - `MacroVariables/*`: árbol `{ name, values: [{ name, values: [{ name, value }], date? }] }` con
+ *   `date` en `dd/MM/yyyy` y anidación variable. Solo trae el último dato de cada indicador.
+ * - `HistoricoTasas`: `values: [{ totalCount, items: [{ buyingValue, sellingValue, exchangeRateDate, ... }] }]`.
  *
- * [PENDIENTE] Forma real de `result`: la spec declara `Var { name, values: object[] }`, pero aún
- * no se obtuvo ninguna respuesta con datos (IP no autorizada). Por eso `values` se deja sin tipar.
+ * [PENDIENTE] Unidades de cada indicador (la API no las declara) y parámetros válidos de HistoricoIPC
+ * (con junio–octubre 2026 devolvió `values: []`).
  */
 import { z } from "zod";
 import { PoliteClient } from "./polite-client";
 
 export const BCRD_HOST = "api.bancentral.gov.do";
 export const BCRD_BASE = `https://${BCRD_HOST}`;
-/** Límite de uso no publicado: margen conservador. [PENDIENTE] confirmar con el BCRD. */
+/** Cuota del portal: 500 peticiones/día por token. Límite por minuto no publicado: margen conservador. */
 export const BCRD_MAX_PER_MINUTE = 10;
+export const BCRD_DAILY_QUOTA = 500;
 
 export const BCRD_MACRO_GROUPS = {
   monetarias: "/api/services/app/MacroVariables/Monetarias",
@@ -34,25 +38,23 @@ export const BCRD_HISTORICO_IPC = "/api/v2/HistoricoIPC";
 
 /** Error devuelto por el BCRD dentro del sobre ABP. Nunca incluye el token. */
 export class BcrdApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  readonly status: number;
+  constructor(message: string, status: number) {
     super(message);
     this.name = "BcrdApiError";
+    this.status = status;
   }
 }
 
 /** El token existe pero la IP de origen no está autorizada para él. */
 export class BcrdIpNotAllowedError extends BcrdApiError {
-  constructor(message: string, status: number, readonly sourceIp: string | null) {
+  readonly sourceIp: string | null;
+  constructor(message: string, status: number, sourceIp: string | null) {
     super(message, status);
     this.name = "BcrdIpNotAllowedError";
+    this.sourceIp = sourceIp;
   }
 }
-
-const varSchema = z.object({
-  name: z.string().nullish(),
-  values: z.array(z.unknown()).nullish(),
-});
-export type BcrdVar = z.infer<typeof varSchema>;
 
 const envelopeSchema = z.object({
   success: z.boolean(),
@@ -66,8 +68,8 @@ const envelopeSchema = z.object({
 const UNKNOWN_IP = /direcci[oó]n desconocida/i;
 const FROM_IP = /FROM IP\s+([0-9a-f.:]+)/i;
 
-/** Valida el sobre ABP y devuelve las variables. Lanza errores tipados ante fallo del BCRD. */
-export function parseBcrdResponse(status: number, json: unknown): BcrdVar[] {
+/** Valida el sobre ABP y devuelve `result`. Lanza errores tipados ante fallo del BCRD. */
+export function parseBcrdEnvelope(status: number, json: unknown): unknown {
   const env = envelopeSchema.safeParse(json);
   if (!env.success) throw new BcrdApiError(`BCRD: respuesta con forma inesperada (HTTP ${status})`, status);
   const { success, result, error, unAuthorizedRequest } = env.data;
@@ -77,13 +79,142 @@ export function parseBcrdResponse(status: number, json: unknown): BcrdVar[] {
     if (unAuthorizedRequest) throw new BcrdApiError(`BCRD: no autorizado — ${msg}`, status);
     throw new BcrdApiError(msg, status);
   }
-  const list = Array.isArray(result) ? result : [result];
-  return list.map((v, i) => {
-    const r = varSchema.safeParse(v);
-    if (!r.success) throw new BcrdApiError(`BCRD: variable ${i} con forma inesperada`, status);
-    return r.data;
-  });
+  return result;
 }
+
+// ---------- Variables macro (último dato) ----------
+
+export interface MacroNode {
+  name: string;
+  value?: number | null;
+  date?: string | null;
+  values?: MacroNode[] | null;
+}
+
+const macroNodeSchema: z.ZodType<MacroNode> = z.lazy(() =>
+  z.object({
+    name: z.string(),
+    value: z.number().nullish(),
+    date: z.string().nullish(),
+    values: z.array(macroNodeSchema).nullish(),
+  }),
+);
+
+export interface MacroIndicator {
+  /** Grupo de la API, p. ej. "Inflación". */
+  group: string;
+  /** Ruta de categorías entre el grupo y el indicador, p. ej. ["Inflación Subyacente"]. */
+  path: string[];
+  /** Nombre del indicador hoja, p. ej. "Interanual". */
+  indicator: string;
+  value: number;
+  /** Fecha del dato (YYYY-MM-DD) heredada del nodo más cercano que la declare; null si no hay. */
+  as_of: string | null;
+  data_quality_flags: string[];
+}
+
+const DMY = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+
+/** Convierte `dd/MM/yyyy` a `YYYY-MM-DD` validando el calendario. Fecha sin hora ni zona. */
+export function parseBcrdDate(value: string | null | undefined): string | null {
+  const m = value?.trim().match(DMY);
+  if (!m) return null;
+  const [, dd, mm, yyyy] = m;
+  const d = new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
+  if (d.getUTCFullYear() !== Number(yyyy) || d.getUTCMonth() !== Number(mm) - 1 || d.getUTCDate() !== Number(dd)) {
+    return null;
+  }
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/** Aplana el árbol de un grupo en indicadores. No inventa unidades ni fechas ausentes. */
+export function flattenMacro(root: MacroNode): MacroIndicator[] {
+  const out: MacroIndicator[] = [];
+  const walk = (node: MacroNode, path: string[], inheritedDate: string | null | undefined, rawDate: string | null | undefined) => {
+    const ownRaw = node.date ?? rawDate;
+    const ownDate = node.date != null ? parseBcrdDate(node.date) : inheritedDate;
+    if (node.values && node.values.length > 0) {
+      for (const child of node.values) walk(child, [...path, node.name], ownDate, ownRaw);
+      return;
+    }
+    if (node.value == null) return;
+    const flags: string[] = [];
+    if (ownRaw == null) flags.push("missing_date");
+    else if (ownDate == null) flags.push(`invalid_date:${ownRaw}`);
+    flags.push("unit_unknown");
+    out.push({
+      group: root.name,
+      path: path.slice(1),
+      indicator: node.name,
+      value: node.value,
+      as_of: ownDate ?? null,
+      data_quality_flags: flags,
+    });
+  };
+  walk(root, [], null, null);
+  return out;
+}
+
+export function parseMacroResult(status: number, result: unknown): MacroIndicator[] {
+  const r = macroNodeSchema.safeParse(result);
+  if (!r.success) throw new BcrdApiError("BCRD: árbol de variables con forma inesperada", status);
+  return flattenMacro(r.data);
+}
+
+// ---------- Histórico de tasa de cambio ----------
+
+const rateItemSchema = z.object({
+  id: z.number(),
+  buyingValue: z.number(),
+  sellingValue: z.number(),
+  currencyId: z.number().nullish(),
+  exchangeRateDate: z.string(),
+  isDeleted: z.boolean().nullish(),
+  isActive: z.boolean().nullish(),
+});
+
+const ratePageSchema = z.object({
+  name: z.string().nullish(),
+  values: z.array(z.object({ totalCount: z.number(), items: z.array(z.unknown()) })),
+});
+
+export interface ExchangeRateRow {
+  external_id: number;
+  /** YYYY-MM-DD (fecha del tipo de cambio, sin zona). */
+  rate_date: string;
+  buying: number;
+  selling: number;
+  currency_id: number | null;
+}
+
+export interface ExchangeRatePage {
+  items: ExchangeRateRow[];
+  /** Ítems que no cumplen el esquema o están marcados como borrados/inactivos: se cuentan, no se descartan en silencio. */
+  rejected: { index: number; reason: string }[];
+  totalCount: number;
+}
+
+export function parseExchangeRates(status: number, result: unknown): ExchangeRatePage {
+  const page = ratePageSchema.safeParse(result);
+  if (!page.success) throw new BcrdApiError("BCRD: histórico de tasas con forma inesperada", status);
+  const block = page.data.values[0] ?? { totalCount: 0, items: [] };
+  const items: ExchangeRateRow[] = [];
+  const rejected: ExchangeRatePage["rejected"] = [];
+  block.items.forEach((raw, index) => {
+    const r = rateItemSchema.safeParse(raw);
+    if (!r.success) return void rejected.push({ index, reason: r.error.issues[0]?.message ?? "invalid" });
+    const it = r.data;
+    if (it.isDeleted) return void rejected.push({ index, reason: "deleted" });
+    if (it.isActive === false) return void rejected.push({ index, reason: "inactive" });
+    const date = /^\d{4}-\d{2}-\d{2}/.exec(it.exchangeRateDate)?.[0];
+    if (!date) return void rejected.push({ index, reason: `invalid_date:${it.exchangeRateDate}` });
+    if (it.buyingValue <= 0 || it.sellingValue <= 0) return void rejected.push({ index, reason: "non_positive_rate" });
+    items.push({ external_id: it.id, rate_date: date, buying: it.buyingValue, selling: it.sellingValue, currency_id: it.currencyId ?? null });
+  });
+  return { items, rejected, totalCount: block.totalCount };
+}
+
+// ---------- Llamadas ----------
 
 /** Cliente con la lista cerrada del BCRD. Sin reintentos: el BCRD responde 500 a errores de negocio. */
 export function createBcrdClient(opts: { clientName: string; contact: string; fetchImpl?: typeof fetch }) {
@@ -103,7 +234,7 @@ function requireToken(token: string): string {
   return t;
 }
 
-async function call(client: PoliteClient, path: string, body: Record<string, unknown>): Promise<BcrdVar[]> {
+async function call(client: PoliteClient, path: string, body: Record<string, unknown>): Promise<{ status: number; result: unknown }> {
   const res = await client.post(`${BCRD_BASE}${path}`, {
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(body),
@@ -114,11 +245,13 @@ async function call(client: PoliteClient, path: string, body: Record<string, unk
   } catch {
     throw new BcrdApiError(`BCRD HTTP ${res.status} sin JSON`, res.status);
   }
-  return parseBcrdResponse(res.status, json);
+  return { status: res.status, result: parseBcrdEnvelope(res.status, json) };
 }
 
-export function fetchMacro(client: PoliteClient, token: string, group: BcrdMacroGroup): Promise<BcrdVar[]> {
-  return call(client, BCRD_MACRO_GROUPS[group], { token: requireToken(token) });
+/** Último dato de cada indicador del grupo, aplanado. */
+export async function fetchMacro(client: PoliteClient, token: string, group: BcrdMacroGroup): Promise<MacroIndicator[]> {
+  const { status, result } = await call(client, BCRD_MACRO_GROUPS[group], { token: requireToken(token) });
+  return parseMacroResult(status, result);
 }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -128,32 +261,39 @@ export interface Page {
   maxResultCount?: number;
 }
 
-/** Histórico de tasas de cambio entre dos fechas (YYYY-MM-DD, inclusive según la spec). */
-export function fetchHistoricoTasas(
+/**
+ * Histórico de tasa de cambio entre dos fechas (YYYY-MM-DD).
+ * [PENDIENTE] Cobertura real: con 2026-11-01..18 el ítem más reciente fue del 06/11.
+ */
+export async function fetchHistoricoTasas(
   client: PoliteClient,
   token: string,
   w: { fromDate: string; toDate: string } & Page,
-): Promise<BcrdVar[]> {
+): Promise<ExchangeRatePage> {
   if (!DATE.test(w.fromDate) || !DATE.test(w.toDate)) throw new Error("fromDate/toDate deben ser YYYY-MM-DD");
-  return call(client, BCRD_HISTORICO_TASAS, {
+  const { status, result } = await call(client, BCRD_HISTORICO_TASAS, {
     fromDate: w.fromDate,
     toDate: w.toDate,
     skipCount: w.skipCount ?? 0,
     maxResultCount: w.maxResultCount ?? 100,
     token: requireToken(token),
   });
+  return parseExchangeRates(status, result);
 }
 
-/** Histórico del índice de precios al consumidor entre dos meses. */
-export function fetchHistoricoIpc(
+/**
+ * Histórico del IPC entre dos meses. Devuelve `result` sin interpretar: la forma de los datos
+ * aún no se ha visto (respuesta vacía el 2026-11-18). [PENDIENTE]
+ */
+export async function fetchHistoricoIpc(
   client: PoliteClient,
   token: string,
   w: { yearFrom: number; monthFrom: number; yearTo: number; monthTo: number } & Page,
-): Promise<BcrdVar[]> {
+): Promise<unknown> {
   for (const m of [w.monthFrom, w.monthTo]) {
     if (!Number.isInteger(m) || m < 1 || m > 12) throw new Error("mes fuera de rango 1-12");
   }
-  return call(client, BCRD_HISTORICO_IPC, {
+  const { result } = await call(client, BCRD_HISTORICO_IPC, {
     yearFrom: w.yearFrom,
     monthFrom: w.monthFrom,
     yearTo: w.yearTo,
@@ -162,4 +302,5 @@ export function fetchHistoricoIpc(
     maxResultCount: w.maxResultCount ?? 100,
     token: requireToken(token),
   });
+  return result;
 }
