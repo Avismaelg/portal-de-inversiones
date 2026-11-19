@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { getCurrentRole } from "@/lib/auth";
 import { canPublishRole } from "@/lib/review-rules";
@@ -8,6 +9,8 @@ import { LoadForm } from "./load-form";
 export const metadata: Metadata = { title: "Carga de datos" };
 
 async function Content() {
+  // Sesión y rol se leen en cada petición (la validación del token usa la hora actual).
+  await connection();
   if (!canPublishRole(await getCurrentRole())) {
     return <p className="empty-state">No tienes permisos para ver esta sección.</p>;
   }

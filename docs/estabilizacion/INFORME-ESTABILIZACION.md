@@ -92,7 +92,7 @@ D-07 viewer ve borrador (esperado 0): 0                               (RLS)
 | P2-01 | P2 | Correlación de acontecimientos y resolución de entidades | P1-05, P1-01 | — | Relaciones con naturaleza confirmada/inferida |
 | P2-02 | P2 | Búsqueda unificada con Full Text Search de PostgreSQL | — | `/buscar`, `src/lib/search.ts` | Busca en noticias, licitaciones, instrumentos. **Hecho (2026-11-17):** el buscador de la cabecera lleva a `/buscar`; FTS en español (`websearch`) para licitaciones, oportunidades y proyectos; `ilike` saneado en titular/extracto de noticias y nombre/ISIN de instrumentos; respeta RLS; filtro `or()` probado contra PostgREST (caracteres `, ( ) "` neutralizados). **P2-02b (migración 22):** `unaccent` activado; búsqueda insensible a tildes (config `es_unaccent` y columna `search_plain`) |
 | P2-03 | P2 | Investment Hub: verificar con axe las pantallas con sesión (requiere B-020) y crear pantallas pendientes (Permisos, Empresas, Mapa, Reportes, Configuración) | B-020 | — | 0 violaciones axe en pantallas autenticadas |
-| P2-04 | P2 | Revisar aviso de desarrollo («1 Issue») observado en `/admin/ingesta` | — | — | Sin avisos en `next dev` |
+| P2-04 | P2 | Revisar aviso de desarrollo («1 Issue») observado en `/admin/ingesta` | — | — | Sin avisos en `next dev`. **Hecho (2026-11-18):** eran dos errores de prerender con Cache Components: `/admin/ingesta` leía la sesión (usa la hora actual) sin `connection()`, y `/` redirigía durante el prerender. Ambas páginas esperan ahora `connection()`; tras recargarlas, el registro de `next dev` no muestra errores |
 | P3-01 | P3 | Mapa (MapLibre), comparador de instrumentos, expansión internacional | Control de cambios | — | — |
 
 **Decisión (2026-11-17):** el usuario eligió el diseño «Investment Hub» del Prompt Maestro v2.0 (§15). Implementado en la rama `feat/investment-hub`: sidebar azul marino con secciones del §15 (las que no tienen pantalla aparecen deshabilitadas como «pronto», sin datos inventados), turquesa para acciones, ámbar para atención, header con buscador, estado de actualización de datos (detección/extracción real), campana de alertas (coincidencias en 24 h) y cuenta. Contraste AA calculado: turquesa/blanco 4,91; ámbar/blanco 5,02; texto atenuado/fondo 5,82; texto del sidebar 7,49–14,01.
@@ -120,5 +120,22 @@ B-001/B-002 (SRS y Plan Maestro ausentes), B-009/B-017 (licencias y abogado), B-
 | P0-02 E2E con sesión por rol | **Bloqueado (B-020)** | — | — |
 
 Evidencia local: lint, tipos, 71/71 unitarias y build en verde (5/5 E2E en el incremento anterior; la primera ejecución falló por tiempo de espera al compilar rutas en frío y la segunda pasó); bloques P0 D, E, F, G y H ejecutados contra `xzlwrlgjsdymcidlmqew` con el resultado esperado y revertidos.
+
+## 9. Incremento BCRD: datos macro, alertas e impacto (rama `feat/p1-producto`, 2026-11-18)
+
+| Elemento | Estado | Implementación | Verificación |
+|---|---|---|---|
+| Conector API BCRD (F-02) | **Hecho** | `src/lib/ingest/bcrd.ts` (6 endpoints POST, token en el cuerpo, solo lectura), `ipv4-fetch.ts` (el BCRD solo admite IPv4, sin efectos globales), `PoliteClient.post` | `bcrd.test.ts`, `ipv4-fetch.test.ts` con respuestas reales; llamadas reales con HTTP 200 |
+| Datos en la base | **Hecho** | Migración 23: fuente `bcrd_api` (`pending_review`, no automática), `macro_observations` (una fila por valor nuevo, `first_seen_at` inmutable) y `exchange_rates` | P0 bloque M23 (6 casos) contra `xzlwrlgjsdymcidlmqew` |
+| Carga manual asistida | **Hecho** | Botón «Actualizar desde BCRD» en `/admin/ingesta` (6 llamadas de 500/día): 4 grupos macro, tasa de cambio de 45 días e IPC de 2 años; registra `ingestion_job` | Carga real: 47 valores y 32 días de tasa de cambio |
+| Vista «Pulso macro» | **Hecho** | `/macro` y tarjeta en el dashboard: valor, unidad, anterior, cambio, fecha del dato, detección, «Nuevo», «Cambio de dirección», IPC mensual | Revisión en el navegador con datos reales |
+| Unidades | **Hecho** | Tomadas de la web del BCRD (la API no las trae); la tasa de cambio queda sin unidad porque la fuente no la declara | `macro-alerts.test.ts`; P0 M24-06 |
+| Alertas tempranas macro | **Hecho** | Migración 24: dato nuevo, cambio de dirección y movimiento diario del dólar con umbral del usuario (sin valor por defecto) | P0 bloque M24; prueba en la interfaz (alerta temporal creada y borrada) |
+| Análisis de impacto IA | **Hecho, sin ejecutar con la API real** | `src/lib/ai/analyze-macro.ts`, tabla `macro_analyses` (solo `ai_analysis`), cita comprobada contra los datos enviados, tope mensual | `analyze-macro.test.ts`; falta `AI_API_KEY` (B-011) |
+| Anticipación frente a la prensa | `[PENDIENTE]` | `first_seen_at` ya se guarda; no hay fuente verificable para emparejar un dato con su nota de prensa | — |
+
+Bloqueo nuevo **B-022**: token del BCRD restringido por IP e IP del usuario dinámica (hace falta IP fija para producción). Corrección: en los commits del 2026-11-18 este bloqueo aparece como «B-020» por error de numeración; el B-020 vigente es el del entorno de pruebas.
+
+Evidencia local: lint, tipos, 117/117 unitarias, 6/6 E2E y build en verde.
 
 **Riesgo residual (documentado):** la base no puede comprobar por sí misma la cita porque el texto de las noticias no se almacena (términos de las fuentes pendientes, B-009). La comprobación la hace el servidor; la función `add_literal_evidence` registra que la atestigua un gestor. Un gestor que llamara a la función directamente podría registrar una cita sin comprobar: queda trazado y es una acción humana con rol de publicación.
