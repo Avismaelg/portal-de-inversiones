@@ -47,9 +47,11 @@ async function MacroPulse() {
   const fxs = summarizeFx(fx.data ?? []);
   if (!pulse.length && !fxs) return null;
   const nf = (v: number) => new Intl.NumberFormat("es-DO", { maximumFractionDigits: 4 }).format(v);
+  // Color neutro con flecha: en datos macro «sube» no equivale a «bueno».
   const delta = (v: number | null, pct = false) =>
     v === null ? null : (
-      <span className={v > 0 ? "text-success" : v < 0 ? "text-danger" : "text-muted"}>
+      <span className="text-text">
+        <span aria-hidden="true">{v > 0 ? "▲ " : v < 0 ? "▼ " : "■ "}</span>
         {v > 0 ? "+" : ""}{nf(v)}{pct ? " %" : ""}
       </span>
     );
@@ -233,6 +235,9 @@ export default function DashboardPage() {
       <h1 className="page-title">Lo que casi nadie está siguiendo</h1>
       <p className="page-lead">
         Señales de fuentes primarias antes de que lleguen a la prensa, con su impacto y trazabilidad. No es asesoría de inversión.
+      </p>
+      <p className="mb-4 text-sm">
+        ¿Primera vez aquí? <Link href="/guia" className="font-semibold text-primary hover:underline">Lee la guía de uso</Link> (5 minutos).
       </p>
       <Suspense fallback={<p className="text-muted">Cargando…</p>}>
         <Summary />

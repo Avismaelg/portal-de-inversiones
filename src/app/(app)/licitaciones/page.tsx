@@ -6,22 +6,13 @@ import { StatusBadge } from "@/components/trust-badge";
 import { WatchButton } from "@/components/watch-button";
 import { formatMoney } from "@/lib/format";
 import { FTS } from "@/lib/search";
+import { parseTenderFilters, TENDER_STATUS, tenderFilterQuery, type Params } from "@/lib/tender-filters";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Licitaciones" };
 
 const PAGE_SIZE = 25;
-const STATUS: Record<string, string> = {
-  open: "Abierta",
-  closed: "Cerrada",
-  awarded: "Adjudicada",
-  cancelled: "Cancelada",
-  planned: "Planificada",
-  unknown: "Estado no mapeado",
-};
-
-type Params = Record<string, string | string[] | undefined>;
-const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+const STATUS = TENDER_STATUS;
 
 const dateTime = (v: string | null) =>
   v
@@ -39,14 +30,8 @@ function timeLeft(deadline: string, now: Date): string {
 
 async function Results({ searchParams }: { searchParams: Promise<Params> }) {
   await connection();
-  const sp = await searchParams;
-  const q = one(sp.q).trim().slice(0, 100);
-  const method = one(sp.metodo).trim().slice(0, 80);
-  const status = one(sp.estado);
-  const page = Math.max(1, Number(one(sp.pagina)) || 1);
-  const orderRaw = one(sp.orden);
-  const order = ["cierre", "monto", "recientes"].includes(orderRaw) ? orderRaw : "cierre";
-  const onlyOpen = one(sp.vigentes) === "1" || Object.keys(sp).length === 0;
+  const filters = parseTenderFilters(await searchParams);
+  const { q, method, status, page, order, onlyOpen } = filters;
   const now = new Date();
 
   const supabase = await createClient();
@@ -76,16 +61,7 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
   const watchedIds = new Set((watched.data ?? []).map((w) => w.entity_id));
   const methodList = [...new Set((methods.data ?? []).map((m) => m.procurement_method as string))].sort();
   const pages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
-  const link = (p: number) => {
-    const u = new URLSearchParams();
-    if (q) u.set("q", q);
-    if (method) u.set("metodo", method);
-    if (status) u.set("estado", status);
-    u.set("orden", order);
-    if (onlyOpen) u.set("vigentes", "1");
-    u.set("pagina", String(p));
-    return `/licitaciones?${u}`;
-  };
+  const link = (p: number) => `/licitaciones?${tenderFilterQuery(filters, p)}`;
 
   return (
     <>
@@ -132,9 +108,14 @@ async function Results({ searchParams }: { searchParams: Promise<Params> }) {
         </p>
       ) : (
         <>
-          <p className="mb-2 text-sm text-muted" aria-live="polite">
-            {count} resultado(s) · página {page} de {pages}
-            {order === "monto" && " · el orden por monto compara cifras sin convertir monedas"}
+          <p className="mb-2 flex flex-wrap items-center gap-x-3 text-sm text-muted" aria-live="polite">
+            <span>
+              {count} resultado(s) · página {page} de {pages}
+              {order === "monto" && " · el orden por monto compara cifras sin convertir monedas"}
+            </span>
+            <a href={`/licitaciones/export?${tenderFilterQuery(filters)}`} className="ml-auto font-semibold text-primary hover:underline" download>
+              Descargar estos resultados (CSV)
+            </a>
           </p>
           <ul className="space-y-3">
             {data.map((t) => (

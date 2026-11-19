@@ -29,6 +29,7 @@ const GROUPS: NavGroup[] = [
   {
     title: "Seguimiento",
     items: [
+      { href: "/guia", label: "Guía de uso", icon: "book" },
       { href: "/watchlist", label: "Watchlist", icon: "star" },
       { href: "/alertas", label: "Alertas", icon: "bell" },
       { href: "/reportes", label: "Reportes", icon: "report", ready: false },
@@ -72,12 +73,13 @@ async function DataFreshness() {
   await connection();
   const supabase = await createClient();
   // updated_at no sirve: cambia con revisiones y migraciones. Solo cuentan detección y extracción reales.
-  const [n, t, c] = await Promise.all([
+  const [n, t, c, m] = await Promise.all([
     supabase.from("news_items").select("detected_at").order("detected_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("public_tenders").select("extracted_at").not("extracted_at", "is", null).order("extracted_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("public_tenders").select("created_at").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("macro_observations").select("last_seen_at").order("last_seen_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
-  const last = [n.data?.detected_at, t.data?.extracted_at, c.data?.created_at].filter(Boolean).sort().pop() ?? null;
+  const last = [n.data?.detected_at, t.data?.extracted_at, c.data?.created_at, m.data?.last_seen_at].filter(Boolean).sort().pop() ?? null;
   return (
     <span className="hidden items-center gap-1.5 text-xs text-muted md:flex" title="Último dato incorporado (carga manual asistida)">
       <span aria-hidden="true" className="h-2 w-2 rounded-full bg-success" />

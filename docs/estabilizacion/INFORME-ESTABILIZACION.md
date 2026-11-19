@@ -134,6 +134,8 @@ Evidencia local: lint, tipos, 71/71 unitarias y build en verde (5/5 E2E en el in
 | Análisis de impacto IA | **Hecho, sin ejecutar con la API real** | `src/lib/ai/analyze-macro.ts`, tabla `macro_analyses` (solo `ai_analysis`), cita comprobada contra los datos enviados, tope mensual | `analyze-macro.test.ts`; falta `AI_API_KEY` (B-011) |
 | Anticipación frente a la prensa | `[PENDIENTE]` | `first_seen_at` ya se guarda; no hay fuente verificable para emparejar un dato con su nota de prensa | — |
 
+| Pulido para principiantes y profesionales | **Hecho** | `/guia` (ruta en cinco pasos, etiquetas de confianza, uso avanzado y límites); «¿Qué significa?» por indicador (`src/lib/glossary.ts`, definiciones generales sin recomendaciones); explicación en cada etiqueta de confianza; gráficos de la tasa de cambio y del IPC (`src/components/line-chart.tsx`: una serie, tooltip y teclado, tabla al lado); cambios macro en color neutro con flecha (subir no es «bueno»); exportación CSV de indicadores, tasa de cambio y licitaciones filtradas (`src/lib/csv.ts`, protección contra fórmulas) | `csv-glossary.test.ts`, `tender-filters.test.ts`; exportaciones comprobadas con la sesión real (47, 32 y 119 filas) |
+
 Bloqueo nuevo **B-022**: token del BCRD restringido por IP e IP del usuario dinámica (hace falta IP fija para producción). Corrección: en los commits del 2026-11-18 este bloqueo aparece como «B-020» por error de numeración; el B-020 vigente es el del entorno de pruebas.
 
 Evidencia local: lint, tipos, 117/117 unitarias, 6/6 E2E y build en verde.

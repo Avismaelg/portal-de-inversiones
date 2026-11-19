@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { Explain } from "@/components/explain";
+import { LineChart } from "@/components/line-chart";
 import { TrustBadge } from "@/components/trust-badge";
+import { explainSeries, FX_EXPLANATION } from "@/lib/glossary";
 import { getCurrentRole } from "@/lib/auth";
 import { formatDate, todayInRD } from "@/lib/format";
 import { buildPulse, IPC_GROUP, labelOf, summarizeFx, type ObservationRow, type PulseItem, type RateRow } from "@/lib/macro";
@@ -27,18 +30,26 @@ function ipcLagMonths(monthStart: string, today: string): number {
   return (y2 - y1) * 12 + (m2 - m1);
 }
 
+/**
+ * Cambio con flecha y color neutro: en datos macro «sube» no es «bueno» ni «malo» (la inflación que sube
+ * no es una buena noticia, el dólar que sube depende de quién eres), así que no se pinta de verde o rojo.
+ */
 function Change({ value, pct = false }: { value: number | null; pct?: boolean }) {
   if (value === null) return <span className="text-muted">—</span>;
-  const tone = value > 0 ? "text-success" : value < 0 ? "text-danger" : "text-muted";
   const arrow = value > 0 ? "▲" : value < 0 ? "▼" : "■";
+  const word = value > 0 ? "sube" : value < 0 ? "baja" : "sin cambio";
   return (
-    <span className={`num ${tone}`}>
+    <span className="num text-text">
       <span aria-hidden="true">{arrow} </span>
+      <span className="sr-only">{word} </span>
       {signed(value)}
       {pct ? " %" : ""}
     </span>
   );
 }
+
+const shortDay = (iso: string) =>
+  new Intl.DateTimeFormat("es-DO", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${iso}T00:00:00Z`));
 
 function Tags({ p }: { p: PulseItem }) {
   return (
@@ -50,9 +61,18 @@ function Tags({ p }: { p: PulseItem }) {
 }
 
 function GroupTable({ title, items }: { title: string; items: PulseItem[] }) {
+  const explanations = [
+    ...new Map(
+      items
+        .map((i) => explainSeries(i.series_key))
+        .filter((e): e is NonNullable<typeof e> => !!e)
+        .map((e) => [e.title, e]),
+    ).values(),
+  ];
   return (
     <section aria-label={title} className="mb-6">
-      <h2 className="mb-2 text-lg font-semibold">{title}</h2>
+      <h2 className="mb-1 text-lg font-semibold">{title}</h2>
+      <Explain items={explanations} />
       <div className="overflow-x-auto rounded border border-line">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">{title}</caption>
@@ -221,12 +241,17 @@ async function Content() {
           {newCount ? `${newCount} valor(es) nuevo(s) en los últimos 7 días.` : "Sin valores nuevos en los últimos 7 días."}
           {reversals ? ` ${reversals} indicador(es) cambiaron de dirección.` : ""}
         </span>
-        <Link href="/alertas" className="ml-auto text-sm font-semibold text-primary hover:underline">Crear alerta →</Link>
+        <span className="ml-auto flex flex-wrap gap-3">
+          <a href="/macro/export?tipo=indicadores" className="text-sm font-semibold text-primary hover:underline" download>Descargar indicadores (CSV)</a>
+          <a href="/macro/export?tipo=tasa-cambio" className="text-sm font-semibold text-primary hover:underline" download>Descargar tasa de cambio (CSV)</a>
+          <Link href="/alertas" className="text-sm font-semibold text-primary hover:underline">Crear alerta →</Link>
+        </span>
       </div>
 
       {fxs && (
         <section aria-labelledby="fx" className="card mb-6">
-          <h2 id="fx" className="mb-3 text-lg font-semibold">Tasa de cambio de referencia del dólar</h2>
+          <h2 id="fx" className="mb-1 text-lg font-semibold">Tasa de cambio de referencia del dólar</h2>
+          <Explain items={[FX_EXPLANATION]} />
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <p className="text-sm text-muted">Venta · {formatDate(fxs.latest.rate_date)}</p>
@@ -243,8 +268,18 @@ async function Content() {
               <p className="text-xs text-muted">Rango de venta: {num(fxs.min_selling)} – {num(fxs.max_selling)}</p>
             </div>
           </div>
+          {(fx.data ?? []).length > 1 && (
+            <div className="mt-4">
+              <LineChart
+                title="Venta, últimos 30 días"
+                description="Cada punto es un día hábil publicado por el BCRD."
+                decimals={2}
+                points={[...(fx.data ?? [])].reverse().map((r) => ({ label: shortDay(r.rate_date), value: Number(r.selling) }))}
+              />
+            </div>
+          )}
           <details className="mt-3 text-sm">
-            <summary className="cursor-pointer text-primary">Ver los últimos días</summary>
+            <summary className="cursor-pointer text-primary">Ver los datos en tabla</summary>
             <table className="mt-2 w-full max-w-md text-left">
               <caption className="sr-only">Tasa de cambio de los últimos días</caption>
               <thead><tr><th scope="col" className="py-1 font-medium">Fecha</th><th scope="col" className="py-1 font-medium">Compra</th><th scope="col" className="py-1 font-medium">Venta</th></tr></thead>
@@ -269,7 +304,18 @@ async function Content() {
 
       {ipc.length > 0 && (
         <section aria-labelledby="ipc" className="mb-6">
-          <h2 id="ipc" className="mb-2 text-lg font-semibold">Índice de precios al consumidor (mensual)</h2>
+          <h2 id="ipc" className="mb-1 text-lg font-semibold">Índice de precios al consumidor (mensual)</h2>
+          <Explain items={[explainSeries("IPC › x")!]} />
+          {ipc.length > 1 && (
+            <div className="card mb-3">
+              <LineChart
+                title="Índice de precios al consumidor"
+                description={`Meses publicados en el histórico de la API, de ${monthFmt(ipc[ipc.length - 1].as_of as string)} a ${monthFmt(ipc[0].as_of as string)}.`}
+                decimals={1}
+                points={[...ipc].reverse().map((r) => ({ label: monthFmt(r.as_of as string), value: Number(r.value) }))}
+              />
+            </div>
+          )}
           <div className="overflow-x-auto rounded border border-line">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">Índice de precios al consumidor de los últimos meses</caption>

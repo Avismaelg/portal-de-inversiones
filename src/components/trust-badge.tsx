@@ -1,4 +1,5 @@
 import { TRUST } from "@/lib/format";
+import { TRUST_EXPLANATION } from "@/lib/glossary";
 
 const STYLE: Record<string, string> = {
   confirmed: "border border-line bg-bg-subtle text-text",
@@ -9,9 +10,13 @@ const ICON: Record<string, string> = { confirmed: "✓", ai_analysis: "✦", inf
 
 export function TrustBadge({ layer }: { layer: string }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${STYLE[layer] ?? STYLE.confirmed}`}>
+    <span
+      title={TRUST_EXPLANATION[layer]}
+      className={`inline-flex cursor-help items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${STYLE[layer] ?? STYLE.confirmed}`}
+    >
       <span aria-hidden="true">{ICON[layer] ?? "✓"}</span>
       {TRUST[layer] ?? layer}
+      {TRUST_EXPLANATION[layer] && <span className="sr-only">: {TRUST_EXPLANATION[layer]}</span>}
     </span>
   );
 }
