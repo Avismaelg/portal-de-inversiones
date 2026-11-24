@@ -3,11 +3,10 @@
  * investigar, nunca hechos verificados ni asesoría de inversión. Los datos se envían tal cual con sus
  * unidades; la cita se comprueba literalmente contra el texto enviado.
  */
-import type Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { AnalysisSchema, DEFAULT_MODEL, type Analysis } from "@/lib/ai/analyze-news";
 import { fold } from "@/lib/ingest/news";
 import { labelOf, type FxSummary, type PulseItem } from "@/lib/macro";
+import type { LlmClient } from "./types";
 
 export const MACRO_PROMPT_VERSION = "macro-impact-v1";
 export const MACRO_SCHEMA_VERSION = "analysis-schema-v2";
@@ -70,21 +69,21 @@ export type MacroAnalyzeOutcome =
   | { ok: false; reason: "refusal" | "invalid" | "error" };
 
 export async function analyzeMacro(
-  client: Pick<Anthropic, "messages">,
+  client: LlmClient,
   snapshot: MacroSnapshot,
   model: string = DEFAULT_MODEL,
 ): Promise<MacroAnalyzeOutcome> {
   try {
-    const res = await client.messages.parse({
+    const res = await client.complete({
       model,
-      max_tokens: 8000,
+      maxTokens: 8000,
       system: MACRO_SYSTEM_PROMPT,
-      output_config: { effort: "medium", format: zodOutputFormat(AnalysisSchema) },
-      messages: [{ role: "user", content: buildMacroUserContent(snapshot) }],
+      effort: "medium",
+      schema: AnalysisSchema,
+      user: buildMacroUserContent(snapshot),
     });
-    if (res.stop_reason === "refusal") return { ok: false, reason: "refusal" };
-    const p = res.parsed_output;
-    if (!p) return { ok: false, reason: "invalid" };
+    if (!res.ok) return { ok: false, reason: res.reason };
+    const p = res.data;
     const analysis: Analysis = {
       ...p,
       sectors: p.sectors.slice(0, 4),
@@ -98,7 +97,7 @@ export async function analyzeMacro(
       ok: true,
       analysis,
       quote_verified: verifyMacroQuote(analysis.evidence_quote, snapshot),
-      model,
+      model: res.model,
       input_tokens: res.usage.input_tokens,
       output_tokens: res.usage.output_tokens,
     };

@@ -3,10 +3,9 @@
  * (inferencia): hipótesis para investigar, nunca hechos verificados ni asesoría de inversión.
  * La cita se comprueba literalmente contra el texto que se le envió.
  */
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { fold } from "@/lib/ingest/news";
+import type { LlmClient } from "./types";
 
 export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
@@ -90,27 +89,26 @@ export interface AnalysisResult {
 
 export type AnalyzeOutcome = { ok: true; result: AnalysisResult } | { ok: false; reason: "refusal" | "invalid" | "error" };
 
-export function createAnthropic(): Anthropic | null {
-  const apiKey = process.env.AI_API_KEY?.trim() || process.env.ANTHROPIC_API_KEY?.trim();
-  return apiKey ? new Anthropic({ apiKey }) : null;
-}
-
+/**
+ * Analiza una noticia con el proveedor configurado (`createLlmClient`: Anthropic u opencode en pruebas).
+ * El cliente ya valida la salida con el esquema; aquí solo se recorta y se verifica la cita.
+ */
 export async function analyzeNews(
-  client: Pick<Anthropic, "messages">,
+  client: LlmClient,
   n: NewsInput,
   model: string = DEFAULT_MODEL,
 ): Promise<AnalyzeOutcome> {
   try {
-    const res = await client.messages.parse({
+    const res = await client.complete({
       model,
-      max_tokens: 8000,
+      maxTokens: 8000,
       system: SYSTEM_PROMPT,
-      output_config: { effort: "medium", format: zodOutputFormat(AnalysisSchema) },
-      messages: [{ role: "user", content: buildUserContent(n) }],
+      effort: "medium",
+      schema: AnalysisSchema,
+      user: buildUserContent(n),
     });
-    if (res.stop_reason === "refusal") return { ok: false, reason: "refusal" };
-    const parsed = res.parsed_output;
-    if (!parsed) return { ok: false, reason: "invalid" };
+    if (!res.ok) return { ok: false, reason: res.reason };
+    const parsed = res.data;
     const analysis: Analysis = {
       ...parsed,
       sectors: parsed.sectors.slice(0, 4),
@@ -126,7 +124,7 @@ export async function analyzeNews(
         analysis,
         quote_verified: verifyQuote(analysis.evidence_quote, n),
         used_full_text: !!n.body,
-        model,
+        model: res.model,
         input_tokens: res.usage.input_tokens,
         output_tokens: res.usage.output_tokens,
       },

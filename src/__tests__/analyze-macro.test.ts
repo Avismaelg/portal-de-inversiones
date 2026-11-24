@@ -66,11 +66,11 @@ describe("snapshot macro", () => {
 
 describe("analyzeMacro", () => {
   const snap = buildMacroSnapshot([item], null, "2026-11-18");
-  const client = (impl: () => unknown) => ({ messages: { parse: vi.fn(impl) } }) as never;
+  const client = (impl: () => unknown) => ({ complete: vi.fn(impl) }) as never;
 
   it("recorta listas, verifica la cita y devuelve el uso", async () => {
     const out = await analyzeMacro(
-      client(async () => ({ stop_reason: "end_turn", parsed_output: analysis, usage: { input_tokens: 10, output_tokens: 20 } })),
+      client(async () => ({ ok: true, data: analysis, model: "m", usage: { input_tokens: 10, output_tokens: 20 } })),
       snap,
       "m",
     );
@@ -83,8 +83,8 @@ describe("analyzeMacro", () => {
   });
 
   it("distingue rechazo, formato inválido y error", async () => {
-    expect(await analyzeMacro(client(async () => ({ stop_reason: "refusal" })), snap)).toEqual({ ok: false, reason: "refusal" });
-    expect(await analyzeMacro(client(async () => ({ stop_reason: "end_turn", parsed_output: null })), snap)).toEqual({ ok: false, reason: "invalid" });
+    expect(await analyzeMacro(client(async () => ({ ok: false, reason: "refusal" })), snap)).toEqual({ ok: false, reason: "refusal" });
+    expect(await analyzeMacro(client(async () => ({ ok: false, reason: "invalid" })), snap)).toEqual({ ok: false, reason: "invalid" });
     expect(
       await analyzeMacro(
         client(async () => {

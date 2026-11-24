@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentRole } from "@/lib/auth";
-import { createAnthropic, DEFAULT_MODEL } from "@/lib/ai/analyze-news";
+import { createLlmClient, resolveModel } from "@/lib/ai/anthropic-client";
 import { analyzeMacro, buildMacroSnapshot, MACRO_PROMPT_VERSION, MACRO_SCHEMA_VERSION } from "@/lib/ai/analyze-macro";
 import { estimateCostUsd, monthlyBudgetUsd } from "@/lib/ai/pricing";
 import { todayInRD } from "@/lib/format";
@@ -15,7 +15,7 @@ export type MacroAnalyzeResult = { ok: boolean; message: string };
 /** Análisis de impacto del pulso macro actual (lo dispara una persona con rol de análisis; sin lotes ni cron). */
 export async function analyzeMacroPulse(): Promise<MacroAnalyzeResult> {
   if (!isStaffRole(await getCurrentRole())) return { ok: false, message: "Tu rol no puede generar análisis." };
-  const client = createAnthropic();
+  const client = createLlmClient();
   if (!client) return { ok: false, message: "Falta la clave de IA (AI_API_KEY) en .env.local." };
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
@@ -42,7 +42,7 @@ export async function analyzeMacroPulse(): Promise<MacroAnalyzeResult> {
     return { ok: false, message: `Se alcanzó el tope mensual de IA (US$${budget}). Ajusta AI_MONTHLY_BUDGET_USD si corresponde.` };
   }
 
-  const model = process.env.AI_MODEL_ANALYSIS?.trim() || DEFAULT_MODEL;
+  const model = resolveModel("AI_MODEL_ANALYSIS");
   const analysisId = crypto.randomUUID();
   const started = Date.now();
   const out = await analyzeMacro(client, snapshot, model);

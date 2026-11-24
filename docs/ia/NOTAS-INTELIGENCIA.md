@@ -128,6 +128,7 @@ La prueba lee hasta 3 noticias del feed de Indotel, llama al modelo y exige hech
 ## 9. Límites y pendientes
 
 - **B-011:** falta la clave de Anthropic. Mientras tanto se prueba con opencode (`AI_PROVIDER=opencode`), que **no informa tokens** (se registran 0), envía el texto de las fuentes a modelos gratuitos de terceros que pueden usarlo para entrenar (B-009) y nunca se activa en producción. Volver a `AI_PROVIDER=anthropic` al tener clave.
+- **Análisis de impacto de noticias y macro (2026-11-24):** `analyzeNews` y `analyzeMacro` pasaron del SDK de Anthropic al contrato común `LlmClient`; con `AI_PROVIDER=opencode` también funcionan. Probado en `/noticias/[id]` (Indotel, Claro/Viettel): análisis generado con hipótesis de oportunidad y botón «Proponer como oportunidad». Antes de este cambio no se podía crear ninguna oportunidad sin clave de Anthropic (la tabla `investment_opportunities` estaba vacía).
 - **Migración 28 (2026-11-24):** trigger que registra `provider='opencode'` en `ai_analysis_runs` cuando el modelo empieza por `opencode/` u `opencode-go/`; aplicada y bloque P0 M28 4/4.
 - **B-023:** resuelto el 2026-11-23 (migración 27 aplicada, M27 19/19).
 - **B-020:** no hay proyecto/usuarios de prueba para validar RLS y revisión desde la interfaz.

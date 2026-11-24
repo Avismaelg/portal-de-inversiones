@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentRole } from "@/lib/auth";
-import { analyzeNews, createAnthropic, DEFAULT_MODEL } from "@/lib/ai/analyze-news";
+import { createLlmClient, resolveModel } from "@/lib/ai/anthropic-client";
+import { analyzeNews } from "@/lib/ai/analyze-news";
 import { PROMPT_VERSION, SCHEMA_VERSION, estimateCostUsd, monthlyBudgetUsd } from "@/lib/ai/pricing";
 import { fetchArticleText } from "@/lib/ingest/article";
 import { NEWS_HOSTS } from "@/lib/ingest/news";
@@ -13,14 +14,14 @@ import { createClient } from "@/lib/supabase/server";
 export type AnalyzeResult = { ok: boolean; message: string };
 
 /**
- * Genera el análisis de impacto y escenarios de UNA noticia con Claude (lo dispara una persona con rol de
+ * Genera el análisis de impacto y escenarios de UNA noticia con la IA configurada (lo dispara una persona con rol de
  * análisis; sin lotes ni cron). Lee el texto de la fuente solo para este análisis y no lo guarda.
  */
 export async function analyzeNewsItem(_prev: AnalyzeResult | null, formData: FormData): Promise<AnalyzeResult> {
   const id = String(formData.get("id") ?? "");
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return { ok: false, message: "Noticia no válida." };
   if (!isStaffRole(await getCurrentRole())) return { ok: false, message: "Tu rol no puede generar análisis." };
-  const client = createAnthropic();
+  const client = createLlmClient();
   if (!client) return { ok: false, message: "Falta la clave de IA (AI_API_KEY) en .env.local." };
 
   const supabase = await createClient();
@@ -50,7 +51,7 @@ export async function analyzeNewsItem(_prev: AnalyzeResult | null, formData: For
   });
   const body = await fetchArticleText(http, n.url);
 
-  const model = process.env.AI_MODEL_ANALYSIS?.trim() || DEFAULT_MODEL;
+  const model = resolveModel("AI_MODEL_ANALYSIS");
   const started = Date.now();
   const out = await analyzeNews(client, { ...n, body }, model);
   const latency = Date.now() - started;

@@ -59,7 +59,7 @@ export function createLlmClient(): LlmClient | null {
  * Modelo de un agente. Con Anthropic: variable propia del agente, luego AI_MODEL_ANALYSIS y el de por
  * defecto. Con opencode se ignoran esas variables (son modelos de Claude) y se usa AI_MODEL_OPENCODE.
  */
-export function resolveModel(agentVar: "AI_MODEL_EXTRACTION" | "AI_MODEL_BRIEF"): string {
+export function resolveModel(agentVar: "AI_MODEL_EXTRACTION" | "AI_MODEL_BRIEF" | "AI_MODEL_ANALYSIS"): string {
   if (opencodeRequested()) return process.env.AI_MODEL_OPENCODE?.trim() || DEFAULT_OPENCODE_MODEL;
   return process.env[agentVar]?.trim() || process.env.AI_MODEL_ANALYSIS?.trim() || DEFAULT_ANALYSIS_MODEL;
 }
