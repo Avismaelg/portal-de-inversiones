@@ -95,7 +95,7 @@ Archivo: `supabase/migrations/20261123120000_init_27_intelligence_briefs.sql`.
 | Bloque P0 M27 (`supabase/tests/p0_suite.sql`) | **19/19 en el resultado esperado**; revertido (0 notas, 0 noticias, 0 usuarios y 0 ejecuciones de prueba tras la corrida) |
 | Advisors de seguridad de Supabase | Sin clases nuevas: `staff_intelligence_briefs` aparece como *security definer view* y las dos RPC como *SECURITY DEFINER ejecutable por authenticated*, igual que las vistas `staff_*` y RPC existentes (diseño intencionado: filtran con `app.is_staff()` / `app.is_manager()`) |
 | Ejecución con IA real | **No realizada**: `AI_API_KEY` existe en `.env.local` pero está vacía (B-011) |
-| Prueba en navegador con sesión real | **No realizada** (B-020) |
+| Prueba en navegador con sesión real | **Parcial (2026-11-23)**: `npm run dev` + Chrome con la sesión del propietario (`platform_admin`). `/reportes` carga y lee `intelligence_briefs` sin error (lista vacía, formulario visible para staff); «Generar nota» responde «Falta la clave de IA (AI_API_KEY) en .env.local.» sin llamar al proveedor ni escribir en la base. Sin probar con roles `viewer`/`analyst`/gestor en interfaz ni con una nota real (B-011, B-020) |
 | Golden set / evals / exactitud | **No existen**; no se declara ninguna métrica de exactitud |
 
 La prueba opt-in de la extracción (`src/__tests__/extraction-live.test.ts`) y la de la nota multi-fuente (`src/__tests__/brief-live.test.ts`) están listas y se saltan por defecto. Ninguna se ha ejecutado: la clave está vacía.
