@@ -30,12 +30,12 @@ La nota queda en capa `ai_analysis`. Los hechos y decisiones que muestra llevan 
 | Regla | Implementación |
 |---|---|
 | Cita literal por hecho y por decisión | `verifyLiteral()` contra el texto de **esa** noticia (`source_id`), tras normalizar mayúsculas, tildes y espacios |
-| Cifras sin inventar | `unsupportedNumbers()`: toda cifra del hecho, decisión, patrón, implicación o acción debe existir en las fuentes citadas |
+| Cifras sin inventar | `unsupportedNumbers()`: toda cifra del hecho, decisión, patrón, implicación o acción debe existir **como cifra completa** en las fuentes citadas (desde 2026-11-24; antes bastaba que sus dígitos fueran una subcadena, y «20» pasaba si la fuente decía «120»). «1,500» y «1.500» cuentan como la misma cifra; una cifra redondeada no pasa. Las fechas de decisión se comprueban con `dateSupportedByQuote()` (año, mes —en número o palabra— y día) |
 | Patrón con recurrencia real | Exige al menos **dos noticias distintas** y que al menos dos de ellas tengan un hecho verificado |
 | Decisiones atribuidas | El actor debe aparecer literalmente en la fuente; la cita debe ser literal; la fecha, si existe, debe estar respaldada |
 | Escenarios sin falsa precisión | Se rechazan porcentajes; las cifras deben estar en las fuentes (se permiten años como horizonte) |
-| Acciones permitidas | Solo `verify`, `monitor`, `request_document` o `analyze`; se descartan “comprar/vender/invertir” y textos personalizados (“tu cartera”, “tu empresa”) |
-| Consejo de inversión | Si aparece en titular, entradilla, confianza o limitaciones, se rechaza la nota completa (`unsafe`) |
+| Acciones permitidas | Solo `verify`, `monitor`, `request_document` o `analyze`; se descartan “comprar/vender/invertir” y textos personalizados, tanto de tú (“tu cartera”) como de usted (“usted”, “le recomendamos”, “su cartera de inversión”) |
+| Consejo de inversión | Si aparece en titular, entradilla, confianza o limitaciones, se rechaza la nota completa (`unsafe`). Cubre recomendaciones, imperativos, «conviene/es momento de invertir», promesas («ganancias garantizadas», «inversión sin riesgo», pero no la advertencia «no es una inversión sin riesgo»), frases en inglés y palabras partidas con caracteres invisibles |
 | Inyección de instrucciones | El texto de las fuentes se escapa (`<`/`>` → `&lt;`/`&gt;`) para que no cierre el delimitador `<noticia>` |
 | Datos guardados | Solo titulares, enlaces, metadatos y citas cortas; **nunca el texto completo de la fuente** |
 
@@ -89,6 +89,8 @@ Archivo: `supabase/migrations/20261123120000_init_27_intelligence_briefs.sql`.
 | `npm run typecheck` | OK |
 | `npm run build` | OK; rutas `/reportes` y `/reportes/[id]` generadas |
 | `npx vitest run src/__tests__/pattern-brief.test.ts` | 25/25 OK |
+| Suite adversarial T-AI-07 (`src/__tests__/adversarial-brief.test.ts`, 2026-11-24) | 41/41 OK: 36 ataques + 4 textos legítimos + línea base. La primera corrida encontró **8 huecos** (consejo con «conviene», «sin riesgo», plural «ganancias garantizadas», inglés, carácter invisible; trato de usted; cifra contenida en otra), corregidos en `pattern-brief.ts` y `literal.ts` |
+| `npm run verify` (2026-11-24) | OK; 223 pruebas pasan y 2 se saltan (las de IA real); `src/lib/ai` 90,78 % sentencias / 83,94 % ramas |
 | `npm run verify` | OK (lint + typecheck + coverage + build) |
 | `npm run test:coverage` | 182 pasan, 2 se saltan; `src/lib` 95,94 % sentencias / 92,05 % ramas / 97,75 % funciones / 97,26 % líneas; `src/lib/ai` 89,73 / 82,4 / 98,5 / 90,04 |
 | Migración 27 | **Aplicada** (2026-11-23, MCP `apply_migration` en `xzlwrlgjsdymcidlmqew`, nombre `init_27_intelligence_briefs`) |
@@ -129,7 +131,8 @@ La prueba lee hasta 3 noticias del feed de Indotel, llama al modelo y exige hech
 - **B-020:** no hay proyecto/usuarios de prueba para validar RLS y revisión desde la interfaz.
 - **B-012:** el hosting puede limitar una acción que tarda cerca de un minuto.
 - **B-009/B-017:** revisión legal de enviar texto de fuentes públicas a un tercero y de la línea editorial; la nota evita consejo personalizado, pero el encuadre legal sigue pendiente.
-- **T-AI-03/T-AI-07/T-AI-12:** golden set, suite adversarial y evals en CI siguen sin existir para este flujo.
+- **T-AI-07:** suite adversarial de 41 casos con salidas simuladas (sin modelo real). **No cubre:** cifras escritas con palabras («doscientos millones»), un hecho que contradice su propia cita (negación), un estado de decisión exagerado («approved» cuando la fuente solo dice «anunció»), ni ataques que solo se ven con el modelo real. Las listas de consejo y trato personal son heurísticas: pueden dejar pasar redacciones nuevas.
+- **T-AI-03/T-AI-12:** golden set y evals en CI siguen sin existir para este flujo.
 - **UX (Ventana B):** `/reportes` no figuraba en el inventario de pantallas; hay que incorporarlo y revisar el texto de navegación.
 - **Nomenclatura:** añadir un valor propio a `agent_name` cuando se pueda migrar el enum sin reutilizar `opportunity_intelligence`.
 

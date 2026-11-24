@@ -85,7 +85,7 @@
 ## 7. Qué falta (no se declara hecho)
 
 - **T-AI-03**: golden set de extracción con anotación humana (≥ 300 campos por tipo crítico). Sin documentos reales ni anotadores no existe.
-- **T-AI-07**: suite adversarial de ≥ 30 casos. Hoy hay heurística y pruebas unitarias, no la suite completa.
+- **T-AI-07**: la suite adversarial de 41 casos (2026-11-24) cubre la nota multi-fuente, no este agente. Efecto compartido: `unsupportedNumbers()` ahora compara cifras completas, así que la extracción también descarta títulos, resúmenes y condiciones con cifras que solo eran un fragmento de otra de la fuente o un redondeo.
 - **T-AI-12**: evals en CI e informe mensual de costos por agente.
 - Medición de exactitud (RNF-16): no se afirma ningún porcentaje.
 - Revisión legal de enviar texto de fuentes a un tercero (B-009/B-017).

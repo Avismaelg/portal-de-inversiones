@@ -186,6 +186,7 @@ Implementa la petición de generar una nota tipo artículo que detecte patrones 
 | Revisión humana | **Hecho** | Solo gestor publica/rechaza con nota ≥10; una nota publicada es inmutable; lectores solo ven publicadas | M27 (casos 27-07, 27-10 a 27-19) contra la base real; sin prueba en navegador |
 | Trazabilidad y costo | **Hecho (código)** | Cada intento va a `ai_analysis_runs` (`agent='opportunity_intelligence'`, `task='intelligence_brief'`) con modelo, versiones, tokens, costo y latencia; tope mensual antes de llamar | Lógica con cliente simulado; sin ejecución real |
 | Ejecución real | **No realizada** | — | `AI_API_KEY` vacía (B-011) |
+| Suite adversarial (T-AI-07) | **Hecho (v1, 2026-11-24)** | `src/__tests__/adversarial-brief.test.ts`: 41 casos (consejo, trato personal, cifras, citas, patrones, fuentes con instrucciones ocultas y falsos positivos). Encontró 8 huecos, corregidos | 41/41; `npm run verify` en verde (223 pasan, 2 se saltan) |
 | Golden set / evals | **No existen** | — | No se declara exactitud |
 
 Evidencia local (2026-11-23): `npm run verify` en verde (lint + tipos + cobertura + build); `npm run test:coverage` 182 pasan y 2 se saltan; `src/lib` 95,94 % sentencias / 92,05 % ramas / 97,75 % funciones / 97,26 % líneas; `src/lib/ai` 89,73 / 82,4 / 98,5 / 90,04. Rutas `/reportes` y `/reportes/[id]` generadas.

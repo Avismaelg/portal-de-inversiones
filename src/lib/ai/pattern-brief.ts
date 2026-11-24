@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 import { fold } from "@/lib/ingest/news";
+import { dateSupportedByQuote } from "./extraction";
 import { normalizeLiteral, unsupportedNumbers, verifyLiteral } from "./literal";
 import type { LlmClient, LlmUsage } from "./types";
 
@@ -231,21 +232,41 @@ const ADVICE = [
   /\b(recomendaci[oó]n|consejo)\s*:\s*(comprar|vender|invertir)\b/i,
   /\brecomendaci[oó]n\s+de\s+(compra|venta)\b/i,
   /\b(buena|mala)\s+(compra|inversi[oó]n)\b/i,
-  /\b(garantiz\w*|rendimiento|ganancia|retorno)\s+(garantizad[oa]s?|asegurad[oa]s?)\b/i,
+  /\b(rendimientos?|ganancias?|retornos?|beneficios?)\s+(garantizad[oa]s?|asegurad[oa]s?|segur[oa]s?)\b/i,
   /\bgarantiz\w*\s+(rendimientos?|ganancias?|retornos?)\b/i,
+  // «inversión sin riesgo» es una promesa; «no es una inversión sin riesgo» es una advertencia válida.
+  /(?<!\bno\s+(?:es|son|hay)\s+(?:una?\s+)?)\b(inversi[oó]n(es)?|rendimientos?|ganancias?|retornos?|apuesta)\s+(segur[oa]s?\s+y\s+)?sin\s+riesgos?\b/i,
+  /\b(conviene|es\s+(el\s+)?momento\s+de|hay\s+que|aproveche|aprovecha|aprovechar\s+para)\s+(comprar|vender|invertir)\b/i,
+  // Inglés: el modelo puede cambiar de idioma si una fuente lo empuja.
+  /\b(buy|sell)\s+(the\s+|now\s+)?(\w+\s+)?(stocks?|shares?|bonds?|equities)\b/i,
+  /\b(we\s+)?(recommend|suggest|advise)\s+(buying|selling|investing)\b/i,
+  /\b(guaranteed|risk[-\s]free)\s+(returns?|profits?|gains?)\b/i,
 ];
 
-const PERSONAL =
-  /\b(para\s+ti|tu\s+cartera|tu\s+portafolio|en\s+tu\s+caso|tu\s+perfil|seg[uú]n\s+tu\s+perfil|tu\s+empresa|tu\s+organizaci[oó]n|tu\s+negocio)\b/i;
+const PERSONAL: RegExp[] = [
+  /\b(para\s+ti|tu\s+cartera|tu\s+portafolio|en\s+tu\s+caso|tu\s+perfil|seg[uú]n\s+tu\s+perfil|tu\s+empresa|tu\s+organizaci[oó]n|tu\s+negocio)\b/i,
+  // Trato de usted. «su cartera» a secas no se vigila: «el banco aumentó su cartera de préstamos» es un hecho.
+  /\b(usted|ustedes)\b/i,
+  /\ble\s+(recomendamos|sugerimos|aconsejamos|conviene)\b/i,
+  /\bsu\s+(cartera|portafolio)\s+de\s+inversi[oó]n(es)?\b/i,
+  /\b(en\s+su\s+caso|seg[uú]n\s+su\s+perfil)\b/i,
+];
+
+/** Quita caracteres invisibles y unifica formas Unicode para que no partan una palabra vigilada. */
+function visible(text: string): string {
+  return text.normalize("NFKC").replace(/[­​-‏⁠-⁤﻿]/g, "");
+}
 
 /** Consejo de inversión o promesa de rendimiento: se rechaza la nota completa. */
 export function hasForbiddenAdvice(text: string): boolean {
-  return ADVICE.some((r) => r.test(text));
+  const t = visible(text);
+  return ADVICE.some((r) => r.test(t));
 }
 
-/** Acción redactada como consejo personalizado: se descarta esa acción. */
+/** Texto dirigido a la persona que lee (tuteo o usted): se descarta o se rechaza la nota. */
 export function isPersonalized(text: string): boolean {
-  return PERSONAL.test(text);
+  const t = visible(text);
+  return PERSONAL.some((r) => r.test(t));
 }
 
 /** Probabilidad numérica inventada en un escenario (porcentaje o «por ciento»). */
@@ -386,7 +407,7 @@ export function guardBrief(raw: RawBrief, sources: readonly BriefSource[]): { br
     }
     const date = validIsoDate(d.date);
     if (d.date && !date) warnings.add("decision_date_invalid");
-    if (unsupportedNumbers(d.decision, text).length > 0 || (date && unsupportedNumbers(date, text).length > 0)) {
+    if (unsupportedNumbers(d.decision, text).length > 0 || (date && !dateSupportedByQuote(date, text))) {
       dropped++;
       warnings.add("decision_number_or_date_not_in_source");
       continue;

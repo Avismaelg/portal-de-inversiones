@@ -39,16 +39,23 @@ export function digitsOf(value: string): string {
   return fold(value).replace(/\D+/g, "");
 }
 
+const NUMBER = /\d[\d.,]*/g;
+
 /**
  * Cifras que aparecen en un texto generado y no existen en la fuente.
  * Devuelve la representación original de cada una para poder avisar.
+ *
+ * Se compara cifra contra cifra (sin separadores), no contra la cadena de todos los dígitos de la
+ * fuente: así «20» no pasa porque la fuente diga «120», ni «12080» por pegar «120» y «80».
+ * «1,500» y «1.500» siguen siendo la misma cifra. Una cifra redondeada o reescrita no pasa.
  */
 export function unsupportedNumbers(generated: string, source: string): string[] {
-  const src = digitsOf(source);
+  const known = new Set<string>();
+  for (const match of source.matchAll(NUMBER)) known.add(digitsOf(match[0]));
   const out = new Set<string>();
-  for (const match of generated.matchAll(/\d[\d.,]*/g)) {
+  for (const match of generated.matchAll(NUMBER)) {
     const digits = digitsOf(match[0]);
-    if (digits.length > 0 && !src.includes(digits)) out.add(match[0].replace(/[.,]$/, ""));
+    if (digits.length > 0 && !known.has(digits)) out.add(match[0].replace(/[.,]$/, ""));
   }
   return [...out];
 }
