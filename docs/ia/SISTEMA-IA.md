@@ -6,7 +6,7 @@
 | Versión | 0.2.0 (2026-11-18) |
 | Fecha | 2026-11-15 |
 | Autor | Ventana A |
-| Estado | **Diseño vigente; Agente 2 (Extraction) tiene una implementación v1** probada con cliente simulado, sin ejecución real ni evals (ver `docs/ia/EXTRACCION-V1.md`). Los demás agentes siguen sin implementar |
+| Estado | **Diseño vigente; Agente 2 (Extraction) y una nota de inteligencia multi-fuente (extensión del Agente 4) tienen implementación v1** probada con cliente simulado, sin ejecución real ni evals (ver `docs/ia/EXTRACCION-V1.md` y `docs/ia/NOTAS-INTELIGENCIA.md`). Los demás agentes siguen sin implementar |
 | Requisitos | `[PENDIENTE SRS]`. Base: PM §5; RF-A/F y RNF-16…RNF-22 provisionales de B |
 
 > **Qué no se afirma.** No se ha elegido proveedor ni modelo; no se ha medido precisión, costo ni latencia de nada. Todos los umbrales son **hipótesis** (los de calidad vienen de B, RNF-16…22; los de costo, de B RNF-21 con tope mensual `[PENDIENTE]`). Los esquemas JSON son contratos de diseño, aún sin código.
@@ -283,6 +283,8 @@ Reglas (versión 1, por orden):
 
 Reglas (código, tras el LLM): `estimated_capital` solo se acepta si coincide con un monto con cita **o** con un cálculo determinista cuyos supuestos se almacenan en `capital_basis`; `confidence` se **calcula** por fórmula documentada a partir de señales (estado de verificación, nº de fuentes oficiales, cobertura de citas, antigüedad) y el LLM solo redacta la explicación (así no es una "probabilidad de éxito" inventada; RF-F-06). La fórmula y sus pesos son `[PENDIENTE]`, a calibrar con revisión humana.
 
+**Implementación v1 (2026-11-23):** se añadió una nota de inteligencia multi-fuente (`src/lib/ai/pattern-brief.ts`) que **no sustituye** este diseño evento→oportunidad: analiza un conjunto de noticias, exige patrones de al menos dos fuentes y decisiones con cita literal, y guarda un borrador revisable en `intelligence_briefs` (migración 27). Detalle y límites en `docs/ia/NOTAS-INTELIGENCIA.md`. La ejecución real sigue pendiente (B-011).
+
 ### 4.5 Agente 5 — Financial Analysis
 
 | Aspecto | Diseño |
@@ -458,7 +460,7 @@ Límite honesto: ninguna defensa es completa. I-1 y I-5 son las que acotan el da
 
 ## 13. Qué falta antes de implementar
 
-> Actualización 2026-11-18: el punto 1 sigue abierto (el adaptador Anthropic lee el modelo de `AI_MODEL_EXTRACTION` y el tope de `AI_MONTHLY_BUDGET_USD`, pero no hay clave configurada ni proveedor aprobado). El Agente 2 tiene una v1 (ver §4.2); los puntos 2–5 siguen abiertos.
+> Actualización 2026-11-23: el punto 1 sigue abierto (el adaptador Anthropic lee el modelo de `AI_MODEL_EXTRACTION`/`AI_MODEL_BRIEF` y el tope de `AI_MONTHLY_BUDGET_USD`, pero `AI_API_KEY` está vacía). El Agente 2 y la nota multi-fuente tienen v1 (ver §4.2 y §4.4); los puntos 2–5 siguen abiertos.
 
 1. Elección de proveedor/modelos y tope mensual (decisión del usuario).
 2. Fuentes conectadas para construir el golden set (Fase 3).

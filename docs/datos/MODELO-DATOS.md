@@ -403,3 +403,23 @@ El propietario se registró por Supabase Auth: **primer registro real**, y el tr
 ### 18.2 Cupón resuelto (2026-11-15)
 
 Decisión del propietario («sí»): se añadió `coupon` a `rate_kind` (migración 10; **irreversible** sin recrear el tipo). Se cargó el cupón de MH2-2041: `coupon_rate = 12.0`, `rate_kind = 'coupon'`, con evidencia literal `12.0000%` (7 evidencias literales en total). **Efecto en B:** RF-C-05 y los documentos de UX/QA hablan de tres tipos de tasa (indicativa, adjudicada, efectiva); ahora hay un cuarto valor en datos. El cupón es una condición del instrumento, no una tasa de mercado: la UI debe mostrarlo aparte y no mezclarlo en las series de tasas. Pendiente que B lo refleje.
+
+## 19. Ronda 2026-11-23: notas de inteligencia multi-fuente (migración 27)
+
+Se añade una **tabla auxiliar** (`intelligence_briefs`) fuera de las 23 entidades del PM, para no mezclar tres cosas distintas:
+
+- `news_analyses`: análisis de **una** noticia (impacto, escenarios, cadena de valor);
+- `investment_opportunities`: hipótesis comercial revisable, ligada a un evento verificado;
+- `intelligence_briefs`: **nota multi-fuente** que sintetiza varias noticias, exige patrones de al menos dos fuentes y decisiones con cita literal, y se revisa antes de publicar.
+
+| Elemento | Regla |
+|---|---|
+| `intelligence_briefs` | `scope_label`, periodo, `headline`/`lead`, `payload` JSONB (nota filtrada + metadatos de fuentes), `input_news_ids` (2–8), modelo/versiones, `ai_run_id`, `publication_status`, revisor/fecha, `generated_by` |
+| `record_intelligence_brief` | Solo staff autenticado. Inserta el intento en `ai_analysis_runs` (`agent='opportunity_intelligence'`, `task='intelligence_brief'`) y, si tuvo éxito, una nota en `draft`. Valida tamaño del payload y que las noticias existan |
+| `review_intelligence_brief` | Solo gestor; nota de revisión ≥10 caracteres; solo desde `draft` |
+| Trigger `app.enforce_brief_publication` | Al publicar fija `reviewed_by`, `reviewed_at` y `published_at`; una nota publicada no se despublica ni se edita (si está mal, se crea otra); el rechazo exige nota |
+| RLS | `viewer`: solo `published`; staff: todo |
+| Grants | `SELECT` por columna en la tabla; `review_notes`/`reviewed_by` solo en la vista `staff_intelligence_briefs` (B-018) |
+| Índices | `created_at`, `published_at` (parcial), `publication_status` y `ai_analysis_runs (task, created_at)` |
+
+**Estado:** migración **aplicada** en `xzlwrlgjsdymcidlmqew` el 2026-11-23 (B-023 resuelto). RLS, grants por columna, trigger y RPC verificados con el bloque P0 M27 (19/19 en el resultado esperado, revertido). El motor y las guardas sí tienen pruebas unitarias (25/25). Detalle: `docs/ia/NOTAS-INTELIGENCIA.md`.

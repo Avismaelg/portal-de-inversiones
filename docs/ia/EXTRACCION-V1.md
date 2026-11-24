@@ -67,7 +67,7 @@
 | `npm run typecheck` | OK |
 | `npx vitest run` (archivos nuevos) | 26/26 OK |
 | `npm run build` | OK; `/noticias/[id]` sigue siendo parcialmente prerenderizada |
-| Ejecución con la API real | **No realizada**: falta `AI_API_KEY` |
+| Ejecución con la API real | **No realizada (2026-11-23)**: `AI_API_KEY` existe en `.env.local` pero está vacía. La prueba opt-in `src/__tests__/extraction-live.test.ts` está lista y se salta por defecto. |
 | Migración 26 aplicada | **Sí** (2026-11-18, SQL Editor del proyecto `xzlwrlgjsdymcidlmqew`); bloque P0 M26 con los 7 casos en el resultado esperado |
 
 ## 6. Cómo habilitarlo

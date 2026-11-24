@@ -154,7 +154,7 @@ Implementa lo que `docs/ia/SISTEMA-IA.md` §4.2 y el backlog técnico piden para
 | Interfaz staff | **Hecho** | Sección «Datos estructurados del acontecimiento» y botón «Extraer datos con IA» en `/noticias/[id]`, solo para roles staff | Revisión de código; **sin prueba en el navegador con sesión real** |
 | Registro | **Hecho** | Migración 26 (aplicada el 2026-11-18): `record_extraction_run` guarda el candidato filtrado en `ai_analysis_runs` con `agent='extraction'`, `task='news_extraction'`, `subject_type='news'` | P0 bloque M26 ejecutado: 7/7 en el resultado esperado |
 | Tope de costo | **Hecho** | Reutiliza `ai_spend_month()` y `AI_MONTHLY_BUDGET_USD` (5 USD por defecto) | Lógica probada con cliente simulado |
-| Ejecución real | **No realizada** | — | Falta `AI_API_KEY` (B-011) |
+| Ejecución real | **No realizada (2026-11-23)** | Prueba opt-in `src/__tests__/extraction-live.test.ts` lista | `AI_API_KEY` vacía en `.env.local` (B-011) |
 
 Evidencia local (2026-11-18): `npm run lint`, `npm run typecheck` y `npm run build` en verde; `npm run test:coverage` 157/157 en 29 archivos; `src/lib` 95,94 % sentencias / 92,05 % ramas / 97,75 % funciones / 97,26 % líneas; `src/lib/ai` 94,75 / 83,87 / 97,67 / 96,53.
 
@@ -172,4 +172,22 @@ Límites que se mantienen: no crea `economic_events`, no publica, no genera aler
 26-07 OK modelo obligatorio: model required
 ```
 
-El bloque se revirtió solo. Lo único que falta para usar el agente es la clave `AI_API_KEY` (B-011), que no está en `.env.local`; sin ella el botón responde pidiendo la clave y no llama a ningún proveedor.
+El bloque se revirtió solo. Lo único que falta para usar el agente es la clave `AI_API_KEY` (B-011), que está vacía en `.env.local`; sin ella el botón responde pidiendo la clave y no llama a ningún proveedor.
+
+## 11. Incremento IA: notas de inteligencia multi-fuente (rama `feat/ia-extraccion`, 2026-11-23)
+
+Implementa la petición de generar una nota tipo artículo que detecte patrones y decisiones de empresas o gobierno, con escenarios y acciones de verificación. Se encuadró como **análisis generado por IA**, no como noticia inventada ni consejo de inversión (R-B07/RI-06). Detalle completo en `docs/ia/NOTAS-INTELIGENCIA.md`.
+
+| Tarea | Estado | Implementación | Verificación |
+|---|---|---|---|
+| Motor y guardas | **Hecho (v1)** | `src/lib/ai/pattern-brief.ts`: hechos/decisiones con cita literal, patrones de ≥2 fuentes con hechos verificados, cifras contra fuentes, escenarios sin probabilidades, acciones de verificación y rechazo de consejo de inversión | `pattern-brief.test.ts` 25/25 |
+| Interfaz `/reportes` | **Hecho (local)** | Lista, formulario de generación para staff, detalle con secciones y revisión para gestor; navegación activada | `npm run build`; **sin prueba en navegador con sesión real** (B-020) |
+| Persistencia | **Hecho** | Migración 27 (aplicada el 2026-11-23): `intelligence_briefs`, `record_intelligence_brief`, `review_intelligence_brief`, trigger de publicación, RLS y grants por columna | P0 bloque M27: 19/19 en el resultado esperado |
+| Revisión humana | **Hecho** | Solo gestor publica/rechaza con nota ≥10; una nota publicada es inmutable; lectores solo ven publicadas | M27 (casos 27-07, 27-10 a 27-19) contra la base real; sin prueba en navegador |
+| Trazabilidad y costo | **Hecho (código)** | Cada intento va a `ai_analysis_runs` (`agent='opportunity_intelligence'`, `task='intelligence_brief'`) con modelo, versiones, tokens, costo y latencia; tope mensual antes de llamar | Lógica con cliente simulado; sin ejecución real |
+| Ejecución real | **No realizada** | — | `AI_API_KEY` vacía (B-011) |
+| Golden set / evals | **No existen** | — | No se declara exactitud |
+
+Evidencia local (2026-11-23): `npm run verify` en verde (lint + tipos + cobertura + build); `npm run test:coverage` 182 pasan y 2 se saltan; `src/lib` 95,94 % sentencias / 92,05 % ramas / 97,75 % funciones / 97,26 % líneas; `src/lib/ai` 89,73 / 82,4 / 98,5 / 90,04. Rutas `/reportes` y `/reportes/[id]` generadas.
+
+Límites que se mantienen: no crea `economic_events`, no publica automáticamente, no genera alertas y no guarda el texto completo de las fuentes. La migración 27 está aplicada y sus guardias verificadas con el bloque M27; el flujo completo no se ha probado con sesión de usuario en el navegador. La clave de IA está vacía. Pendientes: B-011 (clave), B-020 (proyecto/usuarios de prueba), B-012 (límite de ejecución del hosting) y B-009/B-017 (revisión legal).

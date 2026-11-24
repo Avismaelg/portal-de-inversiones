@@ -824,3 +824,108 @@ BEGIN
   RESET ROLE;
   RAISE EXCEPTION E'RESULTADOS (revertido)\n%', res;
 END $$;
+
+-- ------------- BLOQUE M27: notas de inteligencia multi-fuente (intelligence_briefs) ---------------
+DO $$
+DECLARE res text := '';
+  a uuid := '00000000-0000-0000-0000-0000000027b1'; v uuid := '00000000-0000-0000-0000-0000000027b2'; m uuid := '00000000-0000-0000-0000-0000000027b3';
+  n1 uuid; n2 uuid; b uuid; r uuid; n int; ag text; tk text; st text; rb uuid; pa timestamptz;
+  pl jsonb := jsonb_build_object('facts', jsonb_build_array(), 'stats', jsonb_build_object('sources', 2));
+BEGIN
+  INSERT INTO auth.users (id, email) VALUES (a,'a27@test.invalid'),(v,'v27@test.invalid'),(m,'m27@test.invalid');
+  UPDATE users SET role='analyst' WHERE id=a;
+  UPDATE users SET role='opportunity_manager' WHERE id=m;
+  INSERT INTO news_items (source_key, source_name, url, title)
+    VALUES ('test27','Prueba 27','https://test.invalid/27/1','Noticia de prueba 27 uno') RETURNING id INTO n1;
+  INSERT INTO news_items (source_key, source_name, url, title)
+    VALUES ('test27','Prueba 27','https://test.invalid/27/2','Noticia de prueba 27 dos') RETURNING id INTO n2;
+
+  -- Lector: no registra
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  BEGIN PERFORM record_intelligence_brief('Tema prueba', current_date-7, current_date, 'Titular de prueba 27',
+          repeat('Entradilla de prueba. ',3), ARRAY[n1,n2], pl, 'm','p','s',1,1,0,1,'succeeded',NULL);
+    res := res || E'27-01 INESPERADO viewer registra\n';
+  EXCEPTION WHEN others THEN res := res || '27-01 OK viewer no registra: ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+
+  -- Analista: registra borrador y su ejecución
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', a, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  b := record_intelligence_brief('Tema prueba', current_date-7, current_date, 'Titular de prueba 27',
+         repeat('Entradilla de prueba. ',3), ARRAY[n1,n2], pl, 'claude-sonnet-5-5','brief@1.0.0','brief-schema@1.0.0',100,50,0.001,900,'succeeded',NULL);
+  SELECT publication_status::text INTO st FROM intelligence_briefs WHERE id=b;
+  res := res || '27-02 analista crea nota (esperado draft): ' || coalesce(st,'NULL') || E'\n';
+  BEGIN PERFORM record_intelligence_brief('Tema prueba', current_date-7, current_date, 'Titular de prueba 27',
+          repeat('Entradilla de prueba. ',3), ARRAY[n1], pl, 'm','p','s',1,1,0,1,'succeeded',NULL);
+    res := res || E'27-03 INESPERADO una sola fuente\n';
+  EXCEPTION WHEN others THEN res := res || '27-03 OK exige 2-8 noticias: ' || SQLERRM || E'\n'; END;
+  BEGIN PERFORM record_intelligence_brief('Tema prueba', current_date-7, current_date, 'Titular de prueba 27',
+          repeat('Entradilla de prueba. ',3), ARRAY[n1,gen_random_uuid()], pl, 'm','p','s',1,1,0,1,'succeeded',NULL);
+    res := res || E'27-04 INESPERADO noticia inexistente\n';
+  EXCEPTION WHEN others THEN res := res || '27-04 OK noticia debe existir: ' || SQLERRM || E'\n'; END;
+  BEGIN PERFORM record_intelligence_brief('Tema prueba', current_date-7, current_date, 'Titular de prueba 27',
+          repeat('Entradilla de prueba. ',3), ARRAY[n1,n2], jsonb_build_object('x',repeat('a',300000)), 'm','p','s',1,1,0,1,'succeeded',NULL);
+    res := res || E'27-05 INESPERADO payload enorme\n';
+  EXCEPTION WHEN others THEN res := res || '27-05 OK payload limitado: ' || SQLERRM || E'\n'; END;
+  r := record_intelligence_brief(NULL,NULL,NULL,NULL,NULL,NULL,NULL,'claude-sonnet-5-5','brief@1.0.0','brief-schema@1.0.0',10,0,0.0001,50,'failed','timeout');
+  BEGIN PERFORM review_intelligence_brief(b,'publish','Revisado por el analista');
+    res := res || E'27-07 INESPERADO analista publica\n';
+  EXCEPTION WHEN others THEN res := res || '27-07 OK analista no publica: ' || SQLERRM || E'\n'; END;
+  BEGIN UPDATE intelligence_briefs SET publication_status='published' WHERE id=b;
+    GET DIAGNOSTICS n = ROW_COUNT; res := res || '27-08 INESPERADO update directo, filas: ' || n || E'\n';
+  EXCEPTION WHEN others THEN res := res || '27-08 OK sin update directo: ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+  SELECT r2.agent::text, r2.task INTO ag, tk FROM ai_analysis_runs r2 JOIN intelligence_briefs ib ON ib.ai_run_id=r2.id WHERE ib.id=b;
+  res := res || '27-09 ejecución trazada (esperado opportunity_intelligence/intelligence_brief): ' || coalesce(ag,'NULL') || '/' || coalesce(tk,'NULL') || E'\n';
+  SELECT count(*) INTO n FROM intelligence_briefs WHERE ai_run_id=r;  -- ai_run_id no se concede a authenticated
+  res := res || '27-06 fallo registra solo la ejecución (esperado 0 notas): ' || n || E'\n';
+
+  -- Lector: no ve borradores
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM intelligence_briefs WHERE id=b;
+  res := res || '27-10 viewer no ve borrador (esperado 0): ' || n || E'\n';
+  RESET ROLE;
+
+  -- Gestor: nota corta rechazada, publica con nota
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', m, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  BEGIN PERFORM review_intelligence_brief(b,'publish','corta');
+    res := res || E'27-11 INESPERADO nota corta\n';
+  EXCEPTION WHEN others THEN res := res || '27-11 OK nota >=10: ' || SQLERRM || E'\n'; END;
+  PERFORM review_intelligence_brief(b,'publish','Citas comprobadas contra las fuentes');
+  BEGIN PERFORM review_intelligence_brief(b,'reject','Rechazo tras publicar');
+    res := res || E'27-12 INESPERADO revisa una publicada\n';
+  EXCEPTION WHEN others THEN res := res || '27-12 OK solo desde draft: ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+  SELECT publication_status::text, reviewed_by, published_at INTO st, rb, pa FROM intelligence_briefs WHERE id=b;
+  res := res || '27-13 publicada por gestor (esperado published/true/true): ' || st || '/' || (rb=m)::text || '/' || (pa IS NOT NULL)::text || E'\n';
+
+  -- Lector: ve publicada, pero no los campos de revisión ni la vista staff
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', v, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM intelligence_briefs WHERE id=b;
+  res := res || '27-14 viewer ve publicada (esperado 1): ' || n || E'\n';
+  BEGIN SELECT count(review_notes) INTO n FROM intelligence_briefs;
+    res := res || E'27-15 INESPERADO viewer lee review_notes\n';
+  EXCEPTION WHEN others THEN res := res || '27-15 OK review_notes oculto: ' || SQLERRM || E'\n'; END;
+  SELECT count(*) INTO n FROM staff_intelligence_briefs;
+  res := res || '27-16 viewer no ve vista staff (esperado 0): ' || n || E'\n';
+  RESET ROLE;
+  SET LOCAL ROLE anon;
+  BEGIN SELECT count(*) INTO n FROM intelligence_briefs;
+    res := res || E'27-17 INESPERADO anon lee\n';
+  EXCEPTION WHEN others THEN res := res || '27-17 OK anon no lee: ' || SQLERRM || E'\n'; END;
+  RESET ROLE;
+
+  -- Inmutabilidad (incluso como postgres)
+  BEGIN UPDATE intelligence_briefs SET headline='Titular cambiado tras publicar' WHERE id=b;
+    res := res || E'27-18 INESPERADO edita publicada\n';
+  EXCEPTION WHEN others THEN res := res || '27-18 OK contenido inmutable: ' || SQLERRM || E'\n'; END;
+  BEGIN UPDATE intelligence_briefs SET publication_status='draft' WHERE id=b;
+    res := res || E'27-19 INESPERADO despublica\n';
+  EXCEPTION WHEN others THEN res := res || '27-19 OK no se despublica: ' || SQLERRM || E'\n'; END;
+
+  RAISE EXCEPTION E'RESULTADOS (revertido)\n%', res;
+END $$;
