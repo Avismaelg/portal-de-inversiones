@@ -18,7 +18,8 @@
  *   npx vitest run src/__tests__/brief-live.test.ts --reporter=verbose
  */
 import { describe, expect, it } from "vitest";
-import { createLlmClient, DEFAULT_ANALYSIS_MODEL } from "@/lib/ai/anthropic-client";
+import { createLlmClient, resolveModel } from "@/lib/ai/anthropic-client";
+import { opencodeRequested } from "@/lib/ai/opencode-client";
 import { estimateCostUsd } from "@/lib/ai/pricing";
 import { generateBrief, type BriefSource } from "@/lib/ai/pattern-brief";
 import { todayInRD } from "@/lib/format";
@@ -61,7 +62,7 @@ describe.runIf(RUN)("nota de inteligencia con la API real (opt-in)", () => {
       const llm = createLlmClient();
       expect(llm, "falta AI_API_KEY en el entorno de la prueba").not.toBeNull();
 
-      const model = process.env.AI_MODEL_BRIEF?.trim() || process.env.AI_MODEL_ANALYSIS?.trim() || DEFAULT_ANALYSIS_MODEL;
+      const model = resolveModel("AI_MODEL_BRIEF");
       const started = Date.now();
       const out = await generateBrief(llm!, sources, {
         model,
@@ -101,11 +102,14 @@ describe.runIf(RUN)("nota de inteligencia con la API real (opt-in)", () => {
       expect(result.patterns.length).toBeGreaterThan(0);
       expect(result.scenarios.length).toBeGreaterThan(0);
       expect(result.stats.evidence_coverage).toBeGreaterThan(0);
-      expect(result.input_tokens).toBeGreaterThan(0);
-      expect(result.output_tokens).toBeGreaterThan(0);
-      expect(cost).toBeGreaterThan(0);
+      // El CLI de opencode no informa tokens y sus modelos gratuitos cuestan 0: solo se exige con Anthropic.
+      if (!opencodeRequested()) {
+        expect(result.input_tokens).toBeGreaterThan(0);
+        expect(result.output_tokens).toBeGreaterThan(0);
+        expect(cost).toBeGreaterThan(0);
+      }
       expect(latencyMs).toBeGreaterThan(0);
     },
-    240_000,
+    300_000,
   );
 });

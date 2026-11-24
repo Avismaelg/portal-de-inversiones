@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createLlmClient, DEFAULT_ANALYSIS_MODEL } from "@/lib/ai/anthropic-client";
+import { createLlmClient, resolveModel } from "@/lib/ai/anthropic-client";
 import { extractNews, EXTRACTION_PROMPT_VERSION, EXTRACTION_SCHEMA_VERSION } from "@/lib/ai/extraction";
 import { estimateCostUsd, monthlyBudgetUsd } from "@/lib/ai/pricing";
 import { getCurrentRole } from "@/lib/auth";
@@ -40,8 +40,7 @@ export async function extractNewsData(_prev: ExtractActionResult | null, formDat
   const { data: spent, error: spendErr } = await supabase.rpc("ai_spend_month");
   if (spendErr || spent === null) return { ok: false, message: "No se pudo comprobar el gasto de IA del mes." };
 
-  const model =
-    process.env.AI_MODEL_EXTRACTION?.trim() || process.env.AI_MODEL_ANALYSIS?.trim() || DEFAULT_ANALYSIS_MODEL;
+  const model = resolveModel("AI_MODEL_EXTRACTION");
   let latency = 0;
 
   const record = (

@@ -12,6 +12,9 @@ const PRICES: Record<string, { input: number; output: number }> = {
 const FALLBACK = PRICES["claude-opus-5-5"];
 
 export function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
+  // Modelos gratuitos de opencode (solo pruebas locales): sin costo. Cualquier otro modelo desconocido
+  // sigue usando el precio más caro.
+  if (/^opencode(-go)?\/[\w.-]+-free$/.test(model)) return 0;
   const p = PRICES[model] ?? FALLBACK;
   return Math.round(((inputTokens * p.input + outputTokens * p.output) / 1_000_000) * 1e6) / 1e6;
 }

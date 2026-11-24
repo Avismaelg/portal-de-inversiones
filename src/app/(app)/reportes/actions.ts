@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { DEFAULT_ANALYSIS_MODEL, createLlmClient } from "@/lib/ai/anthropic-client";
+import { createLlmClient, resolveModel } from "@/lib/ai/anthropic-client";
 import {
   BRIEF_PROMPT_VERSION,
   BRIEF_SCHEMA_VERSION,
@@ -35,9 +35,9 @@ const FAILURE: Record<string, string> = {
   unsafe: "La salida contenía consejo de inversión o una promesa de rendimiento; se descartó completa.",
 };
 
-/** El modelo se elige con AI_MODEL_BRIEF, luego AI_MODEL_ANALYSIS y, si no, el de por defecto. */
+/** El modelo se elige con AI_MODEL_BRIEF, luego AI_MODEL_ANALYSIS y, si no, el de por defecto (o AI_MODEL_OPENCODE en pruebas). */
 function briefModel(): string {
-  return process.env.AI_MODEL_BRIEF?.trim() || process.env.AI_MODEL_ANALYSIS?.trim() || DEFAULT_ANALYSIS_MODEL;
+  return resolveModel("AI_MODEL_BRIEF");
 }
 
 /**

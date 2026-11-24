@@ -4,6 +4,7 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import { DEFAULT_OPENCODE_MODEL, OpencodeCliLlmClient, opencodeRequested } from "./opencode-client";
 import type { LlmClient, LlmRequest, LlmResult } from "./types";
 
 /** Modelo por defecto del análisis editorial (el que ya usan noticias y macro). */
@@ -44,8 +45,21 @@ export class AnthropicLlmClient implements LlmClient {
   }
 }
 
-/** Cliente listo o null si no hay clave (el llamador debe explicarlo, no simular). */
+/**
+ * Cliente listo o null si no hay clave (el llamador debe explicarlo, no simular).
+ * Con AI_PROVIDER=opencode (solo fuera de producción) usa modelos gratuitos de opencode para pruebas.
+ */
 export function createLlmClient(): LlmClient | null {
+  if (opencodeRequested()) return new OpencodeCliLlmClient();
   const apiKey = apiKeyFromEnv();
   return apiKey ? new AnthropicLlmClient(new Anthropic({ apiKey })) : null;
+}
+
+/**
+ * Modelo de un agente. Con Anthropic: variable propia del agente, luego AI_MODEL_ANALYSIS y el de por
+ * defecto. Con opencode se ignoran esas variables (son modelos de Claude) y se usa AI_MODEL_OPENCODE.
+ */
+export function resolveModel(agentVar: "AI_MODEL_EXTRACTION" | "AI_MODEL_BRIEF"): string {
+  if (opencodeRequested()) return process.env.AI_MODEL_OPENCODE?.trim() || DEFAULT_OPENCODE_MODEL;
+  return process.env[agentVar]?.trim() || process.env.AI_MODEL_ANALYSIS?.trim() || DEFAULT_ANALYSIS_MODEL;
 }

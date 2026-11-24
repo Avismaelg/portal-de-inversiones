@@ -96,8 +96,9 @@ Archivo: `supabase/migrations/20261123120000_init_27_intelligence_briefs.sql`.
 | Migración 27 | **Aplicada** (2026-11-23, MCP `apply_migration` en `xzlwrlgjsdymcidlmqew`, nombre `init_27_intelligence_briefs`) |
 | Bloque P0 M27 (`supabase/tests/p0_suite.sql`) | **19/19 en el resultado esperado**; revertido (0 notas, 0 noticias, 0 usuarios y 0 ejecuciones de prueba tras la corrida) |
 | Advisors de seguridad de Supabase | Sin clases nuevas: `staff_intelligence_briefs` aparece como *security definer view* y las dos RPC como *SECURITY DEFINER ejecutable por authenticated*, igual que las vistas `staff_*` y RPC existentes (diseño intencionado: filtran con `app.is_staff()` / `app.is_manager()`) |
-| Ejecución con IA real | **No realizada**: `AI_API_KEY` existe en `.env.local` pero está vacía (B-011) |
-| Prueba en navegador con sesión real | **Parcial (2026-11-23)**: `npm run dev` + Chrome con la sesión del propietario (`platform_admin`). `/reportes` carga y lee `intelligence_briefs` sin error (lista vacía, formulario visible para staff); «Generar nota» responde «Falta la clave de IA (AI_API_KEY) en .env.local.» sin llamar al proveedor ni escribir en la base. Sin probar con roles `viewer`/`analyst`/gestor en interfaz ni con una nota real (B-011, B-020) |
+| Ejecución con IA real (Anthropic) | **No realizada**: `AI_API_KEY` vacía (B-011) |
+| Ejecución con IA real (opencode, 2026-11-24) | **Hecha** con el modelo gratuito `opencode-go/hy4-flash-free` vía el CLI de opencode (`AI_PROVIDER=opencode`, solo local; agente sin herramientas, carpeta vacía, entorno sin secretos). Prueba opt-in `brief-live`: 8/8 hechos verificados, 3 patrones, 4 decisiones, 3 escenarios, 5 acciones, 0 descartes (~75 s); en una corrida anterior la guarda descartó una decisión con fecha sin respaldo. Desde `/reportes`: nota `a00456ed-…` en **borrador**, 8 hechos con cita verificada, 2 patrones, confianza media, 90 s, `provider='opencode'`, costo 0. **No es una medición de exactitud**: un caso, otro modelo, sin golden set |
+| Prueba en navegador con sesión real | **Parcial (2026-11-23/24)**: el 24 se generó una nota real desde la interfaz con opencode (ver fila anterior); sigue sin revisión/publicación por un gestor en la interfaz. El 23: `npm run dev` + Chrome con la sesión del propietario (`platform_admin`). `/reportes` carga y lee `intelligence_briefs` sin error (lista vacía, formulario visible para staff); «Generar nota» responde «Falta la clave de IA (AI_API_KEY) en .env.local.» sin llamar al proveedor ni escribir en la base. Sin probar con roles `viewer`/`analyst`/gestor en interfaz ni con una nota real (B-011, B-020) |
 | Golden set / evals / exactitud | **No existen**; no se declara ninguna métrica de exactitud |
 
 La prueba opt-in de la extracción (`src/__tests__/extraction-live.test.ts`) y la de la nota multi-fuente (`src/__tests__/brief-live.test.ts`) están listas y se saltan por defecto. Ninguna se ha ejecutado: la clave está vacía.
@@ -126,7 +127,8 @@ La prueba lee hasta 3 noticias del feed de Indotel, llama al modelo y exige hech
 
 ## 9. Límites y pendientes
 
-- **B-011:** falta la clave real; sin ella no hay ninguna llamada al proveedor.
+- **B-011:** falta la clave de Anthropic. Mientras tanto se prueba con opencode (`AI_PROVIDER=opencode`), que **no informa tokens** (se registran 0), envía el texto de las fuentes a modelos gratuitos de terceros que pueden usarlo para entrenar (B-009) y nunca se activa en producción. Volver a `AI_PROVIDER=anthropic` al tener clave.
+- **Migración 28 (2026-11-24):** trigger que registra `provider='opencode'` en `ai_analysis_runs` cuando el modelo empieza por `opencode/` u `opencode-go/`; aplicada y bloque P0 M28 4/4.
 - **B-023:** resuelto el 2026-11-23 (migración 27 aplicada, M27 19/19).
 - **B-020:** no hay proyecto/usuarios de prueba para validar RLS y revisión desde la interfaz.
 - **B-012:** el hosting puede limitar una acción que tarda cerca de un minuto.

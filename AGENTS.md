@@ -13,7 +13,7 @@ Mercado inicial: República Dominicana. Expansión: internacional.
 
 ## Estado actual: sprint de estabilización (2026-11-17)
 
-Sprint 0 cerrado y G0 aprobado (2026-11-15). Supabase `xzlwrlgjsdymcidlmqew` en uso con 27 migraciones aplicadas (01–27, la 26 y la 27 el 2026-11-18 y 2026-11-23) y RLS; la suite `supabase/tests/p0_suite.sql` verifica guardias. Hay código de producto en `src/app/(app)`. Auditoría y backlog vigentes: `docs/estabilizacion/INFORME-ESTABILIZACION.md`. Ninguna fuente está activada como conector automático (G0 #5); las cargas son manuales asistidas.
+Sprint 0 cerrado y G0 aprobado (2026-11-15). Supabase `xzlwrlgjsdymcidlmqew` en uso con 28 migraciones aplicadas (01–28; la 26, 27 y 28 el 2026-11-18, 23 y 24) y RLS; la suite `supabase/tests/p0_suite.sql` verifica guardias. Hay código de producto en `src/app/(app)`. Auditoría y backlog vigentes: `docs/estabilizacion/INFORME-ESTABILIZACION.md`. Ninguna fuente está activada como conector automático (G0 #5); las cargas son manuales asistidas.
 
 ## Reglas no negociables
 

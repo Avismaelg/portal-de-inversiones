@@ -929,3 +929,33 @@ BEGIN
 
   RAISE EXCEPTION E'RESULTADOS (revertido)\n%', res;
 END $$;
+
+-- ------------- BLOQUE M28: proveedor real en ai_analysis_runs ---------------
+DO $$
+DECLARE res text := ''; a uuid := '00000000-0000-0000-0000-0000000028b1'; r uuid; pv text;
+BEGIN
+  INSERT INTO auth.users (id, email) VALUES (a,'a28@test.invalid');
+  UPDATE users SET role='analyst' WHERE id=a;
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', a, 'role','authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  r := record_intelligence_brief(NULL,NULL,NULL,NULL,NULL,NULL,NULL,'opencode-go/hy4-flash-free','p','s',0,0,0,10,'failed','prueba');
+  RESET ROLE;
+  SELECT provider INTO pv FROM ai_analysis_runs WHERE id=r;
+  res := res || '28-01 modelo opencode-go (esperado opencode): ' || coalesce(pv,'NULL') || E'\n';
+  SET LOCAL ROLE authenticated;
+  r := record_intelligence_brief(NULL,NULL,NULL,NULL,NULL,NULL,NULL,'opencode/beam-free','p','s',0,0,0,10,'failed','prueba');
+  RESET ROLE;
+  SELECT provider INTO pv FROM ai_analysis_runs WHERE id=r;
+  res := res || '28-02 modelo opencode (esperado opencode): ' || coalesce(pv,'NULL') || E'\n';
+  SET LOCAL ROLE authenticated;
+  r := record_extraction_run(gen_random_uuid(),'claude-sonnet-5-5','p','s',1,1,0,1,'failed','prueba',NULL);
+  RESET ROLE;
+  SELECT provider INTO pv FROM ai_analysis_runs WHERE id=r;
+  res := res || '28-03 modelo Claude (esperado anthropic): ' || coalesce(pv,'NULL') || E'\n';
+  SET LOCAL ROLE authenticated;
+  r := record_extraction_run(gen_random_uuid(),'mi-opencode/x','p','s',1,1,0,1,'failed','prueba',NULL);
+  RESET ROLE;
+  SELECT provider INTO pv FROM ai_analysis_runs WHERE id=r;
+  res := res || '28-04 nombre parecido sin prefijo (esperado anthropic): ' || coalesce(pv,'NULL') || E'\n';
+  RAISE EXCEPTION E'RESULTADOS (revertido)\n%', res;
+END $$;

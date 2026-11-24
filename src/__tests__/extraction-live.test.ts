@@ -19,7 +19,8 @@
  *   npx vitest run src/__tests__/extraction-live.test.ts --reporter=verbose
  */
 import { describe, expect, it } from "vitest";
-import { createLlmClient, DEFAULT_ANALYSIS_MODEL } from "@/lib/ai/anthropic-client";
+import { createLlmClient, resolveModel } from "@/lib/ai/anthropic-client";
+import { opencodeRequested } from "@/lib/ai/opencode-client";
 import { extractNews } from "@/lib/ai/extraction";
 import { estimateCostUsd } from "@/lib/ai/pricing";
 import { fetchArticleText } from "@/lib/ingest/article";
@@ -70,7 +71,7 @@ describe.runIf(RUN)("extracción con la API real (opt-in)", () => {
       const llm = createLlmClient();
       expect(llm, "falta AI_API_KEY en el entorno de la prueba").not.toBeNull();
 
-      const model = process.env.AI_MODEL_EXTRACTION?.trim() || process.env.AI_MODEL_ANALYSIS?.trim() || DEFAULT_ANALYSIS_MODEL;
+      const model = resolveModel("AI_MODEL_EXTRACTION");
       const started = Date.now();
       const out = await extractNews(
         llm!,
@@ -122,10 +123,13 @@ describe.runIf(RUN)("extracción con la API real (opt-in)", () => {
         ),
       );
 
-      expect(result.input_tokens).toBeGreaterThan(0);
-      expect(result.output_tokens).toBeGreaterThan(0);
+      // El CLI de opencode no informa tokens y sus modelos gratuitos cuestan 0: solo se exige con Anthropic.
+      if (!opencodeRequested()) {
+        expect(result.input_tokens).toBeGreaterThan(0);
+        expect(result.output_tokens).toBeGreaterThan(0);
+        expect(cost).toBeGreaterThan(0);
+      }
       expect(latencyMs).toBeGreaterThan(0);
-      expect(cost).toBeGreaterThan(0);
       expect(result.extraction.stats.evidence_verified).toBeGreaterThan(0);
       expect(result.extraction.event, "la noticia no produjo un acontecimiento").not.toBeNull();
     },

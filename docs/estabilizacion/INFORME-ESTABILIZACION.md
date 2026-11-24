@@ -154,7 +154,7 @@ Implementa lo que `docs/ia/SISTEMA-IA.md` §4.2 y el backlog técnico piden para
 | Interfaz staff | **Hecho** | Sección «Datos estructurados del acontecimiento» y botón «Extraer datos con IA» en `/noticias/[id]`, solo para roles staff | Revisión de código; **sin prueba en el navegador con sesión real** |
 | Registro | **Hecho** | Migración 26 (aplicada el 2026-11-18): `record_extraction_run` guarda el candidato filtrado en `ai_analysis_runs` con `agent='extraction'`, `task='news_extraction'`, `subject_type='news'` | P0 bloque M26 ejecutado: 7/7 en el resultado esperado |
 | Tope de costo | **Hecho** | Reutiliza `ai_spend_month()` y `AI_MONTHLY_BUDGET_USD` (5 USD por defecto) | Lógica probada con cliente simulado |
-| Ejecución real | **No realizada (2026-11-23)** | Prueba opt-in `src/__tests__/extraction-live.test.ts` lista | `AI_API_KEY` vacía en `.env.local` (B-011) |
+| Ejecución real | **Con opencode (2026-11-24)**; Anthropic pendiente | Adaptador `src/lib/ai/opencode-client.ts` (solo local) | `extraction-live` OK: 16/16 citas verificadas; `AI_API_KEY` sigue vacía (B-011) |
 
 Evidencia local (2026-11-18): `npm run lint`, `npm run typecheck` y `npm run build` en verde; `npm run test:coverage` 157/157 en 29 archivos; `src/lib` 95,94 % sentencias / 92,05 % ramas / 97,75 % funciones / 97,26 % líneas; `src/lib/ai` 94,75 / 83,87 / 97,67 / 96,53.
 
@@ -185,7 +185,7 @@ Implementa la petición de generar una nota tipo artículo que detecte patrones 
 | Persistencia | **Hecho** | Migración 27 (aplicada el 2026-11-23): `intelligence_briefs`, `record_intelligence_brief`, `review_intelligence_brief`, trigger de publicación, RLS y grants por columna | P0 bloque M27: 19/19 en el resultado esperado |
 | Revisión humana | **Hecho** | Solo gestor publica/rechaza con nota ≥10; una nota publicada es inmutable; lectores solo ven publicadas | M27 (casos 27-07, 27-10 a 27-19) contra la base real; sin prueba en navegador |
 | Trazabilidad y costo | **Hecho (código)** | Cada intento va a `ai_analysis_runs` (`agent='opportunity_intelligence'`, `task='intelligence_brief'`) con modelo, versiones, tokens, costo y latencia; tope mensual antes de llamar | Lógica con cliente simulado; sin ejecución real |
-| Ejecución real | **No realizada** | — | `AI_API_KEY` vacía (B-011) |
+| Ejecución real | **Con opencode (2026-11-24)**; Anthropic pendiente | `brief-live` OK y nota real generada desde `/reportes` (borrador, 8 hechos verificados, `provider='opencode'`, migración 28) | Un caso; sin medición de exactitud; `AI_API_KEY` vacía (B-011) |
 | Suite adversarial (T-AI-07) | **Hecho (v1, 2026-11-24)** | `src/__tests__/adversarial-brief.test.ts`: 41 casos (consejo, trato personal, cifras, citas, patrones, fuentes con instrucciones ocultas y falsos positivos). Encontró 8 huecos, corregidos | 41/41; `npm run verify` en verde (223 pasan, 2 se saltan) |
 | Golden set / evals | **No existen** | — | No se declara exactitud |
 
