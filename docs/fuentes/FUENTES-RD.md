@@ -365,3 +365,28 @@ Sondeo de ~29 sitios institucionales (una solicitud de lectura cada uno, `User-A
 ### Medición de ventaja sobre la prensa (implementada 2026-11-16)
 
 Al pulsar «Buscar noticias nuevas», además de las fuentes primarias se leen los feeds de Diario Libre (economía), El Dinero y Dominican Today **solo como referencia de tiempo**: se empareja cada noticia primaria con la nota de prensa más temprana del mismo hecho (≥3 palabras significativas compartidas y ≥50 % del titular más corto; ±5 días). Se guarda únicamente nombre del medio, enlace y hora (migración 13); nunca su texto. Resultado inicial con datos reales: 2 de 29 noticias con cobertura localizada (Indotel +34 min, Hacienda +150 min frente a El Dinero). Límites: los feeds solo muestran las últimas ~20–30 notas y el emparejamiento es por titular, así que «sin cobertura localizada» no prueba ausencia en prensa. Términos de uso de los medios: `DESCONOCIDO — verificar`.
+
+## Noticias — ampliación a energía y otros sectores (2026-11-24)
+
+Petición del usuario: cubrir energía solar y «oportunidades de todos los campos». Se sondearon feeds RSS con el mismo agente (`AviTech-Ingest/0.1`) y se leyó cada `robots.txt`. No se intentó evadir ningún bloqueo.
+
+| Fuente | Feed | Resultado | Decisión |
+|---|---|---|---|
+| Energía y Minas (MEM) | `https://mem.gob.do/feed/` | RSS válido; robots solo bloquea `/wp-admin/` | **Añadida** |
+| ETED | `https://eted.gob.do/feed/` | RSS válido; robots sin bloqueo | **Añadida** |
+| CUED (distribuidoras) | `https://cued.gob.do/feed/` | RSS válido; sin robots | **Añadida** |
+| DGAPP (alianzas público-privadas) | `https://dgapp.gob.do/feed/` | RSS válido (6 elementos, antiguos) | **Añadida** |
+| CNZFE (zonas francas) | `https://cnzfe.gob.do/feed/` | RSS válido | **Añadida** |
+| MICM | `https://micm.gob.do/feed/` | RSS válido | **Añadida** |
+| Agricultura | `https://agricultura.gob.do/feed/` | RSS válido pero enorme (2 611 elementos); en la primera carga falló | **Añadida**; revisar |
+| INAPA | `https://inapa.gob.do/feed/` | RSS válido | **Añadida** |
+| Autoridad Portuaria | `https://www.portuaria.gob.do/feed/` | RSS válido | **Añadida** |
+| SIE | `/feed/` | HTTP 403 | Fuera |
+| CNE | `/feed/` | Devuelve HTML, sin feed | Fuera (sigue B-008) |
+| MEPYD | `/feed/` | robots `Disallow: /` | Fuera |
+| IDA | `/feed/` | Sin respuesta | Fuera |
+| ProDominicana, MOPC, MITUR, MIVHED | `/feed/` | 404 o feed vacío | Fuera |
+
+Se añadieron palabras clave de energía y sectores (`renovable`, `solar`, `fotovoltai`, `megavatio`, `baterias`, `concesion definitiva`, `alianza publico`, `acueducto`…; débiles: `electric`, `transmision`, `generacion`, `agricola`, `exporta`…).
+
+Primera carga (botón «Buscar noticias nuevas», 2026-11-24): 65 noticias nuevas de 83 relevantes; falló Agricultura. Igual que el resto de feeds institucionales: solo titular, extracto breve y enlace; **términos de reutilización sin revisar (B-009)**; carga manual asistida, no conector automático (G0 #5).

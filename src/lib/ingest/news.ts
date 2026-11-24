@@ -19,6 +19,17 @@ export const NEWS_FEEDS: readonly NewsFeed[] = [
   { key: "senado", name: "Senado", url: "https://www.senadord.gob.do/feed/" },
   { key: "proindustria", name: "Proindustria", url: "https://proindustria.gob.do/feed/" },
   { key: "procompetencia", name: "Procompetencia", url: "https://procompetencia.gob.do/feed/" },
+  // Ampliación 2026-11-24 (todos los sectores). Feeds comprobados (RSS válido, robots.txt sin bloqueo).
+  // Fuera: SIE (HTTP 403), CNE (sin feed), MEPYD (robots «Disallow: /»), IDA (sin respuesta).
+  { key: "mem", name: "Energía y Minas", url: "https://mem.gob.do/feed/" },
+  { key: "eted", name: "ETED", url: "https://eted.gob.do/feed/" },
+  { key: "cued", name: "CUED (distribuidoras)", url: "https://cued.gob.do/feed/" },
+  { key: "dgapp", name: "Alianzas Público-Privadas (DGAPP)", url: "https://dgapp.gob.do/feed/" },
+  { key: "cnzfe", name: "Zonas Francas (CNZFE)", url: "https://cnzfe.gob.do/feed/" },
+  { key: "micm", name: "Industria y Comercio (MICM)", url: "https://micm.gob.do/feed/" },
+  { key: "agricultura", name: "Agricultura", url: "https://agricultura.gob.do/feed/" },
+  { key: "inapa", name: "INAPA", url: "https://inapa.gob.do/feed/" },
+  { key: "portuaria", name: "Autoridad Portuaria", url: "https://www.portuaria.gob.do/feed/" },
 ];
 
 /** Hosts permitidos: el de cada feed y su variante con/sin `www` (los sitios redirigen entre ambas). */
@@ -97,6 +108,9 @@ export const STRONG_KEYWORDS: readonly string[] = [
   "zonas francas", "proyecto de ley", "reglamento", "impuesto", "tributari", "arancel", "exportacion",
   "financiamiento", "us$", "rd$", "pib", "inflacion", "espectro", "fusion", "adquisicion", "infraestructura",
   "puerto", "aeropuerto", "ley de", "deuda",
+  // Energía y otros sectores (2026-11-24).
+  "renovable", "solar", "fotovoltai", "megavatio", "almacenamiento de energia", "baterias", "eolic",
+  "concesion definitiva", "alianza publico", "alianzas publico", "acueducto", "zona de libre comercio",
 ];
 
 /** Palabras débiles: hacen falta al menos dos para considerar la noticia relevante. */
@@ -104,6 +118,8 @@ export const WEAK_KEYWORDS: readonly string[] = [
   "ley", "sector", "empresa", "industria", "obra", "millones", "fiscal", "hacienda", "competencia",
   "telecomunicaciones", "tasa", "tasas", "crecimiento", "turismo", "construccion", "energia", "credito",
   "contrato", "mipyme", "mercado",
+  "electric", "transmision", "generacion", "agricola", "agropecuari", "produccion", "riego", "logistic",
+  "exporta", "manufactura", "comercio", "agua potable",
 ];
 
 /**
